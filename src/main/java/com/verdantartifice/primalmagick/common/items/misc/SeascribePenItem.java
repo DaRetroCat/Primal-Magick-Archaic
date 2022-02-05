@@ -2,7 +2,7 @@ package com.verdantartifice.primalmagick.common.items.misc;
 
 import com.verdantartifice.primalmagick.common.theorycrafting.IWritingImplement;
 
-import net.minecraft.world.item.Item;
+import net.minecraft.item.Item;
 
 /**
  * Item definition for a seascribe pen.  Serves as a writing implement on a research table.  Has

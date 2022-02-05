@@ -2,13 +2,13 @@ package com.verdantartifice.primalmagick.common.misc;
 
 import com.verdantartifice.primalmagick.common.items.misc.LazySpawnEggItem;
 
-import net.minecraft.core.BlockSource;
-import net.minecraft.core.Direction;
-import net.minecraft.core.dispenser.DefaultDispenseItemBehavior;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.DispenserBlock;
+import net.minecraft.block.DispenserBlock;
+import net.minecraft.dispenser.DefaultDispenseItemBehavior;
+import net.minecraft.dispenser.IBlockSource;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnReason;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Direction;
 
 /**
  * Dispenser behavior for lazy spawn egg items.
@@ -17,11 +17,11 @@ import net.minecraft.world.level.block.DispenserBlock;
  */
 public class DispenseLazySpawnEggBehavior extends DefaultDispenseItemBehavior {
     @Override
-    protected ItemStack execute(BlockSource source, ItemStack stack) {
+    protected ItemStack dispenseStack(IBlockSource source, ItemStack stack) {
         if (stack.getItem() instanceof LazySpawnEggItem) {
-            Direction direction = source.getBlockState().getValue(DispenserBlock.FACING);
+            Direction direction = source.getBlockState().get(DispenserBlock.FACING);
             EntityType<?> entityType = ((LazySpawnEggItem)stack.getItem()).getType(stack.getTag());
-            entityType.spawn(source.getLevel(), stack, null, source.getPos().relative(direction), MobSpawnType.DISPENSER, direction != Direction.UP, false);
+            entityType.spawn(source.getWorld(), stack, null, source.getBlockPos().offset(direction), SpawnReason.DISPENSER, direction != Direction.UP, false);
             stack.shrink(1);
             return stack;
         } else {

@@ -6,21 +6,21 @@ import java.util.List;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
+import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.player.StackedContents;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeSerializer;
+import net.minecraft.item.crafting.Ingredient;
+import net.minecraft.item.crafting.RecipeItemHelper;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.JSONUtils;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.common.util.RecipeMatcher;
 import net.minecraftforge.registries.ForgeRegistryEntry;
@@ -33,16 +33,14 @@ import net.minecraftforge.registries.ForgeRegistryEntry;
  */
 public class ConcoctingRecipe implements IConcoctingRecipe {
     protected final ResourceLocation id;
-    protected final String group;
-    protected final CompoundResearchKey research;
+    protected final SimpleResearchKey research;
     protected final SourceList manaCosts;
     protected final ItemStack recipeOutput;
     protected final NonNullList<Ingredient> recipeItems;
     protected final boolean isSimple;
 
-    public ConcoctingRecipe(ResourceLocation id, String group, CompoundResearchKey research, SourceList manaCosts, ItemStack output, NonNullList<Ingredient> items) {
+    public ConcoctingRecipe(ResourceLocation id, SimpleResearchKey research, SourceList manaCosts, ItemStack output, NonNullList<Ingredient> items) {
         this.id = id;
-        this.group = group;
         this.research = research;
         this.manaCosts = manaCosts;
         this.recipeOutput = output;
@@ -51,17 +49,17 @@ public class ConcoctingRecipe implements IConcoctingRecipe {
     }
 
     @Override
-    public boolean matches(Container inv, Level worldIn) {
-        StackedContents helper = new StackedContents();
+    public boolean matches(IInventory inv, World worldIn) {
+        RecipeItemHelper helper = new RecipeItemHelper();
         List<ItemStack> inputs = new ArrayList<>();
         int count = 0;
         
-        for (int index = 0; index < inv.getContainerSize(); index++) {
-            ItemStack stack = inv.getItem(index);
+        for (int index = 0; index < inv.getSizeInventory(); index++) {
+            ItemStack stack = inv.getStackInSlot(index);
             if (!stack.isEmpty()) {
                 count++;
                 if (this.isSimple) {
-                    helper.accountStack(stack, 1);
+                    helper.func_221264_a(stack, 1);
                 } else {
                     inputs.add(stack);
                 }
@@ -72,17 +70,17 @@ public class ConcoctingRecipe implements IConcoctingRecipe {
     }
 
     @Override
-    public ItemStack assemble(Container inv) {
+    public ItemStack getCraftingResult(IInventory inv) {
         return this.recipeOutput.copy();
     }
 
     @Override
-    public boolean canCraftInDimensions(int width, int height) {
+    public boolean canFit(int width, int height) {
         return (width * height) >= this.recipeItems.size();
     }
 
     @Override
-    public ItemStack getResultItem() {
+    public ItemStack getRecipeOutput() {
         return this.recipeOutput;
     }
 
@@ -97,7 +95,7 @@ public class ConcoctingRecipe implements IConcoctingRecipe {
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public IRecipeSerializer<?> getSerializer() {
         return RecipeSerializersPM.CONCOCTING.get();
     }
 
@@ -107,37 +105,31 @@ public class ConcoctingRecipe implements IConcoctingRecipe {
     }
 
     @Override
-    public CompoundResearchKey getRequiredResearch() {
+    public SimpleResearchKey getRequiredResearch() {
         return this.research;
     }
 
-    @Override
-    public String getGroup() {
-        return this.group;
-    }
-
-    public static class Serializer extends ForgeRegistryEntry<RecipeSerializer<?>> implements RecipeSerializer<ConcoctingRecipe> {
+    public static class Serializer extends ForgeRegistryEntry<IRecipeSerializer<?>> implements IRecipeSerializer<ConcoctingRecipe> {
         @Override
-        public ConcoctingRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-            String group = GsonHelper.getAsString(json, "group", "");
-            CompoundResearchKey research = CompoundResearchKey.parse(GsonHelper.getAsString(json, "research", ""));
-            SourceList manaCosts = JsonUtils.toSourceList(GsonHelper.getAsJsonObject(json, "mana", new JsonObject()));
-            ItemStack result = CraftingHelper.getItemStack(GsonHelper.getAsJsonObject(json, "result"), true);
-            NonNullList<Ingredient> ingredients = this.readIngredients(GsonHelper.getAsJsonArray(json, "ingredients"));
+        public ConcoctingRecipe read(ResourceLocation recipeId, JsonObject json) {
+            SimpleResearchKey research = SimpleResearchKey.parse(JSONUtils.getString(json, "research", ""));
+            SourceList manaCosts = JsonUtils.toSourceList(JSONUtils.getJsonObject(json, "mana", new JsonObject()));
+            ItemStack result = CraftingHelper.getItemStack(JSONUtils.getJsonObject(json, "result"), true);
+            NonNullList<Ingredient> ingredients = this.readIngredients(JSONUtils.getJsonArray(json, "ingredients"));
             if (ingredients.isEmpty()) {
                 throw new JsonParseException("No ingredients for concocting recipe");
             } else if (ingredients.size() > 9) {
                 throw new JsonParseException("Too many ingredients for concocting recipe the max is 9");
             } else {
-                return new ConcoctingRecipe(recipeId, group, research, manaCosts, result, ingredients);
+                return new ConcoctingRecipe(recipeId, research, manaCosts, result, ingredients);
             }
         }
 
         protected NonNullList<Ingredient> readIngredients(JsonArray jsonArray) {
             NonNullList<Ingredient> retVal = NonNullList.create();
             for (int i = 0; i < jsonArray.size(); ++i) {
-                Ingredient ingredient = Ingredient.fromJson(jsonArray.get(i));
-                if (!ingredient.isEmpty()) {
+                Ingredient ingredient = Ingredient.deserialize(jsonArray.get(i));
+                if (!ingredient.hasNoMatchingItems()) {
                     retVal.add(ingredient);
                 }
             }
@@ -145,9 +137,8 @@ public class ConcoctingRecipe implements IConcoctingRecipe {
         }
         
         @Override
-        public ConcoctingRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-            String group = buffer.readUtf(32767);
-            CompoundResearchKey research = CompoundResearchKey.parse(buffer.readUtf(32767));
+        public ConcoctingRecipe read(ResourceLocation recipeId, PacketBuffer buffer) {
+            SimpleResearchKey research = SimpleResearchKey.parse(buffer.readString(32767));
             
             SourceList manaCosts = new SourceList();
             for (int index = 0; index < Source.SORTED_SOURCES.size(); index++) {
@@ -157,25 +148,24 @@ public class ConcoctingRecipe implements IConcoctingRecipe {
             int count = buffer.readVarInt();
             NonNullList<Ingredient> ingredients = NonNullList.withSize(count, Ingredient.EMPTY);
             for (int index = 0; index < ingredients.size(); index++) {
-                ingredients.set(index, Ingredient.fromNetwork(buffer));
+                ingredients.set(index, Ingredient.read(buffer));
             }
             
-            ItemStack result = buffer.readItem();
-            return new ConcoctingRecipe(recipeId, group, research, manaCosts, result, ingredients);
+            ItemStack result = buffer.readItemStack();
+            return new ConcoctingRecipe(recipeId, research, manaCosts, result, ingredients);
         }
 
         @Override
-        public void toNetwork(FriendlyByteBuf buffer, ConcoctingRecipe recipe) {
-            buffer.writeUtf(recipe.group);
-            buffer.writeUtf(recipe.research.toString());
+        public void write(PacketBuffer buffer, ConcoctingRecipe recipe) {
+            buffer.writeString(recipe.research.toString());
             for (Source source : Source.SORTED_SOURCES) {
                 buffer.writeVarInt(recipe.manaCosts.getAmount(source));
             }
             buffer.writeVarInt(recipe.recipeItems.size());
             for (Ingredient ingredient : recipe.recipeItems) {
-                ingredient.toNetwork(buffer);
+                ingredient.write(buffer);
             }
-            buffer.writeItem(recipe.recipeOutput);
+            buffer.writeItemStack(recipe.recipeOutput);
         }
     }
 }

@@ -1,8 +1,7 @@
 {
     "variants": {
-        "facing=north": { "model": "primalmagick:block/spellcrafting_altar" },
-        "facing=south": { "model": "primalmagick:block/spellcrafting_altar", "y": 180 },
-        "facing=west":  { "model": "primalmagick:block/spellcrafting_altar", "y": 270 },
-        "facing=east":  { "model": "primalmagick:block/spellcrafting_altar", "y": 90 }
+        "": {
+            "model": "primalmagick:block/spellcrafting_altar"
+        }
     }
 }

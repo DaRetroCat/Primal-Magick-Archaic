@@ -2,10 +2,6 @@
   "key": "CALCINATOR_FORBIDDEN",
   "name": "primalmagick.research.calcinator_forbidden.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:calcinator_forbidden"
-  },
   "parents": [
     "MASTER_ALCHEMY",
     "MASTER_MANAWEAVING",

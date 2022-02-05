@@ -19,8 +19,9 @@ import com.verdantartifice.primalmagick.common.containers.slots.WandSlot;
 import com.verdantartifice.primalmagick.common.containers.slots.WritingImplementSlot;
 import com.verdantartifice.primalmagick.common.sources.Source;
 
-import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.texture.AtlasTexture;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -30,12 +31,13 @@ import net.minecraftforge.fml.common.Mod;
  * 
  * @author Daedalus4096
  */
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID, value=Dist.CLIENT, bus=Mod.EventBusSubscriber.Bus.MOD)
+@OnlyIn(Dist.CLIENT)
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID, value=Dist.CLIENT, bus=Mod.EventBusSubscriber.Bus.MOD)
 public class TextureStitchEvents {
     @SuppressWarnings("deprecation")
     @SubscribeEvent
     public static void onPreTextureStitch(TextureStitchEvent.Pre event) {
-        if (TextureAtlas.LOCATION_BLOCKS.equals(event.getAtlas().location())) {
+        if (AtlasTexture.LOCATION_BLOCKS_TEXTURE.equals(event.getMap().getTextureLocation())) {
             // Add empty-slot background images to the block atlas texture
             event.addSprite(WandCoreSlot.TEXTURE);
             event.addSprite(WandCapSlot.TEXTURE);

@@ -9,14 +9,10 @@ import javax.annotation.Nonnull;
 
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
-import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 import com.verdantartifice.primalmagick.common.util.VectorUtils;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.vector.Vector3d;
 
 /**
  * Definition of the Fork spell mod.  This mod causes the spell package to execute multiple instances
@@ -70,38 +66,21 @@ public class ForkSpellMod extends AbstractSpellMod {
     }
     
     @Nonnull
-    public List<Vec3> getDirectionUnitVectors(@Nonnull Vec3 dir, @Nonnull Random rng) {
+    public List<Vector3d> getDirectionUnitVectors(@Nonnull Vector3d dir, @Nonnull Random rng) {
         // Determine the direction vectors on which to execute the spell forks
-        List<Vec3> retVal = new ArrayList<>();
-        Vec3 normDir = dir.normalize();
-        int forks = this.getForkCount();
-        int degrees = this.getSpreadDegrees();
+        List<Vector3d> retVal = new ArrayList<>();
+        Vector3d normDir = dir.normalize();
+        int forks = this.getPropertyValue("forks");
+        int precision = this.getPropertyValue("precision");
+        int degrees = 10 + (15 * (5 - precision));  // 85, 70, 55, 40, 25, 10 degrees max from the given direction
         double offsetMagnitude = Math.tan(Math.toRadians(degrees)); // Vector offset length needed to produce a given degree angle
         
         for (int index = 0; index < forks; index++) {
             // Scale the offest vector to provide a degree displacement *up to* the computed degree value
-            Vec3 offset = VectorUtils.getRandomOrthogonalUnitVector(normDir, rng).scale(offsetMagnitude * rng.nextDouble());
+        	Vector3d offset = VectorUtils.getRandomOrthogonalUnitVector(normDir, rng).scale(offsetMagnitude * rng.nextDouble());
             retVal.add(normDir.add(offset));
         }
         
         return retVal;
-    }
-    
-    protected int getForkCount() {
-        return this.getPropertyValue("forks");
-    }
-    
-    protected int getSpreadDegrees() {
-        int precision = this.getPropertyValue("precision");
-        return 10 + (15 * (5 - precision));  // 85, 70, 55, 40, 25, 10 degrees max from the given direction
-    }
-    
-    protected String getSpreadDegreesText() {
-        return "" + this.getSpreadDegrees() + "\u00B0";
-    }
-
-    @Override
-    public Component getDetailTooltip(SpellPackage spell, ItemStack spellSource) {
-        return new TranslatableComponent("primalmagick.spell.mod.detail_tooltip." + this.getModType(), this.getForkCount(), this.getSpreadDegreesText());
     }
 }

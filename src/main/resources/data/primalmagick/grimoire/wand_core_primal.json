@@ -2,10 +2,6 @@
   "key": "WAND_CORE_PRIMAL",
   "name": "primalmagick.research.wand_core_primal.title",
   "discipline": "RITUAL",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:primal_wand_core_item"
-  },
   "parents": [
     "EXPERT_RITUAL",
     "WAND_CORE_OBSIDIAN",

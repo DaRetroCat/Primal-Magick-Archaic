@@ -1,6 +1,5 @@
 {
   "type": "minecraft:crafting_shapeless",
-  "group": "ritual_candles",
   "ingredients": [
     {
       "tag": "primalmagick:ritual_candles"

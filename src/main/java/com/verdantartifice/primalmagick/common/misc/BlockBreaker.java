@@ -10,26 +10,24 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.verdantartifice.primalmagick.common.enchantments.EnchantmentsPM;
-import com.verdantartifice.primalmagick.common.wands.IWand;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.CommandBlock;
-import net.minecraft.world.level.block.JigsawBlock;
-import net.minecraft.world.level.block.StructureBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.CommandBlockBlock;
+import net.minecraft.block.JigsawBlock;
+import net.minecraft.block.StructureBlock;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.common.util.Constants;
 
 /**
  * Definition of a block breaker data structure.  Processed during server ticks to gradually break blocks
@@ -47,7 +45,7 @@ public class BlockBreaker {
     protected final BlockState targetBlock;
     protected final float currentDurability;
     protected final float maxDurability;
-    protected final Player player;
+    protected final PlayerEntity player;
     protected final ItemStack tool;
     protected final boolean oneShot;
     protected final boolean skipEvent;
@@ -55,7 +53,7 @@ public class BlockBreaker {
     protected final Optional<Boolean> silkTouchOverride;
     protected final Optional<Integer> fortuneOverride;
     
-    protected BlockBreaker(float power, @Nonnull BlockPos pos, @Nonnull BlockState targetBlock, float currentDurability, float maxDurability, @Nonnull Player player, 
+    protected BlockBreaker(float power, @Nonnull BlockPos pos, @Nonnull BlockState targetBlock, float currentDurability, float maxDurability, @Nonnull PlayerEntity player, 
             ItemStack tool, boolean oneShot, boolean skipEvent, boolean alwaysDrop, Optional<Boolean> silkTouchOverride, Optional<Integer> fortuneOverride) {
         this.power = power;
         this.pos = pos;
@@ -79,13 +77,13 @@ public class BlockBreaker {
      * @param breaker the block breaker to be run
      * @return true if the breaker was successfully scheduled, false otherwise
      */
-    public static boolean schedule(@Nonnull Level world, int delayTicks, @Nullable BlockBreaker breaker) {
+    public static boolean schedule(@Nonnull World world, int delayTicks, @Nullable BlockBreaker breaker) {
         if (breaker == null) {
             // Don't allow null breakers in the schedule
             return false;
         } else {
             int delay = Math.max(0, delayTicks);
-            SCHEDULE.computeIfAbsent(world.dimension().location(), key -> {
+            SCHEDULE.computeIfAbsent(world.getDimensionKey().getLocation(), key -> {
                 return new ConcurrentSkipListMap<>();
             }).computeIfAbsent(delay, key -> {
                 return new ConcurrentHashMap<>();
@@ -100,8 +98,8 @@ public class BlockBreaker {
      * @param world the world for which to run
      * @return the collection of block breakers that should be executed now
      */
-    public static Iterable<BlockBreaker> tick(@Nonnull Level world) {
-        ConcurrentNavigableMap<Integer, Map<BlockPos, BlockBreaker>> tree = SCHEDULE.get(world.dimension().location());
+    public static Iterable<BlockBreaker> tick(@Nonnull World world) {
+        ConcurrentNavigableMap<Integer, Map<BlockPos, BlockBreaker>> tree = SCHEDULE.get(world.getDimensionKey().getLocation());
         if (tree == null) {
             return Collections.emptyList();
         } else {
@@ -116,14 +114,14 @@ public class BlockBreaker {
                 }
             }
             if (!newTree.isEmpty()) {
-                SCHEDULE.put(world.dimension().location(), newTree);
+                SCHEDULE.put(world.getDimensionKey().getLocation(), newTree);
             }
             return retVal;
         }
     }
     
-    public static boolean hasBreakerQueued(@Nonnull Level world, @Nonnull BlockPos pos) {
-        ConcurrentNavigableMap<Integer, Map<BlockPos, BlockBreaker>> tree = SCHEDULE.get(world.dimension().location());
+    public static boolean hasBreakerQueued(@Nonnull World world, @Nonnull BlockPos pos) {
+        ConcurrentNavigableMap<Integer, Map<BlockPos, BlockBreaker>> tree = SCHEDULE.get(world.getDimensionKey().getLocation());
         if (tree != null) {
             for (Map<BlockPos, BlockBreaker> tickMap : tree.values()) {
                 if (tickMap.keySet().contains(pos)) {
@@ -135,21 +133,21 @@ public class BlockBreaker {
     }
     
     @Nullable
-    public BlockBreaker execute(@Nonnull Level world) {
+    public BlockBreaker execute(@Nonnull World world) {
         BlockBreaker retVal = null;
         BlockState state = world.getBlockState(this.pos);
         if (state == this.targetBlock) {
             // Only allow block breakers to act on blocks that could normally be broken by a player
-            if (world.mayInteract(this.player, this.pos) && state.getDestroySpeed(world, this.pos) >= 0.0F) {
+            if (world.isBlockModifiable(this.player, this.pos) && state.getBlockHardness(world, this.pos) >= 0.0F) {
                 // Send packets showing the visual effects of the block breaker's progress
-                world.destroyBlockProgress(this.pos.hashCode(), this.pos, (int)((1.0F - this.currentDurability / this.maxDurability) * 10.0F));
+                world.sendBlockBreakProgress(this.pos.hashCode(), this.pos, (int)((1.0F - this.currentDurability / this.maxDurability) * 10.0F));
                 
                 // Calculate new block durability and check to see if the block breaking is done
                 float newDurability = this.currentDurability - this.power;
                 if (newDurability <= 0.0F) {
                     // Do block break
                     this.doHarvest(world);
-                    world.destroyBlockProgress(this.pos.hashCode(), this.pos, -1);
+                    world.sendBlockBreakProgress(this.pos.hashCode(), this.pos, -1);
                 } else if (!this.oneShot) {
                     // Queue up another round of breaking progress
                     retVal = new BlockBreaker.Builder(this).currentDurability(newDurability).build();
@@ -166,73 +164,43 @@ public class BlockBreaker {
      * @return true if the block was successfully harvested, false otherwise
      * @see {@link net.minecraft.server.management.PlayerInteractionManager#tryHarvestBlock(BlockPos)}
      */
-    protected boolean doHarvest(@Nonnull Level world) {
-        if (world.isClientSide || !(this.player instanceof ServerPlayer)) {
+    protected boolean doHarvest(@Nonnull World world) {
+        if (world.isRemote || !(this.player instanceof ServerPlayerEntity)) {
             return false;
         }
-        ServerPlayer serverPlayer = (ServerPlayer)this.player;
-        ServerLevel serverWorld = (ServerLevel)world;
-        int exp = this.skipEvent ? 0 : ForgeHooks.onBlockBreakEvent(world, serverPlayer.gameMode.getGameModeForPlayer(), serverPlayer, this.pos);
+        ServerPlayerEntity serverPlayer = (ServerPlayerEntity)this.player;
+        ServerWorld serverWorld = (ServerWorld)world;
+        int exp = this.skipEvent ? 0 : ForgeHooks.onBlockBreakEvent(world, serverPlayer.interactionManager.getGameType(), serverPlayer, this.pos);
         if (exp == -1) {
             return false;
         } else {
-            BlockEntity tile = world.getBlockEntity(this.pos);
+            TileEntity tile = world.getTileEntity(this.pos);
             BlockState state = world.getBlockState(this.pos);
             Block block = state.getBlock();
-            
-            // If the experience for the block was zero because the player is using a Break spell and thus the wrong tool type, recalculate
-            if (exp == 0 && !ForgeHooks.isCorrectToolForDrops(state, this.player)) {
-                exp = state.getExpDrop(world, this.pos, this.getFortuneLevel(), this.getSilkTouchLevel());
-            }
-            
-            if ((block instanceof CommandBlock || block instanceof StructureBlock || block instanceof JigsawBlock) && !serverPlayer.canUseGameMasterBlocks()) {
-                world.sendBlockUpdated(this.pos, state, state, Block.UPDATE_ALL);
+            if ((block instanceof CommandBlockBlock || block instanceof StructureBlock || block instanceof JigsawBlock) && !serverPlayer.canUseCommandBlock()) {
+                world.notifyBlockUpdate(this.pos, state, state, Constants.BlockFlags.DEFAULT);
                 return false;
-            } else if (serverPlayer.getMainHandItem().onBlockStartBreak(this.pos, serverPlayer)) {
+            } else if (serverPlayer.getHeldItemMainhand().onBlockStartBreak(this.pos, serverPlayer)) {
                 return false;
-            } else if (serverPlayer.blockActionRestricted(world, this.pos, serverPlayer.gameMode.getGameModeForPlayer())) {
+            } else if (serverPlayer.blockActionRestricted(world, this.pos, serverPlayer.interactionManager.getGameType())) {
                 return false;
             } else {
-                world.levelEvent(null, 2001, this.pos, Block.getId(state));
-                if (serverPlayer.gameMode.isCreative()) {
+                world.playEvent(null, 2001, this.pos, Block.getStateId(state));
+                if (serverPlayer.interactionManager.isCreative()) {
                     this.removeBlock(world, false);
                     return true;
                 } else {
                     boolean canHarvest = (this.alwaysDrop || state.canHarvestBlock(world, this.pos, serverPlayer));
                     boolean success = this.removeBlock(world, canHarvest);
                     if (success && canHarvest) {
-                        block.playerDestroy(world, serverPlayer, this.pos, state, tile, this.getHarvestTool(serverPlayer));
+                        block.harvestBlock(world, serverPlayer, this.pos, state, tile, this.getHarvestTool(serverPlayer));
                     }
                     if (success && exp > 0) {
-                        block.popExperience(serverWorld, this.pos, exp);
+                        block.dropXpOnBlockBreak(serverWorld, this.pos, exp);
                     }
                     return true;
                 }
             }
-        }
-    }
-    
-    protected int getFortuneLevel() {
-        if (this.fortuneOverride.isPresent()) {
-            return this.fortuneOverride.get();
-        } else if (!this.tool.isEmpty()) {
-            if (this.tool.getItem() instanceof IWand) {
-                return EnchantmentHelper.getItemEnchantmentLevel(EnchantmentsPM.TREASURE.get(), this.tool);
-            } else {
-                return EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, this.tool);
-            }
-        } else {
-            return 0;
-        }
-    }
-    
-    protected int getSilkTouchLevel() {
-        if (this.silkTouchOverride.isPresent()) {
-            return this.silkTouchOverride.get() ? 1 : 0;
-        } else if (!this.tool.isEmpty()) {
-            return EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, this.tool);
-        } else {
-            return 0;
         }
     }
     
@@ -242,10 +210,10 @@ public class BlockBreaker {
      * @param player the player whose tool to get
      * @return a copy of the triggering tool
      */
-    protected ItemStack getHarvestTool(Player player) {
+    protected ItemStack getHarvestTool(PlayerEntity player) {
         ItemStack stack = this.tool.copy();
         if (stack.isEmpty()) {
-            stack = player.getMainHandItem().copy();
+            stack = player.getHeldItemMainhand().copy();
         }
         if (this.silkTouchOverride.isPresent() || this.fortuneOverride.isPresent()) {
             Map<Enchantment, Integer> enchantMap = EnchantmentHelper.getEnchantments(stack);
@@ -255,9 +223,9 @@ public class BlockBreaker {
                 }
             });
             this.fortuneOverride.ifPresent(fortune -> {
-                int newFortune = Math.max(fortune, enchantMap.getOrDefault(Enchantments.BLOCK_FORTUNE, 0));
+                int newFortune = Math.max(fortune, enchantMap.getOrDefault(Enchantments.FORTUNE, 0));
                 if (newFortune > 0) {
-                    enchantMap.put(Enchantments.BLOCK_FORTUNE, newFortune);
+                    enchantMap.put(Enchantments.FORTUNE, newFortune);
                 }
             });
             EnchantmentHelper.setEnchantments(enchantMap, stack);
@@ -273,11 +241,11 @@ public class BlockBreaker {
      * @return true if the block is successfully removed, false otherwise
      * @see {@link net.minecraft.server.management.PlayerInteractionManager#removeBlock}
      */
-    protected boolean removeBlock(@Nonnull Level world, boolean canHarvest) {
+    protected boolean removeBlock(@Nonnull World world, boolean canHarvest) {
         BlockState state = world.getBlockState(this.pos);
-        boolean removed = state.onDestroyedByPlayer(world, this.pos, this.player, canHarvest, world.getFluidState(this.pos));
+        boolean removed = state.removedByPlayer(world, this.pos, this.player, canHarvest, world.getFluidState(this.pos));
         if (removed) {
-            state.getBlock().destroy(world, this.pos, state);
+            state.getBlock().onPlayerDestroy(world, this.pos, state);
         }
         return removed;
     }
@@ -288,7 +256,7 @@ public class BlockBreaker {
         protected BlockState targetBlock = null;
         protected float currentDurability = 0.0F;
         protected float maxDurability = 0.0F;
-        protected Player player = null;
+        protected PlayerEntity player = null;
         protected ItemStack tool = ItemStack.EMPTY;
         protected boolean oneShot = false;
         protected boolean skipEvent = false;
@@ -339,7 +307,7 @@ public class BlockBreaker {
             return this;
         }
         
-        public Builder player(Player player) {
+        public Builder player(PlayerEntity player) {
             this.player = player;
             return this;
         }

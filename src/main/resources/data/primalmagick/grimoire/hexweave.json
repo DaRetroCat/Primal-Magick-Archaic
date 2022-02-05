@@ -2,10 +2,6 @@
   "key": "HEXWEAVE",
   "name": "primalmagick.research.hexweave.title",
   "discipline": "MANAWEAVING",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:hexweave_head"
-  },
   "parents": [
     "MASTER_MANAWEAVING",
     "SPELLCLOTH",

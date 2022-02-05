@@ -2,65 +2,73 @@ package com.verdantartifice.primalmagick.common.tiles.mana;
 
 import java.util.List;
 
+import com.verdantartifice.primalmagick.common.blocks.mana.AbstractManaFontBlock;
 import com.verdantartifice.primalmagick.common.blocks.mana.AncientManaFontBlock;
-import com.verdantartifice.primalmagick.common.items.ItemsPM;
+import com.verdantartifice.primalmagick.common.network.PacketHandler;
+import com.verdantartifice.primalmagick.common.network.packets.fx.ManaSparklePacket;
 import com.verdantartifice.primalmagick.common.research.ResearchManager;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
+import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 import com.verdantartifice.primalmagick.common.tiles.TileEntityTypesPM;
+import com.verdantartifice.primalmagick.common.tiles.base.TilePM;
 import com.verdantartifice.primalmagick.common.util.EntityUtils;
-import com.verdantartifice.primalmagick.common.util.InventoryUtils;
+import com.verdantartifice.primalmagick.common.wands.IInteractWithWand;
+import com.verdantartifice.primalmagick.common.wands.IWand;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.tileentity.ITickableTileEntity;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Direction;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
 
 /**
- * Definition of an ancient mana font tile entity.  The focal point for discovering ancient
- * shrines.
- * 
+ * Definition of an ancient mana font tile entity.  Provides the recharge and wand interaction
+ * functionality for the corresponding block.
+ *
  * @author Daedalus4096
  * @see {@link com.verdantartifice.primalmagick.common.blocks.mana.AncientManaFontBlock}
  */
 public class AncientManaFontTileEntity extends AbstractManaFontTileEntity {
-    public AncientManaFontTileEntity(BlockPos pos, BlockState state) {
-        super(TileEntityTypesPM.ANCIENT_MANA_FONT.get(), pos, state);
+    public AncientManaFontTileEntity() {
+        super(TileEntityTypesPM.ANCIENT_MANA_FONT.get());
     }
-    
-    public static void tick(Level level, BlockPos pos, BlockState state, AncientManaFontTileEntity entity) {
-        if (!level.isClientSide && entity.ticksExisted == 0) {
-            // TODO Move this code to onLoad once Forge is fixed to call it again
-            entity.mana = entity.getManaCapacity();
-            entity.setChanged();
-            entity.syncTile(true);
-        }
-        entity.ticksExisted++;
-        if (!level.isClientSide && entity.ticksExisted % 10 == 0) {
-            // Have players in range discover this font's shrine
-            SimpleResearchKey shrineResearch = SimpleResearchKey.parse("m_found_shrine");
-            SimpleResearchKey siphonResearch = SimpleResearchKey.parse("m_siphon_prompt");
-            List<Player> players = EntityUtils.getEntitiesInRange(level, pos, null, Player.class, 5.0D);
-            for (Player player : players) {
-                if (!ResearchManager.isResearchComplete(player, shrineResearch) && !ResearchManager.isResearchComplete(player, SimpleResearchKey.FIRST_STEPS)) {
-                    ResearchManager.completeResearch(player, shrineResearch);
-                    player.sendMessage(new TranslatableComponent("event.primalmagick.found_shrine").withStyle(ChatFormatting.GREEN), Util.NIL_UUID);
-                }
-                if (!ResearchManager.isResearchComplete(player, siphonResearch) && InventoryUtils.isPlayerCarrying(player, new ItemStack(ItemsPM.MUNDANE_WAND.get()))) {
-                    ResearchManager.completeResearch(player, siphonResearch);
-                    player.sendMessage(new TranslatableComponent("event.primalmagick.siphon_prompt").withStyle(ChatFormatting.GREEN), Util.NIL_UUID);
-                }
-                if (state.getBlock() instanceof AncientManaFontBlock) {
-                    StatsManager.discoverShrine(player, ((AncientManaFontBlock)state.getBlock()).getSource(), pos);
+
+        @Override
+        public void tick() {
+            this.ticksExisted++;
+            if (!this.world.isRemote && this.ticksExisted % 10 == 0) {
+                // Have players in range discover this font's shrine
+                SimpleResearchKey research = SimpleResearchKey.parse("m_found_shrine");
+                List<PlayerEntity> players = EntityUtils.getEntitiesInRange(this.world, this.pos, null, PlayerEntity.class, 5.0D);
+                for (PlayerEntity player : players) {
+                    if (!ResearchManager.isResearchComplete(player, research) && !ResearchManager.isResearchComplete(player, SimpleResearchKey.FIRST_STEPS)) {
+                        ResearchManager.completeResearch(player, research);
+                        player.sendMessage(new TranslationTextComponent("event.primalmagick.found_shrine").mergeStyle(TextFormatting.GREEN), Util.DUMMY_UUID);
+                    }
+                    if (this.getBlockState().getBlock() instanceof AbstractManaFontBlock) {
+                        StatsManager.discoverShrine(player, ((AbstractManaFontBlock) this.getBlockState().getBlock()).getSource(), this.pos);
+                    }
                 }
             }
-        }
-        if (!level.isClientSide && entity.ticksExisted % RECHARGE_TICKS == 0) {
-            entity.doRecharge();
-        }
-    }
+            if (!this.world.isRemote && this.ticksExisted % RECHARGE_TICKS == 0) {
+                // Recharge the font over time
+                this.mana++;
+                if (this.mana > MANA_CAPACITY) {
+                    this.mana = MANA_CAPACITY;
+                } else {
+                    // Sync the tile if its mana total changed
+                    this.markDirty();
+                    this.syncTile(true);
+                }
+            }
+     }
 }

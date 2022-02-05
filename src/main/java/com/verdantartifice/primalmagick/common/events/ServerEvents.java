@@ -8,7 +8,7 @@ import com.verdantartifice.primalmagick.common.misc.BlockBreaker;
 import com.verdantartifice.primalmagick.common.misc.BlockSwapper;
 import com.verdantartifice.primalmagick.common.misc.EntitySwapper;
 
-import net.minecraft.world.level.Level;
+import net.minecraft.world.World;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
@@ -19,7 +19,7 @@ import net.minecraftforge.fml.common.Mod;
  * 
  * @author Daedalus4096
  */
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID)
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID)
 public class ServerEvents {
     @SubscribeEvent
     public static void serverWorldTick(TickEvent.WorldTickEvent event) {
@@ -34,7 +34,7 @@ public class ServerEvents {
         }
     }
     
-    protected static void tickBlockSwappers(Level world) {
+    protected static void tickBlockSwappers(World world) {
         Queue<BlockSwapper> swapperQueue = BlockSwapper.getWorldSwappers(world);
         if (swapperQueue != null) {
             // Execute each pending block swapper in turn
@@ -47,7 +47,7 @@ public class ServerEvents {
         }
     }
     
-    protected static void tickBlockBreakers(Level world) {
+    protected static void tickBlockBreakers(World world) {
         Iterable<BlockBreaker> breakers = BlockBreaker.tick(world);
         for (BlockBreaker breaker : breakers) {
             // Execute each pending block breaker in turn
@@ -58,7 +58,7 @@ public class ServerEvents {
         }
     }
     
-    protected static void tickEntitySwappers(Level world) {
+    protected static void tickEntitySwappers(World world) {
         Queue<EntitySwapper> swapperQueue = EntitySwapper.getWorldSwappers(world);
         if (swapperQueue != null) {
             // Execute each pending entity swapper in turn

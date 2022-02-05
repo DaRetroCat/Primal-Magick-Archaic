@@ -1,6 +1,5 @@
 {
   "type": "primalmagick:concocting",
-  "group": "regeneration",
   "research": "CONCOCTING_TINCTURES\u0026\u0026t_discover_blood",
   "mana": {
     "infernal": 1
@@ -10,7 +9,7 @@
       "type": "forge:nbt",
       "item": "primalmagick:concoction",
       "count": 1,
-      "nbt": "{ConcoctionDoses:1,ConcoctionType:\"water\",Potion:\"minecraft:water\"}"
+      "nbt": "{ConcoctionType:\"water\",Potion:\"minecraft:water\",ConcoctionDoses:1}"
     },
     {
       "item": "primalmagick:essence_dust_sun"
@@ -28,6 +27,6 @@
   "result": {
     "item": "primalmagick:concoction",
     "count": 1,
-    "nbt": "{ConcoctionDoses:3,ConcoctionType:\"tincture\",Potion:\"minecraft:regeneration\"}"
+    "nbt": "{ConcoctionType:\"tincture\",Potion:\"minecraft:regeneration\",ConcoctionDoses:3}"
   }
 }

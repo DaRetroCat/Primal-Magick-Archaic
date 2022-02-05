@@ -1,14 +1,11 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Primary interface for a data-defined affinity entry.
@@ -22,5 +19,5 @@ public interface IAffinity {
     
     IAffinitySerializer<?> getSerializer();
     
-    SourceList getTotal(@Nullable RecipeManager recipeManager, @Nonnull List<ResourceLocation> history);
+    SourceList getTotal(@Nonnull RecipeManager recipeManager);
 }

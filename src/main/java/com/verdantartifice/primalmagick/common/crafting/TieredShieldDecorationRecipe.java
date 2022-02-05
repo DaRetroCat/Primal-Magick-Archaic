@@ -1,33 +1,33 @@
 package com.verdantartifice.primalmagick.common.crafting;
 
-import com.verdantartifice.primalmagick.common.items.tools.AbstractTieredShieldItem;
+import com.verdantartifice.primalmagick.common.items.tools.TieredShieldItem;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.BannerItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CustomRecipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.BannerItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeSerializer;
+import net.minecraft.item.crafting.SpecialRecipe;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 
 /**
- * Special recipe for decorating a magickal metal shield with a banner.
+ * Special recipe for decorating a magical metal shield with a banner.
  * 
  * @author Daedalus4096
  */
-public class TieredShieldDecorationRecipe extends CustomRecipe {
+public class TieredShieldDecorationRecipe extends SpecialRecipe {
     public TieredShieldDecorationRecipe(ResourceLocation id) {
         super(id);
     }
 
     @Override
-    public boolean matches(CraftingContainer inv, Level worldIn) {
+    public boolean matches(CraftingInventory inv, World worldIn) {
         ItemStack shieldStack = ItemStack.EMPTY;
         ItemStack bannerStack = ItemStack.EMPTY;
         
-        for (int index = 0; index < inv.getContainerSize(); index++) {
-            ItemStack stack = inv.getItem(index);
+        for (int index = 0; index < inv.getSizeInventory(); index++) {
+            ItemStack stack = inv.getStackInSlot(index);
             if (!stack.isEmpty()) {
                 if (stack.getItem() instanceof BannerItem) {
                     if (!bannerStack.isEmpty()) {
@@ -35,7 +35,7 @@ public class TieredShieldDecorationRecipe extends CustomRecipe {
                     }
                     bannerStack = stack;
                 } else {
-                    if (!(stack.getItem() instanceof AbstractTieredShieldItem) || !((AbstractTieredShieldItem)stack.getItem()).canDecorate() || !shieldStack.isEmpty() || stack.getTagElement("BlockEntityTag") != null) {
+                    if (!(stack.getItem() instanceof TieredShieldItem) || !shieldStack.isEmpty() || stack.getChildTag("BlockEntityTag") != null) {
                         return false;
                     }
                     shieldStack = stack;
@@ -47,16 +47,16 @@ public class TieredShieldDecorationRecipe extends CustomRecipe {
     }
 
     @Override
-    public ItemStack assemble(CraftingContainer inv) {
+    public ItemStack getCraftingResult(CraftingInventory inv) {
         ItemStack shieldStack = ItemStack.EMPTY;
         ItemStack bannerStack = ItemStack.EMPTY;
         
-        for (int index = 0; index < inv.getContainerSize(); index++) {
-            ItemStack stack = inv.getItem(index);
+        for (int index = 0; index < inv.getSizeInventory(); index++) {
+            ItemStack stack = inv.getStackInSlot(index);
             if (!stack.isEmpty()) {
                 if (stack.getItem() instanceof BannerItem) {
                     bannerStack = stack;
-                } else if (stack.getItem() instanceof AbstractTieredShieldItem && ((AbstractTieredShieldItem)stack.getItem()).canDecorate()) {
+                } else if (stack.getItem() instanceof TieredShieldItem) {
                     shieldStack = stack.copy();
                 }
             }
@@ -65,21 +65,21 @@ public class TieredShieldDecorationRecipe extends CustomRecipe {
         if (shieldStack.isEmpty()) {
             return shieldStack;
         } else {
-            CompoundTag bannerNbt = bannerStack.getTagElement("BlockEntityTag");
-            CompoundTag newNbt = bannerNbt == null ? new CompoundTag() : bannerNbt.copy();
+            CompoundNBT bannerNbt = bannerStack.getChildTag("BlockEntityTag");
+            CompoundNBT newNbt = bannerNbt == null ? new CompoundNBT() : bannerNbt.copy();
             newNbt.putInt("Base", ((BannerItem)bannerStack.getItem()).getColor().getId());
-            shieldStack.addTagElement("BlockEntityTag", newNbt);
+            shieldStack.setTagInfo("BlockEntityTag", newNbt);
             return shieldStack;
         }
     }
 
     @Override
-    public boolean canCraftInDimensions(int width, int height) {
+    public boolean canFit(int width, int height) {
         return width * height >= 2;
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public IRecipeSerializer<?> getSerializer() {
         return RecipeSerializersPM.TIERED_SHIELD_DECORATION.get();
     }
 

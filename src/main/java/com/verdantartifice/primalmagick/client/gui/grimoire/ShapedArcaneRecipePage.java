@@ -4,14 +4,23 @@ import com.verdantartifice.primalmagick.client.gui.GrimoireScreen;
 import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.ManaCostSummaryWidget;
 import com.verdantartifice.primalmagick.common.crafting.ShapedArcaneRecipe;
 
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+
 /**
  * Grimoire page showing a shaped arcane recipe.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class ShapedArcaneRecipePage extends AbstractShapedRecipePage<ShapedArcaneRecipe> {
     public ShapedArcaneRecipePage(ShapedArcaneRecipe recipe) {
         super(recipe);
+    }
+    
+    @Override
+    protected String getTitleTranslationKey() {
+        return "primalmagick.grimoire.shaped_arcane_recipe_header";
     }
     
     @Override
@@ -22,13 +31,6 @@ public class ShapedArcaneRecipePage extends AbstractShapedRecipePage<ShapedArcan
         // Add mana cost summary widget
         int indent = 124;
         int overlayWidth = 52;
-        if (!this.recipe.getManaCosts().isEmpty()) {
-            screen.addWidgetToScreen(new ManaCostSummaryWidget(this.recipe.getManaCosts(), x + 75 + (side * 140) + (indent / 2) - (overlayWidth / 2), y + 30));
-        }
-    }
-
-    @Override
-    protected String getRecipeTypeTranslationKey() {
-        return "primalmagick.grimoire.shaped_arcane_recipe_header";
+        screen.addWidgetToScreen(new ManaCostSummaryWidget(this.recipe.getManaCosts(), x + 75 + (side * 140) + (indent / 2) - (overlayWidth / 2), y + 30));
     }
 }

@@ -2,12 +2,8 @@
   "key": "RUNE_PROTECT",
   "name": "primalmagick.research.rune_protect.title",
   "discipline": "RUNEWORKING",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:rune_protect"
-  },
   "parents": [
-    "RUNE_PROJECT"
+    "BASIC_RUNEWORKING"
   ],
   "stages": [
     {

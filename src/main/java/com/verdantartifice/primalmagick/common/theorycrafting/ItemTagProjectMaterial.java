@@ -1,8 +1,5 @@
 package com.verdantartifice.primalmagick.common.theorycrafting;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -11,14 +8,9 @@ import com.google.gson.JsonSyntaxException;
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.util.InventoryUtils;
 
-import net.minecraft.core.Registry;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.SerializationTags;
-import net.minecraft.tags.Tag;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Definition of a project material that requires an item stack from a given tag, which may or may not be
@@ -53,8 +45,8 @@ public class ItemTagProjectMaterial extends AbstractProjectMaterial {
     }
     
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag tag = super.serializeNBT();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT tag = super.serializeNBT();
         if (this.tagName != null) {
             tag.putString("TagName", this.tagName.toString());
         }
@@ -64,7 +56,7 @@ public class ItemTagProjectMaterial extends AbstractProjectMaterial {
     }
     
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         super.deserializeNBT(nbt);
         if (nbt.contains("TagName")) {
             this.tagName = new ResourceLocation(nbt.getString("TagName"));
@@ -81,21 +73,12 @@ public class ItemTagProjectMaterial extends AbstractProjectMaterial {
     }
 
     @Override
-    public boolean isSatisfied(Player player, Set<Block> surroundings) {
-        if (InventoryUtils.isPlayerCarrying(player, this.tagName, this.quantity)) {
-            return true;
-        } else if (!this.consumed && this.quantity == 1 && surroundings != null) {
-            // Only allow satisfaction from surroundings if not consuming the material and only one item is required
-            Tag<Block> tag = SerializationTags.getInstance().getOrEmpty(Registry.BLOCK_REGISTRY).getTagOrEmpty(this.tagName);
-            Set<Block> intersection = new HashSet<>(surroundings);
-            intersection.retainAll(tag.getValues());
-            return !intersection.isEmpty();
-        }
-        return false;
+    public boolean isSatisfied(PlayerEntity player) {
+        return InventoryUtils.isPlayerCarrying(player, this.tagName, this.quantity);
     }
 
     @Override
-    public boolean consume(Player player) {
+    public boolean consume(PlayerEntity player) {
         // Remove items matching this material's tag from the player's inventory if it's supposed to be consumed
         if (this.consumed) {
             return InventoryUtils.consumeItem(player, this.tagName, this.quantity);
@@ -119,11 +102,6 @@ public class ItemTagProjectMaterial extends AbstractProjectMaterial {
     }
 
     @Override
-    public void toNetwork(FriendlyByteBuf buf) {
-        SERIALIZER.toNetwork(buf, this);
-    }
-
-    @Override
     public AbstractProjectMaterial copy() {
         ItemTagProjectMaterial material = new ItemTagProjectMaterial();
         material.tagName = new ResourceLocation(this.tagName.toString());
@@ -131,7 +109,6 @@ public class ItemTagProjectMaterial extends AbstractProjectMaterial {
         material.consumed = this.consumed;
         material.selected = this.selected;
         material.weight = this.weight;
-        material.bonusReward = this.bonusReward;
         if (this.requiredResearch != null) {
             material.requiredResearch = this.requiredResearch.copy();
         }
@@ -184,36 +161,11 @@ public class ItemTagProjectMaterial extends AbstractProjectMaterial {
             ItemTagProjectMaterial retVal = new ItemTagProjectMaterial(tagName, quantity, consumed);
             
             retVal.setWeight(json.getAsJsonPrimitive("weight").getAsDouble());
-            if (json.has("bonus_reward")) {
-                retVal.setBonusReward(json.getAsJsonPrimitive("bonus_reward").getAsDouble());
-            }
             if (json.has("required_research")) {
                 retVal.setRequiredResearch(CompoundResearchKey.parse(json.getAsJsonPrimitive("required_research").getAsString()));
             }
 
             return retVal;
-        }
-
-        @Override
-        public ItemTagProjectMaterial fromNetwork(FriendlyByteBuf buf) {
-            ItemTagProjectMaterial material = new ItemTagProjectMaterial(buf.readResourceLocation(), buf.readVarInt(), buf.readBoolean());
-            material.setWeight(buf.readDouble());
-            material.setBonusReward(buf.readDouble());
-            CompoundResearchKey research = CompoundResearchKey.parse(buf.readUtf());
-            if (research != null) {
-                material.setRequiredResearch(research);
-            }
-            return material;
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, ItemTagProjectMaterial material) {
-            buf.writeResourceLocation(material.tagName);
-            buf.writeVarInt(material.quantity);
-            buf.writeBoolean(material.consumed);
-            buf.writeDouble(material.weight);
-            buf.writeDouble(material.bonusReward);
-            buf.writeUtf(material.requiredResearch == null ? "" : material.requiredResearch.toString());
         }
     }
 }

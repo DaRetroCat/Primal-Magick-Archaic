@@ -3,7 +3,7 @@ package com.verdantartifice.primalmagick.common.spells.vehicles;
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraftforge.common.ForgeMod;
 
 /**
@@ -28,10 +28,5 @@ public class TouchSpellVehicle extends AbstractRaycastSpellVehicle {
     @Override
     protected double getReachDistance(LivingEntity caster) {
         return caster.getAttribute(ForgeMod.REACH_DISTANCE.get()).getValue();
-    }
-
-    @Override
-    public boolean isIndirect() {
-        return false;
     }
 }

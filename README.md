@@ -1,2 +1,2 @@
-# Primal Magick
-Harness the magick of the primal sources of the land.
+# Primal Magic
+Harness the magic of the primal sources of the land.

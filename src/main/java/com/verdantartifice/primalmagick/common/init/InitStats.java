@@ -47,7 +47,6 @@ public class InitStats {
         StatTriggers.register(StatsPM.RITUALS_COMPLETED, 5, SimpleResearchKey.parse("t_rituals_completed_expert"));
         StatTriggers.register(StatsPM.RITUALS_COMPLETED, 25, SimpleResearchKey.parse("t_rituals_completed_master"));
         StatTriggers.register(StatsPM.RITUALS_COMPLETED, 100, SimpleResearchKey.parse("t_rituals_completed_supreme"));
-        StatTriggers.register(StatsPM.RITUAL_MISHAPS, 1, SimpleResearchKey.parse("t_ritual_mishaps_basic"));
         StatTriggers.register(StatsPM.CRAFTED_MAGITECH, 10, SimpleResearchKey.parse("b_crafted_magitech_expert"));
         StatTriggers.register(StatsPM.CRAFTED_MAGITECH, 50, SimpleResearchKey.parse("b_crafted_magitech_master"));
         StatTriggers.register(StatsPM.CRAFTED_MAGITECH, 250, SimpleResearchKey.parse("b_crafted_magitech_supreme"));
@@ -57,12 +56,8 @@ public class InitStats {
         StatTriggers.register(StatsPM.RESEARCH_PROJECTS_COMPLETED, 10, SimpleResearchKey.parse("t_research_projects_completed"));
         StatTriggers.register(StatsPM.ITEMS_ANALYZED, 25, SimpleResearchKey.parse("t_items_analyzed"));
         StatTriggers.register(StatsPM.OBSERVATIONS_MADE, 1, SimpleResearchKey.parse("t_observations_made_basics"));
-        StatTriggers.register(StatsPM.OBSERVATIONS_MADE, 25, SimpleResearchKey.parse("t_observations_made_expert"));
         StatTriggers.register(StatsPM.THEORIES_FORMED, 1, SimpleResearchKey.parse("t_theories_formed_basics"));
         StatTriggers.register(StatsPM.BLOCKS_BROKEN_BAREHANDED, 50, SimpleResearchKey.parse("m_blocks_broken_barehanded_expert"));
         StatTriggers.register(StatsPM.DISTANCE_TELEPORTED_CM, 10000, SimpleResearchKey.parse("m_teleport_a_lot"));
-        StatTriggers.register(StatsPM.MANA_SIPHONED, 10, SimpleResearchKey.parse("t_mana_siphoned_basics"));
-        StatTriggers.register(StatsPM.MANA_SIPHONED, 1000, SimpleResearchKey.parse("t_mana_siphoned_expert"));
-        StatTriggers.register(StatsPM.MANA_SPENT_TOTAL, 20, SimpleResearchKey.parse("t_mana_spent_total_basics"));
     }
 }

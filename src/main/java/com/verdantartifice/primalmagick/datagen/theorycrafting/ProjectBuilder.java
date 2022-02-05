@@ -13,18 +13,18 @@ import com.google.gson.JsonObject;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class ProjectBuilder {
     protected final ResourceLocation key;
     protected final List<IFinishedProjectMaterial> materialOptions = new ArrayList<>();
-    protected final List<ResourceLocation> aidBlocks = new ArrayList<>();
     protected SimpleResearchKey requiredResearch;
     protected Optional<Integer> requiredMaterialCountOverride = Optional.empty();
     protected Optional<Double> baseSuccessChanceOverride = Optional.empty();
     protected double rewardMultiplier = 0.25D;
+    protected ResourceLocation aidBlock;
     
     protected ProjectBuilder(@Nonnull ResourceLocation key) {
         this.key = key;
@@ -73,14 +73,12 @@ public class ProjectBuilder {
     }
     
     public ProjectBuilder aid(@Nullable ResourceLocation block) {
-        this.aidBlocks.add(block);
+        this.aidBlock = block;
         return this;
     }
     
     public ProjectBuilder aid(@Nullable Block block) {
-        if (block != null) {
-            this.aidBlocks.add(block.getRegistryName());
-        }
+        this.aidBlock = block == null ? null : block.getRegistryName();
         return this;
     }
     
@@ -104,10 +102,8 @@ public class ProjectBuilder {
         if (this.rewardMultiplier <= 0D) {
             throw new IllegalStateException("Invalid reward multiplier for theorycrafting project " + id.toString());
         }
-        for (ResourceLocation aidBlock : this.aidBlocks) {
-            if (!ForgeRegistries.BLOCKS.containsKey(aidBlock)) {
-                throw new IllegalStateException("Unknown aid block for theorycrafting project " + id.toString());
-            }
+        if (this.aidBlock != null && !ForgeRegistries.BLOCKS.containsKey(this.aidBlock)) {
+            throw new IllegalStateException("Unknown aid block for theorycrafting project " + id.toString());
         }
     }
     
@@ -121,7 +117,7 @@ public class ProjectBuilder {
     
     public void build(Consumer<IFinishedProject> consumer, ResourceLocation id) {
         this.validate(id);
-        consumer.accept(new ProjectBuilder.Result(this.key, this.materialOptions, this.requiredResearch, this.requiredMaterialCountOverride, this.baseSuccessChanceOverride, this.rewardMultiplier, this.aidBlocks));
+        consumer.accept(new ProjectBuilder.Result(this.key, this.materialOptions, this.requiredResearch, this.requiredMaterialCountOverride, this.baseSuccessChanceOverride, this.rewardMultiplier, this.aidBlock));
     }
     
     public static class Result implements IFinishedProject {
@@ -131,17 +127,17 @@ public class ProjectBuilder {
         protected final Optional<Integer> requiredMaterialCountOverride;
         protected final Optional<Double> baseSuccessChanceOverride;
         protected final double rewardMultiplier;
-        protected final List<ResourceLocation> aidBlocks;
+        protected final ResourceLocation aidBlock;
         
         public Result(@Nonnull ResourceLocation key, @Nonnull List<IFinishedProjectMaterial> materialOptions, @Nullable SimpleResearchKey requiredResearch, @Nonnull Optional<Integer> materialCount, 
-                @Nonnull Optional<Double> successChance, double rewardMultiplier, @Nonnull List<ResourceLocation> aidBlocks) {
+                @Nonnull Optional<Double> successChance, double rewardMultiplier, @Nullable ResourceLocation aidBlock) {
             this.key = key;
             this.materialOptions = materialOptions;
             this.requiredResearch = requiredResearch;
             this.requiredMaterialCountOverride = materialCount;
             this.baseSuccessChanceOverride = successChance;
             this.rewardMultiplier = rewardMultiplier;
-            this.aidBlocks = aidBlocks;
+            this.aidBlock = aidBlock;
         }
 
         @Override
@@ -162,12 +158,9 @@ public class ProjectBuilder {
                 json.addProperty("base_success_chance_override", chance);
             });
             json.addProperty("reward_multiplier", this.rewardMultiplier);
-            
-            JsonArray aidsArray = new JsonArray();
-            for (ResourceLocation aidBlock : this.aidBlocks) {
-                aidsArray.add(aidBlock.toString());
+            if (this.aidBlock != null) {
+                json.addProperty("aid_block", this.aidBlock.toString());
             }
-            json.add("aid_blocks", aidsArray);
             
             JsonArray materialsArray = new JsonArray();
             for (IFinishedProjectMaterial material : this.materialOptions) {

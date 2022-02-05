@@ -6,29 +6,31 @@ import com.verdantartifice.primalmagick.common.entities.EntityTypesPM;
 import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.items.entities.FlyingCarpetItem;
 
-import net.minecraft.BlockUtil.FoundRectangle;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Direction.Axis;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.MoverType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.DyeColor;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.IPacket;
+import net.minecraft.network.datasync.DataParameter;
+import net.minecraft.network.datasync.DataSerializers;
+import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Direction;
+import net.minecraft.util.Direction.Axis;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TeleportationRepositioner.Result;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.fml.network.NetworkHooks;
 
 /**
  * Definition of a flying carpet entity, a vehicle that can be used by players to soar through the sky.
@@ -36,7 +38,7 @@ import net.minecraftforge.network.NetworkHooks;
  * @author Daedalus4096
  */
 public class FlyingCarpetEntity extends Entity {
-    protected static final EntityDataAccessor<Integer> DYE_COLOR = SynchedEntityData.defineId(FlyingCarpetEntity.class, EntityDataSerializers.INT);
+    protected static final DataParameter<Integer> DYE_COLOR = EntityDataManager.createKey(FlyingCarpetEntity.class, DataSerializers.VARINT);
 
     private float momentum;
     private int lerpSteps;
@@ -48,77 +50,77 @@ public class FlyingCarpetEntity extends Entity {
     private boolean forwardInputDown;
     private boolean backInputDown;
 
-    public FlyingCarpetEntity(EntityType<?> entityTypeIn, Level worldIn) {
+    public FlyingCarpetEntity(EntityType<?> entityTypeIn, World worldIn) {
         super(entityTypeIn, worldIn);
-        this.blocksBuilding = true;
+        this.preventEntitySpawning = true;
         this.setNoGravity(true);
     }
     
-    public FlyingCarpetEntity(Level worldIn, double x, double y, double z) {
+    public FlyingCarpetEntity(World worldIn, double x, double y, double z) {
         this(EntityTypesPM.FLYING_CARPET.get(), worldIn);
-        this.setPos(x, y, z);
-        this.setDeltaMovement(Vec3.ZERO);
-        this.xo = x;
-        this.yo = y;
-        this.zo = z;
+        this.setPosition(x, y, z);
+        this.setMotion(Vector3d.ZERO);
+        this.prevPosX = x;
+        this.prevPosY = y;
+        this.prevPosZ = z;
     }
     
-    public FlyingCarpetEntity(Level worldIn, BlockPos pos) {
+    public FlyingCarpetEntity(World worldIn, BlockPos pos) {
         this(worldIn, (double)pos.getX(), (double)pos.getY(), (double)pos.getZ());
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(DYE_COLOR, -1);
+    protected void registerData() {
+        this.dataManager.register(DYE_COLOR, -1);
     }
 
     @Override
-    protected void readAdditionalSaveData(CompoundTag compound) {
+    protected void readAdditional(CompoundNBT compound) {
         // Nothing to do
     }
 
     @Override
-    protected void addAdditionalSaveData(CompoundTag compound) {
+    protected void writeAdditional(CompoundNBT compound) {
         // Nothing to do
     }
 
     @Override
-    public Packet<?> getAddEntityPacket() {
+    public IPacket<?> createSpawnPacket() {
         return NetworkHooks.getEntitySpawningPacket(this);
     }
 
     @Override
-    public boolean canCollideWith(Entity entity) {
-        return (entity.canBeCollidedWith() || entity.isPushable()) && !this.isPassengerOfSameVehicle(entity);
+    public boolean canCollide(Entity entity) {
+        return (entity.func_241845_aY() || entity.canBePushed()) && !this.isRidingSameEntity(entity);
     }
 
     @Override
-    public boolean canBeCollidedWith() {
+    public boolean func_241845_aY() {
         return true;
     }
 
     @Override
-    public boolean isPushable() {
+    public boolean canBePushed() {
         return true;
     }
 
     @Override
-    protected Vec3 getRelativePortalPosition(Axis axis, FoundRectangle result) {
-        return LivingEntity.resetForwardDirectionOfRelativePortalPosition(super.getRelativePortalPosition(axis, result));
+    protected Vector3d func_241839_a(Axis axis, Result result) {
+        return LivingEntity.func_242288_h(super.func_241839_a(axis, result));
     }
 
     @Override
-    public double getPassengersRidingOffset() {
+    public double getMountedYOffset() {
         return -0.1D;
     }
 
     @Override
-    public boolean isPickable() {
+    public boolean canBeCollidedWith() {
         return this.isAlive();
     }
 
     @Override
-    public void lerpTo(double x, double y, double z, float yaw, float pitch, int posRotationIncrements, boolean teleport) {
+    public void setPositionAndRotationDirect(double x, double y, double z, float yaw, float pitch, int posRotationIncrements, boolean teleport) {
         this.lerpX = x;
         this.lerpY = y;
         this.lerpZ = z;
@@ -128,62 +130,62 @@ public class FlyingCarpetEntity extends Entity {
     }
 
     @Override
-    public Direction getMotionDirection() {
-        return this.getDirection().getClockWise();
+    public Direction getAdjustedHorizontalFacing() {
+        return this.getHorizontalFacing().rotateY();
     }
 
     @Override
     public void tick() {
-        this.xo = this.getX();
-        this.yo = this.getY();
-        this.zo = this.getZ();
+        this.prevPosX = this.getPosX();
+        this.prevPosY = this.getPosY();
+        this.prevPosZ = this.getPosZ();
         super.tick();
         this.tickLerp();
         
-        if (this.isVehicle() && this.isControlledByLocalInstance()) {
+        if (this.isBeingRidden() && this.canPassengerSteer()) {
             this.updateMotion();
-            if (this.level.isClientSide) {
+            if (this.world.isRemote) {
                 this.controlCarpet();
             }
-            this.move(MoverType.SELF, this.getDeltaMovement());
+            this.move(MoverType.SELF, this.getMotion());
         } else {
-            this.setDeltaMovement(Vec3.ZERO);
-            if (this.level.isClientSide) {
+            this.setMotion(Vector3d.ZERO);
+            if (this.world.isRemote) {
                 this.updateInputs(false, false);
             }
         }
         
-        this.checkInsideBlocks();
+        this.doBlockCollisions();
     }
 
     private void tickLerp() {
-        if (this.isControlledByLocalInstance()) {
+        if (this.canPassengerSteer()) {
             this.lerpSteps = 0;
-            this.setPacketCoordinates(this.getX(), this.getY(), this.getZ());
+            this.setPacketCoordinates(this.getPosX(), this.getPosY(), this.getPosZ());
         }
         if (this.lerpSteps > 0) {
-            double newX = this.getX() + ((this.lerpX - this.getX()) / (double)this.lerpSteps);
-            double newY = this.getY() + ((this.lerpY - this.getY()) / (double)this.lerpSteps);
-            double newZ = this.getZ() + ((this.lerpZ - this.getZ()) / (double)this.lerpSteps);
-            double deltaYaw = Mth.wrapDegrees(this.lerpYaw - (double)this.getYRot());
-            float yRot = (float)((double)this.getYRot() + (deltaYaw / (double)this.lerpSteps));
-            float xRot = (float)((double)this.getXRot() + ((this.lerpPitch - (double)this.getXRot()) / (double)this.lerpSteps));
+            double newX = this.getPosX() + ((this.lerpX - this.getPosX()) / (double)this.lerpSteps);
+            double newY = this.getPosY() + ((this.lerpY - this.getPosY()) / (double)this.lerpSteps);
+            double newZ = this.getPosZ() + ((this.lerpZ - this.getPosZ()) / (double)this.lerpSteps);
+            double deltaYaw = MathHelper.wrapDegrees(this.lerpYaw - (double)this.rotationYaw);
+            this.rotationYaw = (float)((double)this.rotationYaw + (deltaYaw / (double)this.lerpSteps));
+            this.rotationPitch = (float)((double)this.rotationPitch + ((this.lerpPitch - (double)this.rotationPitch) / (double)this.lerpSteps));
             this.lerpSteps--;
-            this.setPos(newX, newY, newZ);
-            this.setRot(yRot, xRot);
+            this.setPosition(newX, newY, newZ);
+            this.setRotation(this.rotationYaw, this.rotationPitch);
         }
     }
     
     private void updateMotion() {
         this.momentum = 0.9F;
-        this.setDeltaMovement(this.getDeltaMovement().scale(this.momentum).add(0.0D, (this.isNoGravity() ? 0.0D : -0.04D), 0.0D));
+        this.setMotion(this.getMotion().scale(this.momentum).add(0.0D, (this.hasNoGravity() ? 0.0D : -0.04D), 0.0D));
     }
     
     private void controlCarpet() {
-        if (this.isVehicle()) {
+        if (this.isBeingRidden()) {
             Entity pilot = this.getControllingPassenger();
-            this.yRotO = this.getYRot();
-            this.setYRot(pilot.getYRot());
+            this.prevRotationYaw = this.rotationYaw;
+            this.rotationYaw = pilot.rotationYaw;
             
             float f = 0.0F;
             if (this.forwardInputDown) {
@@ -192,11 +194,11 @@ public class FlyingCarpetEntity extends Entity {
             if (this.backInputDown) {
                 f -= 0.005F;
             }
-            Vec3 newMotion = this.getDeltaMovement().add(
-                    (double)(Mth.sin(-this.getYRot() * (float)(Math.PI / 180.0D)) * f), 
-                    (double)(Mth.sin(-pilot.getXRot() * (float)(Math.PI / 180.0D)) * f), 
-                    (double)(Mth.cos(this.getYRot() * (float)(Math.PI / 180.0D)) * f));
-            this.setDeltaMovement(newMotion);
+            Vector3d newMotion = this.getMotion().add(
+                    (double)(MathHelper.sin(-this.rotationYaw * (float)(Math.PI / 180.0D)) * f), 
+                    (double)(MathHelper.sin(-pilot.rotationPitch * (float)(Math.PI / 180.0D)) * f), 
+                    (double)(MathHelper.cos(this.rotationYaw * (float)(Math.PI / 180.0D)) * f));
+            this.setMotion(newMotion);
         }
     }
     
@@ -209,41 +211,42 @@ public class FlyingCarpetEntity extends Entity {
      * Applies this carpet's yaw to the given entity. Used to update the orientation of its passenger.
      */
     protected void applyYawToEntity(Entity entityToUpdate) {
-        entityToUpdate.setYBodyRot(this.getYRot());
-        float f = Mth.wrapDegrees(entityToUpdate.getYRot() - this.getYRot());
-        float f1 = Mth.clamp(f, -105.0F, 105.0F);
-        entityToUpdate.yRotO += f1 - f;
-        entityToUpdate.setYRot(entityToUpdate.getYRot() + f1 - f);
-        entityToUpdate.setYHeadRot(entityToUpdate.getYRot());
+        entityToUpdate.setRenderYawOffset(this.rotationYaw);
+        float f = MathHelper.wrapDegrees(entityToUpdate.rotationYaw - this.rotationYaw);
+        float f1 = MathHelper.clamp(f, -105.0F, 105.0F);
+        entityToUpdate.prevRotationYaw += f1 - f;
+        entityToUpdate.rotationYaw += f1 - f;
+        entityToUpdate.setRotationYawHead(entityToUpdate.rotationYaw);
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void onPassengerTurned(Entity entityToUpdate) {
+    public void applyOrientationToEntity(Entity entityToUpdate) {
         this.applyYawToEntity(entityToUpdate);
     }
 
     @Override
-    public InteractionResult interact(Player player, InteractionHand hand) {
-        if (!this.level.isClientSide && this.isAlive()) {
+    public ActionResultType processInitialInteract(PlayerEntity player, Hand hand) {
+        if (!this.world.isRemote && this.isAlive()) {
             if (player.isSecondaryUseActive()) {
                 ItemStack stack = new ItemStack(ItemsPM.FLYING_CARPET.get());
                 DyeColor color = this.getDyeColor();
                 if (color != null) {
                     ((FlyingCarpetItem)stack.getItem()).setDyeColor(stack, color);
                 }
-                this.spawnAtLocation(stack, 0.0F);
-                this.discard();
-                return InteractionResult.SUCCESS;
+                this.entityDropItem(stack, 0.0F);
+                this.remove();
+                return ActionResultType.SUCCESS;
             } else {
                 player.startRiding(this);
-                return InteractionResult.SUCCESS;
+                return ActionResultType.SUCCESS;
             }
         }
-        return InteractionResult.PASS;
+        return ActionResultType.PASS;
     }
     
     public DyeColor getDyeColor() {
-        int value = this.entityData.get(DYE_COLOR).intValue();
+        int value = this.dataManager.get(DYE_COLOR).intValue();
         if (value == -1) {
             return null;
         } else {
@@ -253,17 +256,17 @@ public class FlyingCarpetEntity extends Entity {
     
     public void setDyeColor(DyeColor color) {
         if (color == null) {
-            this.entityData.set(DYE_COLOR, Integer.valueOf(-1));
+            this.dataManager.set(DYE_COLOR, Integer.valueOf(-1));
         } else {
-            this.entityData.set(DYE_COLOR, Integer.valueOf(color.getId()));
+            this.dataManager.set(DYE_COLOR, Integer.valueOf(color.getId()));
         }
     }
 
     @Override
-    protected void checkFallDamage(double y, boolean onGroundIn, BlockState state, BlockPos pos) {
+    protected void updateFallState(double y, boolean onGroundIn, BlockState state, BlockPos pos) {
         // Shield the carpet and passenger from falling damage
         this.fallDistance = 0;
-        if (this.isVehicle()) {
+        if (this.isBeingRidden()) {
             this.getControllingPassenger().fallDistance = 0;
         }
     }
@@ -277,9 +280,9 @@ public class FlyingCarpetEntity extends Entity {
     @Override
     protected void addPassenger(Entity passenger) {
         super.addPassenger(passenger);
-        if (this.isControlledByLocalInstance() && this.lerpSteps > 0) {
+        if (this.canPassengerSteer() && this.lerpSteps > 0) {
             this.lerpSteps = 0;
-            this.absMoveTo(this.lerpX, this.lerpY, this.lerpZ, (float)this.lerpYaw, (float)this.lerpPitch);
+            this.setPositionAndRotation(this.lerpX, this.lerpY, this.lerpZ, (float)this.lerpYaw, (float)this.lerpPitch);
         }
     }
 }

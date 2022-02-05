@@ -11,9 +11,7 @@
       "conditions": {
         "items": [
           {
-            "items": [
-              "primalmagick:iron_grit"
-            ]
+            "item": "primalmagick:iron_grit"
           }
         ]
       }

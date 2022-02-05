@@ -1,6 +1,5 @@
 {
   "type": "minecraft:smelting",
-  "group": "gold_ingot",
   "ingredient": {
     "item": "primalmagick:gold_grit"
   },

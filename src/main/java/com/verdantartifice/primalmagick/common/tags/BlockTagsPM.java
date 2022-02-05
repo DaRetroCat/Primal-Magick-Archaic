@@ -2,9 +2,9 @@ package com.verdantartifice.primalmagick.common.tags;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.block.Block;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.Tags.IOptionalNamedTag;
 
 /**
@@ -21,7 +21,6 @@ public class BlockTagsPM {
     public static final IOptionalNamedTag<Block> DEAD_CORAL_BLOCKS = tag("dead_coral_blocks");
     public static final IOptionalNamedTag<Block> DEAD_CORAL_PLANTS = tag("dead_coral_plants");
     public static final IOptionalNamedTag<Block> DEAD_CORALS = tag("dead_corals");
-    public static final IOptionalNamedTag<Block> ENCHANTING_TABLES = tag("enchanting_tables");
     public static final IOptionalNamedTag<Block> HALLOWOOD_LOGS = tag("hallowood_logs");
     public static final IOptionalNamedTag<Block> MOONWOOD_LOGS = tag("moonwood_logs");
     public static final IOptionalNamedTag<Block> RITUAL_CANDLES = tag("ritual_candles");
@@ -36,6 +35,6 @@ public class BlockTagsPM {
     public static final IOptionalNamedTag<Block> SUNWOOD_LOGS = tag("sunwood_logs");
     
     private static IOptionalNamedTag<Block> tag(String name) {
-        return BlockTags.createOptional(new ResourceLocation(PrimalMagick.MODID, name));
+    	return BlockTags.createOptional(new ResourceLocation(PrimalMagick.MODID, name));
     }
 }

@@ -4,38 +4,40 @@ import com.verdantartifice.primalmagick.common.containers.slots.CalcinatorFuelSl
 import com.verdantartifice.primalmagick.common.containers.slots.CalcinatorResultSlot;
 import com.verdantartifice.primalmagick.common.tiles.crafting.AbstractCalcinatorTileEntity;
 
-import net.minecraft.world.Container;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.inventory.SimpleContainerData;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IIntArray;
+import net.minecraft.util.IntArray;
+import net.minecraft.world.World;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Server data container for the calcinator GUI.
  * 
  * @author Daedalus4096
  */
-public class CalcinatorContainer extends AbstractContainerMenu {
-    protected final Container calcinatorInv;
-    protected final ContainerData calcinatorData;
-    protected final Level world;
+public class CalcinatorContainer extends Container {
+    protected final IInventory calcinatorInv;
+    protected final IIntArray calcinatorData;
+    protected final World world;
     
-    public CalcinatorContainer(int id, Inventory playerInv) {
-        this(id, playerInv, new SimpleContainer(11), new SimpleContainerData(4));
+    public CalcinatorContainer(int id, PlayerInventory playerInv) {
+        this(id, playerInv, new Inventory(11), new IntArray(4));
     }
     
-    public CalcinatorContainer(int id, Inventory playerInv, Container calcinatorInv, ContainerData calcinatorData) {
+    public CalcinatorContainer(int id, PlayerInventory playerInv, IInventory calcinatorInv, IIntArray calcinatorData) {
         super(ContainersPM.CALCINATOR.get(), id);
-        checkContainerSize(calcinatorInv, 11);
-        checkContainerDataCount(calcinatorData, 4);
+        assertInventorySize(calcinatorInv, 11);
+        assertIntArraySize(calcinatorData, 4);
         this.calcinatorInv = calcinatorInv;
         this.calcinatorData = calcinatorData;
-        this.world = playerInv.player.level;
+        this.world = playerInv.player.world;
         
         // Slot 0: calcinator input
         this.addSlot(new Slot(this.calcinatorInv, 0, 34, 17));
@@ -60,12 +62,12 @@ public class CalcinatorContainer extends AbstractContainerMenu {
             this.addSlot(new Slot(playerInv, k, 8 + k * 18, 142));
         }
         
-        this.addDataSlots(this.calcinatorData);
+        this.trackIntArray(this.calcinatorData);
     }
 
     @Override
-    public boolean stillValid(Player playerIn) {
-        return this.calcinatorInv.stillValid(playerIn);
+    public boolean canInteractWith(PlayerEntity playerIn) {
+        return this.calcinatorInv.isUsableByPlayer(playerIn);
     }
 
     public boolean isFuel(ItemStack stack) {
@@ -73,42 +75,42 @@ public class CalcinatorContainer extends AbstractContainerMenu {
     }
 
     @Override
-    public ItemStack quickMoveStack(Player playerIn, int index) {
+    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index) {
         ItemStack stack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
+        Slot slot = this.inventorySlots.get(index);
         
-        if (slot != null && slot.hasItem()) {
-            ItemStack slotStack = slot.getItem();
+        if (slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
             stack = slotStack.copy();
             
             if (index >= 2 && index < 11) {
                 // If transferring calcinator output, move it to the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 11, 47, true)) {
+                if (!this.mergeItemStack(slotStack, 11, 47, true)) {
                     return ItemStack.EMPTY;
                 }
-                slot.onQuickCraft(slotStack, stack);
+                slot.onSlotChange(slotStack, stack);
             } else if (index != 0 && index != 1) {
                 // If transferring from the backpack or hotbar, move fuel to the fuel slot and anything else to the input slot
                 if (this.isFuel(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 1, 2, false) && !this.moveItemStackTo(slotStack, 0, 1, false)) {
+                    if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                         return ItemStack.EMPTY;
                     }
                 } else {
-                    if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                    if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
                 }
             } else {
                 // Move all other transfers to the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 11, 47, false)) {
+                if (!this.mergeItemStack(slotStack, 11, 47, false)) {
                     return ItemStack.EMPTY;
                 }
             }
             
             if (slotStack.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.putStack(ItemStack.EMPTY);
             } else {
-                slot.setChanged();
+                slot.onSlotChanged();
             }
             
             if (slotStack.getCount() == stack.getCount()) {
@@ -121,6 +123,7 @@ public class CalcinatorContainer extends AbstractContainerMenu {
         return stack;
     }
     
+    @OnlyIn(Dist.CLIENT)
     public int getCookProgressionScaled() {
         // Determine how much of the cook arrow to show
         int i = this.calcinatorData.get(2);
@@ -128,6 +131,7 @@ public class CalcinatorContainer extends AbstractContainerMenu {
         return j != 0 && i != 0 ? i * 24 / j : 0;
     }
     
+    @OnlyIn(Dist.CLIENT)
     public int getBurnLeftScaled() {
         // Determine how much of the fuel burn timer to show
         int total = this.calcinatorData.get(1);
@@ -137,6 +141,7 @@ public class CalcinatorContainer extends AbstractContainerMenu {
         return this.calcinatorData.get(0) * 13 / total;
     }
     
+    @OnlyIn(Dist.CLIENT)
     public boolean isBurning() {
         return this.calcinatorData.get(0) > 0;
     }

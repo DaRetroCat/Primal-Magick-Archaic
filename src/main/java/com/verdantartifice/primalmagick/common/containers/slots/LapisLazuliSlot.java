@@ -2,11 +2,11 @@ package com.verdantartifice.primalmagick.common.containers.slots;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.renderer.texture.AtlasTexture;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.Tags;
 
 /**
@@ -17,14 +17,15 @@ import net.minecraftforge.common.Tags;
 public class LapisLazuliSlot extends Slot {
     public static final ResourceLocation TEXTURE = new ResourceLocation(PrimalMagick.MODID, "item/empty_lapis_slot");
 
-    public LapisLazuliSlot(Container inventoryIn, int index, int xPosition, int yPosition) {
+    @SuppressWarnings("deprecation")
+    public LapisLazuliSlot(IInventory inventoryIn, int index, int xPosition, int yPosition) {
         super(inventoryIn, index, xPosition, yPosition);
-        this.setBackground(InventoryMenu.BLOCK_ATLAS, TEXTURE);
+        this.setBackground(AtlasTexture.LOCATION_BLOCKS_TEXTURE, TEXTURE);
     }
 
     @Override
-    public boolean mayPlace(ItemStack stack) {
+    public boolean isItemValid(ItemStack stack) {
         // Only allow lapis lazuli to be dropped in the slot
-        return Tags.Items.GEMS_LAPIS.contains(stack.getItem());
+        return stack.getItem().isIn(Tags.Items.GEMS_LAPIS);
     }
 }

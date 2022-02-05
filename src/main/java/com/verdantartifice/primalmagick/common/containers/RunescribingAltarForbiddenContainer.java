@@ -4,8 +4,8 @@ import javax.annotation.Nonnull;
 
 import com.verdantartifice.primalmagick.common.containers.slots.RuneSlot;
 
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.container.Slot;
 
 /**
  * Server data container for the forbidden runescribing altar GUI.
@@ -15,7 +15,7 @@ import net.minecraft.world.inventory.Slot;
 public class RunescribingAltarForbiddenContainer extends AbstractRunescribingAltarContainer {
     protected static final int RUNE_CAPACITY = 7;
     
-    public RunescribingAltarForbiddenContainer(int id, @Nonnull Inventory playerInv) {
+    public RunescribingAltarForbiddenContainer(int id, @Nonnull PlayerInventory playerInv) {
         super(ContainersPM.RUNESCRIBING_ALTAR_FORBIDDEN.get(), id, playerInv);
     }
     

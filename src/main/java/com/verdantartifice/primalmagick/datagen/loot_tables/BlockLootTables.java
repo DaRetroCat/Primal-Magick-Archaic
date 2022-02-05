@@ -4,7 +4,7 @@ import com.verdantartifice.primalmagick.common.blocks.BlocksPM;
 import com.verdantartifice.primalmagick.common.items.ItemsPM;
 
 import net.minecraft.data.DataGenerator;
-import net.minecraft.world.item.Items;
+import net.minecraft.item.Items;
 
 /**
  * Data provider for all of the mod's block loot tables.
@@ -70,10 +70,6 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
         this.registerBasicTable(BlocksPM.RUNESCRIBING_ALTAR_FORBIDDEN.get());
         this.registerBasicTable(BlocksPM.RUNESCRIBING_ALTAR_HEAVENLY.get());
         this.registerBasicTable(BlocksPM.CELESTIAL_HARP.get());
-        this.registerBasicTable(BlocksPM.ENTROPY_SINK.get());
-        this.registerBasicTable(BlocksPM.AUTO_CHARGER.get());
-        this.registerManaBearingDeviceTable(BlocksPM.ESSENCE_TRANSMUTER.get());
-        this.registerManaBearingDeviceTable(BlocksPM.DISSOLUTION_CHAMBER.get());
 
         // Register misc loot tables
         this.registerBasicTable(BlocksPM.SALT_TRAIL.get());
@@ -82,8 +78,6 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
         this.registerBasicTable(BlocksPM.PRIMALITE_BLOCK.get());
         this.registerBasicTable(BlocksPM.HEXIUM_BLOCK.get());
         this.registerBasicTable(BlocksPM.HALLOWSTEEL_BLOCK.get());
-        this.registerBasicTable(BlocksPM.IGNYX_BLOCK.get());
-        this.registerBasicTable(BlocksPM.SALT_BLOCK.get());
     }
 
     private void registerEmptyLootTables() {
@@ -95,6 +89,7 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
         this.registerEmptyTable(BlocksPM.GLOW_FIELD.get());
         this.registerEmptyTable(BlocksPM.SOUL_GLOW_FIELD.get());
         this.registerEmptyTable(BlocksPM.CONSECRATION_FIELD.get());
+        this.registerEmptyTable(BlocksPM.PYRAMID.get());
     }
 
     private void registerMarbleLootTables() {
@@ -154,11 +149,11 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
     }
     
     private void registerSunwoodLootTables() {
-        this.registerPulsingLogTable(BlocksPM.SUNWOOD_LOG.get());
-        this.registerPulsingLogTable(BlocksPM.STRIPPED_SUNWOOD_LOG.get());
-        this.registerPulsingLogTable(BlocksPM.SUNWOOD_WOOD.get());
-        this.registerPulsingLogTable(BlocksPM.STRIPPED_SUNWOOD_WOOD.get());
-        this.registerLeavesTable(BlocksPM.SUNWOOD_LEAVES.get(), BlocksPM.SUNWOOD_SAPLING.get(), new float[] { 0.1F, 0.125F, 0.16666667F, 0.2F });
+        this.registerBasicTable(BlocksPM.SUNWOOD_LOG.get());
+        this.registerBasicTable(BlocksPM.STRIPPED_SUNWOOD_LOG.get());
+        this.registerBasicTable(BlocksPM.SUNWOOD_WOOD.get());
+        this.registerBasicTable(BlocksPM.STRIPPED_SUNWOOD_WOOD.get());
+        this.registerLeavesTable(BlocksPM.SUNWOOD_LEAVES.get(), BlocksPM.SUNWOOD_SAPLING.get());
         this.registerBasicTable(BlocksPM.SUNWOOD_SAPLING.get());
         this.registerBasicTable(BlocksPM.SUNWOOD_PLANKS.get());
         this.registerSlabTable(BlocksPM.SUNWOOD_SLAB.get());
@@ -167,11 +162,11 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
     }
     
     private void registerMoonwoodLootTables() {
-        this.registerPulsingLogTable(BlocksPM.MOONWOOD_LOG.get());
-        this.registerPulsingLogTable(BlocksPM.STRIPPED_MOONWOOD_LOG.get());
-        this.registerPulsingLogTable(BlocksPM.MOONWOOD_WOOD.get());
-        this.registerPulsingLogTable(BlocksPM.STRIPPED_MOONWOOD_WOOD.get());
-        this.registerLeavesTable(BlocksPM.MOONWOOD_LEAVES.get(), BlocksPM.MOONWOOD_SAPLING.get(), new float[] { 0.1F, 0.125F, 0.16666667F, 0.2F });
+        this.registerBasicTable(BlocksPM.MOONWOOD_LOG.get());
+        this.registerBasicTable(BlocksPM.STRIPPED_MOONWOOD_LOG.get());
+        this.registerBasicTable(BlocksPM.MOONWOOD_WOOD.get());
+        this.registerBasicTable(BlocksPM.STRIPPED_MOONWOOD_WOOD.get());
+        this.registerLeavesTable(BlocksPM.MOONWOOD_LEAVES.get(), BlocksPM.MOONWOOD_SAPLING.get());
         this.registerBasicTable(BlocksPM.MOONWOOD_SAPLING.get());
         this.registerBasicTable(BlocksPM.MOONWOOD_PLANKS.get());
         this.registerSlabTable(BlocksPM.MOONWOOD_SLAB.get());
@@ -184,7 +179,7 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
         this.registerBasicTable(BlocksPM.STRIPPED_HALLOWOOD_LOG.get());
         this.registerBasicTable(BlocksPM.HALLOWOOD_WOOD.get());
         this.registerBasicTable(BlocksPM.STRIPPED_HALLOWOOD_WOOD.get());
-        this.registerLeavesTable(BlocksPM.HALLOWOOD_LEAVES.get(), BlocksPM.HALLOWOOD_SAPLING.get(), new float[] { 0.15F, 0.1875F, 0.25F, 0.3F });
+        this.registerLeavesTable(BlocksPM.HALLOWOOD_LEAVES.get(), BlocksPM.HALLOWOOD_SAPLING.get());
         this.registerBasicTable(BlocksPM.HALLOWOOD_SAPLING.get());
         this.registerBasicTable(BlocksPM.HALLOWOOD_PLANKS.get());
         this.registerSlabTable(BlocksPM.HALLOWOOD_SLAB.get());
@@ -267,28 +262,11 @@ public class BlockLootTables extends AbstractBlockLootTableProvider {
         this.registerBasicTable(BlocksPM.ARTIFICIAL_FONT_INFERNAL.get());
         this.registerBasicTable(BlocksPM.ARTIFICIAL_FONT_VOID.get());
         this.registerBasicTable(BlocksPM.ARTIFICIAL_FONT_HALLOWED.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_EARTH.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_SEA.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_SKY.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_SUN.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_MOON.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_BLOOD.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_INFERNAL.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_VOID.get());
-        this.registerBasicTable(BlocksPM.FORBIDDEN_FONT_HALLOWED.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_EARTH.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_SEA.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_SKY.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_SUN.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_MOON.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_BLOOD.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_INFERNAL.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_VOID.get());
-        this.registerBasicTable(BlocksPM.HEAVENLY_FONT_HALLOWED.get());
     }
+
 
     @Override
     public String getName() {
-        return "Primal Magick Block Loot Tables";
+        return "Primal Magic Block Loot Tables";
     }
 }

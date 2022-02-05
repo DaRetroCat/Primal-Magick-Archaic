@@ -1,6 +1,5 @@
 package com.verdantartifice.primalmagick.common.spells;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,9 +12,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerCooldowns;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.entities.projectiles.SpellMineEntity;
-import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.fx.SpellImpactPacket;
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
@@ -26,21 +24,18 @@ import com.verdantartifice.primalmagick.common.spells.payloads.ISpellPayload;
 import com.verdantartifice.primalmagick.common.spells.vehicles.ISpellVehicle;
 import com.verdantartifice.primalmagick.common.wands.IWand;
 
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.EntityClassification;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
 
 /**
  * Primary access point for spell-related methods.  Also stores defined spell component data in static registries.
@@ -67,10 +62,8 @@ public class SpellManager {
     protected static final Set<EntityType<?>> POLYMORPH_ALLOW = new HashSet<>();
     protected static final Set<EntityType<?>> POLYMORPH_BAN = new HashSet<>();
     
-    protected static final DecimalFormat COOLDOWN_FORMATTER = new DecimalFormat("#######.##");
-
     @Nonnull
-    protected static List<String> getFilteredTypes(@Nullable Player player, @Nonnull List<String> types, @Nonnull Map<String, Supplier<CompoundResearchKey>> suppliers) {
+    protected static List<String> getFilteredTypes(@Nullable PlayerEntity player, @Nonnull List<String> types, @Nonnull Map<String, Supplier<CompoundResearchKey>> suppliers) {
         // Compute a list of spell component types that the given player is able to use by dint of their accumulated research
         List<String> retVal = new ArrayList<>();
         for (String type : types) {
@@ -86,7 +79,7 @@ public class SpellManager {
     }
     
     @Nonnull
-    public static List<String> getVehicleTypes(@Nullable Player player) {
+    public static List<String> getVehicleTypes(@Nullable PlayerEntity player) {
         // Compute a list of spell vehicle types that the given player is able to use
         return getFilteredTypes(player, VEHICLE_TYPES, VEHICLE_RESEARCH_SUPPLIERS);
     }
@@ -106,7 +99,7 @@ public class SpellManager {
     }
     
     @Nonnull
-    public static List<String> getPayloadTypes(@Nullable Player player) {
+    public static List<String> getPayloadTypes(@Nullable PlayerEntity player) {
         // Compute a list of spell payload types that the given player is able to use
         return getFilteredTypes(player, PAYLOAD_TYPES, PAYLOAD_RESEARCH_SUPPLIERS);
     }
@@ -126,7 +119,7 @@ public class SpellManager {
     }
     
     @Nonnull
-    public static List<String> getModTypes(@Nullable Player player) {
+    public static List<String> getModTypes(@Nullable PlayerEntity player) {
         // Compute a list of spell mod types that the given player is able to use
         return getFilteredTypes(player, MOD_TYPES, MOD_RESEARCH_SUPPLIERS);
     }
@@ -145,13 +138,13 @@ public class SpellManager {
         }
     }
     
-    public static boolean isOnCooldown(@Nullable Player player) {
+    public static boolean isOnCooldown(@Nullable PlayerEntity player) {
         if (player == null) {
             return false;
         }
         
         // Determine whether the given player's spell cooldown is currently active, thus making spells unavailable
-        IPlayerCooldowns cooldowns = PrimalMagickCapabilities.getCooldowns(player);
+        IPlayerCooldowns cooldowns = PrimalMagicCapabilities.getCooldowns(player);
         if (cooldowns != null) {
             return cooldowns.isOnCooldown(IPlayerCooldowns.CooldownType.SPELL);
         } else {
@@ -159,26 +152,20 @@ public class SpellManager {
         }
     }
     
-    public static void setCooldown(@Nullable Player player, int durationTicks) {
+    public static void setCooldown(@Nullable PlayerEntity player, int durationTicks) {
         if (player != null) {
             // Trigger a spell cooldown of the given duration for the given player and sync the data to their client
-            IPlayerCooldowns cooldowns = PrimalMagickCapabilities.getCooldowns(player);
+            IPlayerCooldowns cooldowns = PrimalMagicCapabilities.getCooldowns(player);
             if (cooldowns != null) {
                 cooldowns.setCooldown(IPlayerCooldowns.CooldownType.SPELL, durationTicks);
-                if (player instanceof ServerPlayer) {
-                    cooldowns.sync((ServerPlayer)player); // Sync immediately, since cooldowns are time-sensitive
+                if (player instanceof ServerPlayerEntity) {
+                    cooldowns.sync((ServerPlayerEntity)player); // Sync immediately, since cooldowns are time-sensitive
                 }
             }
-            
-            // Show the shared cooldown visually
-            player.getCooldowns().addCooldown(ItemsPM.SPELL_SCROLL_FILLED.get(), durationTicks);
-            player.getCooldowns().addCooldown(ItemsPM.MUNDANE_WAND.get(), durationTicks);
-            player.getCooldowns().addCooldown(ItemsPM.MODULAR_WAND.get(), durationTicks);
-            player.getCooldowns().addCooldown(ItemsPM.MODULAR_STAFF.get(), durationTicks);
         }
     }
     
-    public static void cycleActiveSpell(@Nullable Player player, @Nullable ItemStack wandStack, boolean reverse) {
+    public static void cycleActiveSpell(@Nullable PlayerEntity player, @Nullable ItemStack wandStack, boolean reverse) {
         // Change the active spell for the given wand stack to the next (or previous, if specified) one in its inscribed list
         if (wandStack != null && wandStack.getItem() instanceof IWand) {
             IWand wand = (IWand)wandStack.getItem();
@@ -199,19 +186,18 @@ public class SpellManager {
             if (player != null) {
                 SpellPackage spell = wand.getActiveSpell(wandStack);
                 if (spell == null) {
-                    player.sendMessage(new TranslatableComponent("event.primalmagick.cycle_spell.none"), Util.NIL_UUID);
+                    player.sendMessage(new TranslationTextComponent("event.primalmagick.cycle_spell.none"), Util.DUMMY_UUID);
                 } else {
-                    player.sendMessage(new TranslatableComponent("event.primalmagick.cycle_spell", spell.getName()), Util.NIL_UUID);
+                    player.sendMessage(new TranslationTextComponent("event.primalmagick.cycle_spell", spell.getName()), Util.DUMMY_UUID);
                 }
             }
         }
     }
     
-    public static void executeSpellPayload(@Nonnull SpellPackage spell, @Nonnull HitResult result, @Nonnull Level world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource, 
-            boolean allowMine, @Nullable Entity projectileEntity) {
+    public static void executeSpellPayload(@Nonnull SpellPackage spell, @Nonnull RayTraceResult result, @Nonnull World world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource, boolean allowMine) {
         // Execute the payload of the given spell upon the block/entity in the given raytrace result
-        if (!world.isClientSide && spell.getPayload() != null) {
-            Vec3 hitVec = result.getLocation();
+        if (!world.isRemote && spell.getPayload() != null) {
+            Vector3d hitVec = result.getHitVec();
             BurstSpellMod burstMod = spell.getMod(BurstSpellMod.class, "radius");
             MineSpellMod mineMod = spell.getMod(MineSpellMod.class, "duration");
             
@@ -219,24 +205,24 @@ public class SpellManager {
             int radius = (burstMod == null || (allowMine && mineMod != null)) ? 1 : burstMod.getPropertyValue("radius");
             PacketHandler.sendToAllAround(
                     new SpellImpactPacket(hitVec.x, hitVec.y, hitVec.z, radius, spell.getPayload().getSource().getColor()), 
-                    world.dimension(), 
+                    world.getDimensionKey(), 
                     new BlockPos(hitVec), 
                     64.0D);
             
             if (allowMine && mineMod != null) {
                 // If the spell package has the Mine mod and mines are allowed (i.e. this payload wasn't triggered by an existing mine),
                 // spawn a new mine
-                SpellMineEntity mineEntity = new SpellMineEntity(world, hitVec, caster, spell, spellSource, mineMod.getDurationMinutes(spell, spellSource));
-                world.addFreshEntity(mineEntity);
+                SpellMineEntity mineEntity = new SpellMineEntity(world, hitVec, caster, spell, spellSource, mineMod.getModdedPropertyValue("duration", spell, spellSource));
+                world.addEntity(mineEntity);
             } else if (burstMod != null) {
                 // If the spell package has the burst mod, calculate the set of affected blocks/entities and execute the payload on each
-                Set<HitResult> targetSet = burstMod.getBurstTargets(result, spell, spellSource, world);
-                for (HitResult target : targetSet) {
-                    spell.getPayload().execute(target, hitVec, spell, world, caster, spellSource, null);
+                Set<RayTraceResult> targetSet = burstMod.getBurstTargets(result, spell, spellSource, world);
+                for (RayTraceResult target : targetSet) {
+                    spell.getPayload().execute(target, hitVec, spell, world, caster, spellSource);
                 }
             } else {
                 // Otherwise, just execute the payload on the given target
-                spell.getPayload().execute(result, null, spell, world, caster, spellSource, null);
+                spell.getPayload().execute(result, null, spell, world, caster, spellSource);
             }
         }
     }
@@ -256,41 +242,7 @@ public class SpellManager {
             return false;
         } else {
             // Don't allow misc entities like arrows and fishing bobbers unless explicitly allow-listed
-            return !entityType.getCategory().equals(MobCategory.MISC);
+            return !entityType.getClassification().equals(EntityClassification.MISC);
         }
-    }
-    
-    @Nonnull
-    public static List<Component> getSpellPackageDetailTooltip(@Nullable SpellPackage spell, @Nonnull ItemStack spellSource, boolean indent) {
-        List<Component> retVal = new ArrayList<>();
-        TextComponent leader = indent ? new TextComponent("    ") : new TextComponent("");
-        if (spell != null) {
-            ISpellVehicle vehicle = spell.getVehicle();
-            if (vehicle != null) {
-                retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.vehicle", vehicle.getDetailTooltip())));
-            }
-            
-            ISpellPayload payload = spell.getPayload();
-            if (payload != null) {
-                retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.payload", payload.getDetailTooltip(spell, spellSource))));
-            }
-            
-            ISpellMod primary = spell.getPrimaryMod();
-            ISpellMod secondary = spell.getSecondaryMod();
-            if (primary != null && primary.isActive() && secondary != null && secondary.isActive()) {
-                retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.mods.double", primary.getDetailTooltip(spell, spellSource), secondary.getDetailTooltip(spell, spellSource))));
-            } else if (primary != null && primary.isActive()) {
-                retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.mods.single", primary.getDetailTooltip(spell, spellSource))));
-            } else if (secondary != null && secondary.isActive()) {
-                retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.mods.single", secondary.getDetailTooltip(spell, spellSource))));
-            }
-            
-            retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.cooldown", COOLDOWN_FORMATTER.format(spell.getCooldownTicks() / 20.0D))));
-            
-            if (!spellSource.is(ItemsPM.SPELL_SCROLL_FILLED.get())) {
-                retVal.add(leader.copy().append(new TranslatableComponent("primalmagick.spells.details.mana_cost", spell.getManaCost().getText())));
-            }
-        }
-        return retVal;
     }
 }

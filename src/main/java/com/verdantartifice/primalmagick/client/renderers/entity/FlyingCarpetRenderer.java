@@ -1,25 +1,27 @@
 package com.verdantartifice.primalmagick.client.renderers.entity;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Vector3f;
+import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.vertex.IVertexBuilder;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.client.renderers.entity.model.FlyingCarpetModel;
-import com.verdantartifice.primalmagick.client.renderers.models.ModelLayersPM;
 import com.verdantartifice.primalmagick.common.entities.misc.FlyingCarpetEntity;
 
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.IRenderTypeBuffer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.EntityRendererManager;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.DyeColor;
+import net.minecraft.item.DyeColor;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.vector.Vector3f;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Entity renderer for a flying carpet.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class FlyingCarpetRenderer extends EntityRenderer<FlyingCarpetEntity> {
     private static final ResourceLocation TEXTURE_WHITE = new ResourceLocation(PrimalMagick.MODID, "textures/entity/flying_carpet/flying_carpet_white.png");
     private static final ResourceLocation TEXTURE_ORANGE = new ResourceLocation(PrimalMagick.MODID, "textures/entity/flying_carpet/flying_carpet_orange.png");
@@ -38,16 +40,15 @@ public class FlyingCarpetRenderer extends EntityRenderer<FlyingCarpetEntity> {
     private static final ResourceLocation TEXTURE_RED = new ResourceLocation(PrimalMagick.MODID, "textures/entity/flying_carpet/flying_carpet_red.png");
     private static final ResourceLocation TEXTURE_BLACK = new ResourceLocation(PrimalMagick.MODID, "textures/entity/flying_carpet/flying_carpet_black.png");
     
-    protected final FlyingCarpetModel model;
+    protected final FlyingCarpetModel model = new FlyingCarpetModel();
 
-    public FlyingCarpetRenderer(EntityRendererProvider.Context context) {
-        super(context);
-        this.shadowRadius = 0.5F;
-        this.model = new FlyingCarpetModel(context.bakeLayer(ModelLayersPM.FLYING_CARPET));
+    public FlyingCarpetRenderer(EntityRendererManager renderManager) {
+        super(renderManager);
+        this.shadowSize = 0.5F;
     }
 
     @Override
-    public ResourceLocation getTextureLocation(FlyingCarpetEntity entity) {
+    public ResourceLocation getEntityTexture(FlyingCarpetEntity entity) {
         DyeColor color = entity.getDyeColor();
         if (color == null) {
             return TEXTURE_WHITE;
@@ -91,17 +92,17 @@ public class FlyingCarpetRenderer extends EntityRenderer<FlyingCarpetEntity> {
     }
 
     @Override
-    public void render(FlyingCarpetEntity entityIn, float entityYaw, float partialTicks, PoseStack matrixStackIn, MultiBufferSource bufferIn, int packedLightIn) {
-        matrixStackIn.pushPose();
+    public void render(FlyingCarpetEntity entityIn, float entityYaw, float partialTicks, MatrixStack matrixStackIn, IRenderTypeBuffer bufferIn, int packedLightIn) {
+        matrixStackIn.push();
         matrixStackIn.translate(0.0D, 0.375D, 0.0D);
-        matrixStackIn.mulPose(Vector3f.YP.rotationDegrees(180.0F - entityYaw));
+        matrixStackIn.rotate(Vector3f.YP.rotationDegrees(180.0F - entityYaw));
         matrixStackIn.scale(-1.0F, -1.0F, 1.0F);
-        matrixStackIn.mulPose(Vector3f.YP.rotationDegrees(90.0F));
+        matrixStackIn.rotate(Vector3f.YP.rotationDegrees(90.0F));
         
-        VertexConsumer ivertexbuilder = bufferIn.getBuffer(this.model.renderType(this.getTextureLocation(entityIn)));
-        this.model.renderToBuffer(matrixStackIn, ivertexbuilder, packedLightIn, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
+        IVertexBuilder ivertexbuilder = bufferIn.getBuffer(this.model.getRenderType(this.getEntityTexture(entityIn)));
+        this.model.render(matrixStackIn, ivertexbuilder, packedLightIn, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
 
-        matrixStackIn.popPose();
+        matrixStackIn.pop();
         super.render(entityIn, entityYaw, partialTicks, matrixStackIn, bufferIn, packedLightIn);
     }
 }

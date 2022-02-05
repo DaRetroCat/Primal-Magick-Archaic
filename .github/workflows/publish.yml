@@ -5,7 +5,6 @@ jobs:
   generate:
     name: Create release-artifacts
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
@@ -22,4 +21,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: build/libs/primalmagic*.jar
+          args: build/libs/primalmagick*.jar

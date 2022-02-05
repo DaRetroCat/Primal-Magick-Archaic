@@ -1,6 +1,5 @@
 {
   "type": "minecraft:smelting",
-  "group": "iron_ingot",
   "ingredient": {
     "item": "primalmagick:iron_grit"
   },

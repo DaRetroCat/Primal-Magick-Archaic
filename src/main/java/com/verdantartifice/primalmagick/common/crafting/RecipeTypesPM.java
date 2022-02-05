@@ -1,6 +1,6 @@
 package com.verdantartifice.primalmagick.common.crafting;
 
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.item.crafting.IRecipeType;
 
 /**
  * Holder for mod custom recipe types.
@@ -8,9 +8,8 @@ import net.minecraft.world.item.crafting.RecipeType;
  * @author Daedalus4096
  */
 public class RecipeTypesPM {
-    public static RecipeType<IArcaneRecipe> ARCANE_CRAFTING;
-    public static RecipeType<IRitualRecipe> RITUAL;
-    public static RecipeType<IRunecarvingRecipe> RUNECARVING;
-    public static RecipeType<IConcoctingRecipe> CONCOCTING;
-    public static RecipeType<IDissolutionRecipe> DISSOLUTION;
+    public static IRecipeType<IArcaneRecipe> ARCANE_CRAFTING;
+    public static IRecipeType<IRitualRecipe> RITUAL;
+    public static IRecipeType<IRunecarvingRecipe> RUNECARVING;
+    public static IRecipeType<IConcoctingRecipe> CONCOCTING;
 }

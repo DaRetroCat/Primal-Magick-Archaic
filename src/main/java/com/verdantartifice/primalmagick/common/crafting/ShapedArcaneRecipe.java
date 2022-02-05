@@ -10,21 +10,21 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
+import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.common.crafting.CraftingHelper;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeSerializer;
+import net.minecraft.item.crafting.Ingredient;
+import net.minecraft.item.crafting.ShapedRecipe;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.JSONUtils;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 import net.minecraftforge.common.crafting.IShapedRecipe;
 import net.minecraftforge.registries.ForgeRegistryEntry;
 
@@ -34,17 +34,17 @@ import net.minecraftforge.registries.ForgeRegistryEntry;
  * @author Daedalus4096
  * @see {@link net.minecraft.item.crafting.ShapedRecipe}
  */
-public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<CraftingContainer> {
+public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<CraftingInventory> {
     protected final int recipeWidth;
     protected final int recipeHeight;
     protected final NonNullList<Ingredient> recipeItems;
     protected final ItemStack recipeOutput;
     protected final ResourceLocation id;
     protected final String group;
-    protected final CompoundResearchKey research;
+    protected final SimpleResearchKey research;
     protected final SourceList manaCosts;
     
-    public ShapedArcaneRecipe(ResourceLocation id, String group, CompoundResearchKey research, SourceList manaCosts, int width, int height, NonNullList<Ingredient> items, ItemStack output) {
+    public ShapedArcaneRecipe(ResourceLocation id, String group, SimpleResearchKey research, SourceList manaCosts, int width, int height, NonNullList<Ingredient> items, ItemStack output) {
         this.id = id;
         this.group = group;
         this.research = research;
@@ -56,7 +56,7 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
     }
 
     @Override
-    public boolean matches(CraftingContainer inv, Level worldIn) {
+    public boolean matches(CraftingInventory inv, World worldIn) {
         // Determine if the contents of the given crafting recipe match this recipe.  Shift the recipe window
         // around the available space until a match is found or the search space exhausted.  E.g. a 2x2 recipe
         // could be shoved up against any of the four corners of the 3x3 crafting grid.
@@ -73,7 +73,7 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
         return false;
     }
 
-    protected boolean checkMatch(CraftingContainer inv, int widthOffset, int heightOffset, boolean flag) {
+    protected boolean checkMatch(CraftingInventory inv, int widthOffset, int heightOffset, boolean flag) {
         for (int i = 0; i < inv.getWidth(); i++) {
             for (int j = 0; j < inv.getHeight(); j++) {
                 int k = i - widthOffset;
@@ -86,7 +86,7 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
                         ingredient = this.recipeItems.get(k + l * this.recipeWidth);
                     }
                 }
-                if (!ingredient.test(inv.getItem(i + j * inv.getWidth()))) {
+                if (!ingredient.test(inv.getStackInSlot(i + j * inv.getWidth()))) {
                     return false;
                 }
             }
@@ -95,17 +95,17 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
     }
 
     @Override
-    public ItemStack assemble(CraftingContainer inv) {
+    public ItemStack getCraftingResult(CraftingInventory inv) {
         return this.recipeOutput.copy();
     }
 
     @Override
-    public boolean canCraftInDimensions(int width, int height) {
+    public boolean canFit(int width, int height) {
         return width >= this.recipeWidth && height >= this.recipeHeight;
     }
 
     @Override
-    public ItemStack getResultItem() {
+    public ItemStack getRecipeOutput() {
         return this.recipeOutput;
     }
     
@@ -120,12 +120,12 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public IRecipeSerializer<?> getSerializer() {
         return RecipeSerializersPM.ARCANE_CRAFTING_SHAPED.get();
     }
 
     @Override
-    public CompoundResearchKey getRequiredResearch() {
+    public SimpleResearchKey getRequiredResearch() {
         return this.research;
     }
     
@@ -144,11 +144,6 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
         return this.recipeHeight;
     }
 
-    @Override
-    public String getGroup() {
-        return this.group;
-    }
-
     protected static Map<String, Ingredient> deserializeKey(JsonObject jsonObject) {
         Map<String, Ingredient> map = new HashMap<>();
         for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
@@ -161,7 +156,7 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
             }
             
             // Store the key and corresponding deserialized ingredient for return
-            map.put(entry.getKey(), Ingredient.fromJson(entry.getValue()));
+            map.put(entry.getKey(), Ingredient.deserialize(entry.getValue()));
         }
         
         // Include an entry for empty space in the recipe
@@ -226,16 +221,6 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
         }
     }
 
-    @Override
-    public boolean isIncomplete() {
-        NonNullList<Ingredient> ingredients = this.getIngredients();
-        return ingredients.isEmpty() || ingredients.stream().filter(i -> {
-            return !i.isEmpty();
-        }).anyMatch(i -> {
-            return i.getItems().length == 0;
-        });
-    }
-
     private static int firstNonSpace(String str) {
         int i;
         for (i = 0; i < str.length() && str.charAt(i) == ' '; ++i) {}
@@ -258,7 +243,7 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
             throw new JsonSyntaxException("Invalid pattern: empty pattern not allowed");
         } else {
             for(int i = 0; i < astring.length; ++i) {
-                String s = GsonHelper.convertToString(jsonArray.get(i), "pattern[" + i + "]");
+                String s = JSONUtils.getString(jsonArray.get(i), "pattern[" + i + "]");
                 if (s.length() > 3) {
                     throw new JsonSyntaxException("Invalid pattern: too many columns, 3 is maximum");
                 }
@@ -271,52 +256,52 @@ public class ShapedArcaneRecipe implements IArcaneRecipe, IShapedRecipe<Crafting
         }
     }
 
-    public static class Serializer extends ForgeRegistryEntry<RecipeSerializer<?>> implements RecipeSerializer<ShapedArcaneRecipe> {
+    public static class Serializer extends ForgeRegistryEntry<IRecipeSerializer<?>> implements IRecipeSerializer<ShapedArcaneRecipe> {
         @Override
-        public ShapedArcaneRecipe fromJson(ResourceLocation recipeId, JsonObject json) {
-            String group = GsonHelper.getAsString(json, "group", "");
-            CompoundResearchKey research = CompoundResearchKey.parse(GsonHelper.getAsString(json, "research", ""));
-            SourceList manaCosts = JsonUtils.toSourceList(GsonHelper.getAsJsonObject(json, "mana", new JsonObject()));
-            Map<String, Ingredient> map = ShapedArcaneRecipe.deserializeKey(GsonHelper.getAsJsonObject(json, "key"));
-            String[] patternStrs = ShapedArcaneRecipe.shrink(ShapedArcaneRecipe.patternFromJson(GsonHelper.getAsJsonArray(json, "pattern")));
+        public ShapedArcaneRecipe read(ResourceLocation recipeId, JsonObject json) {
+            String group = JSONUtils.getString(json, "group", "");
+            SimpleResearchKey research = SimpleResearchKey.parse(JSONUtils.getString(json, "research", ""));
+            SourceList manaCosts = JsonUtils.toSourceList(JSONUtils.getJsonObject(json, "mana", new JsonObject()));
+            Map<String, Ingredient> map = ShapedArcaneRecipe.deserializeKey(JSONUtils.getJsonObject(json, "key"));
+            String[] patternStrs = ShapedArcaneRecipe.shrink(ShapedArcaneRecipe.patternFromJson(JSONUtils.getJsonArray(json, "pattern")));
             int width = patternStrs[0].length();
             int height = patternStrs.length;
             NonNullList<Ingredient> ingredients = ShapedArcaneRecipe.deserializeIngredients(patternStrs, map, width, height);
-            ItemStack result = CraftingHelper.getItemStack(GsonHelper.getAsJsonObject(json, "result"), true);
+            ItemStack result = ShapedRecipe.deserializeItem(JSONUtils.getJsonObject(json, "result"));
             return new ShapedArcaneRecipe(recipeId, group, research, manaCosts, width, height, ingredients, result);
         }
         
         @Override
-        public ShapedArcaneRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
+        public ShapedArcaneRecipe read(ResourceLocation recipeId, PacketBuffer buffer) {
             int width = buffer.readVarInt();
             int height = buffer.readVarInt();
-            String group = buffer.readUtf(32767);
-            CompoundResearchKey research = CompoundResearchKey.parse(buffer.readUtf(32767));
+            String group = buffer.readString(32767);
+            SimpleResearchKey research = SimpleResearchKey.parse(buffer.readString(32767));
             SourceList manaCosts = new SourceList();
             for (int index = 0; index < Source.SORTED_SOURCES.size(); index++) {
                 manaCosts.add(Source.SORTED_SOURCES.get(index), buffer.readVarInt());
             }
             NonNullList<Ingredient> list = NonNullList.withSize(width * height, Ingredient.EMPTY);
             for (int index = 0; index < list.size(); index++) {
-                list.set(index, Ingredient.fromNetwork(buffer));
+                list.set(index, Ingredient.read(buffer));
             }
-            ItemStack stack = buffer.readItem();
+            ItemStack stack = buffer.readItemStack();
             return new ShapedArcaneRecipe(recipeId, group, research, manaCosts, width, height, list, stack);
         }
 
         @Override
-        public void toNetwork(FriendlyByteBuf buffer, ShapedArcaneRecipe recipe) {
+        public void write(PacketBuffer buffer, ShapedArcaneRecipe recipe) {
             buffer.writeVarInt(recipe.recipeWidth);
             buffer.writeVarInt(recipe.recipeHeight);
-            buffer.writeUtf(recipe.group);
-            buffer.writeUtf(recipe.research.toString());
+            buffer.writeString(recipe.group);
+            buffer.writeString(recipe.research.toString());
             for (Source source : Source.SORTED_SOURCES) {
                 buffer.writeVarInt(recipe.manaCosts.getAmount(source));
             }
             for (Ingredient ingredient : recipe.recipeItems) {
-                ingredient.toNetwork(buffer);
+                ingredient.write(buffer);
             }
-            buffer.writeItem(recipe.recipeOutput);
+            buffer.writeItemStack(recipe.recipeOutput);
         }
     }
 }

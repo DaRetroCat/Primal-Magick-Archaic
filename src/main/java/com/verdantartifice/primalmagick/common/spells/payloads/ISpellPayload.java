@@ -9,15 +9,14 @@ import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.world.World;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -28,7 +27,7 @@ import net.minecraftforge.common.util.INBTSerializable;
  * 
  * @author Daedalus4096
  */
-public interface ISpellPayload extends INBTSerializable<CompoundTag> {
+public interface ISpellPayload extends INBTSerializable<CompoundNBT> {
     /**
      * Execute this spell payload upon the designated target.
      * 
@@ -38,9 +37,8 @@ public interface ISpellPayload extends INBTSerializable<CompoundTag> {
      * @param world the world in which the payload should be executed
      * @param caster the player that originally casted the spell
      * @param spellSource the wand or scroll containing the spell package
-     * @param projectileEntity TODO
      */
-    public void execute(@Nullable HitResult target, @Nullable Vec3 burstPoint, @Nonnull SpellPackage spell, @Nonnull Level world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource, @Nullable Entity projectileEntity);
+    public void execute(@Nullable RayTraceResult target, @Nullable Vector3d burstPoint, @Nonnull SpellPackage spell, @Nonnull World world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource);
     
     /**
      * Determine whether this payload has an effect that should be executed.  Should be true for all but
@@ -72,7 +70,7 @@ public interface ISpellPayload extends INBTSerializable<CompoundTag> {
      * @param world the world in which the sound event should be played
      * @param origin the origin position of the sound to be played
      */
-    public void playSounds(@Nonnull Level world, @Nonnull BlockPos origin);
+    public void playSounds(@Nonnull World world, @Nonnull BlockPos origin);
     
     /**
      * Get a name-ordered list of properties used by this spell payload.
@@ -105,16 +103,7 @@ public interface ISpellPayload extends INBTSerializable<CompoundTag> {
      * @return the spell payload type name
      */
     @Nonnull
-    public Component getTypeName();
-    
-    /**
-     * Get a display text component to show in the details tooltip of the spell.
-     * 
-     * @return the spell payload details
-     */
-    public default Component getDetailTooltip(SpellPackage spell, ItemStack spellSource) {
-        return this.getTypeName();
-    }
+    public ITextComponent getTypeName();
     
     /**
      * Get a display text component containing the human-friendly text to be used to identify the
@@ -123,5 +112,5 @@ public interface ISpellPayload extends INBTSerializable<CompoundTag> {
      * @return the spell payload's default name
      */
     @Nonnull
-    public Component getDefaultNamePiece();
+    public ITextComponent getDefaultNamePiece();
 }

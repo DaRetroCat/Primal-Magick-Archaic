@@ -14,42 +14,29 @@ import com.verdantartifice.primalmagick.common.commands.arguments.SourceArgument
 import com.verdantartifice.primalmagick.common.commands.arguments.StatValueArgument;
 import com.verdantartifice.primalmagick.common.entities.EntityTypesPM;
 import com.verdantartifice.primalmagick.common.entities.misc.TreefolkEntity;
-import com.verdantartifice.primalmagick.common.entities.projectiles.IgnyxEntity;
 import com.verdantartifice.primalmagick.common.init.InitAttunements;
-import com.verdantartifice.primalmagick.common.init.InitCauldron;
+import com.verdantartifice.primalmagick.common.init.InitCapabilities;
 import com.verdantartifice.primalmagick.common.init.InitRecipes;
 import com.verdantartifice.primalmagick.common.init.InitResearch;
 import com.verdantartifice.primalmagick.common.init.InitRunes;
 import com.verdantartifice.primalmagick.common.init.InitSpells;
 import com.verdantartifice.primalmagick.common.init.InitStats;
-import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.items.misc.LazySpawnEggItem;
 import com.verdantartifice.primalmagick.common.loot.conditions.LootConditionTypesPM;
 import com.verdantartifice.primalmagick.common.misc.DispenseLazySpawnEggBehavior;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.spells.SpellManager;
-import com.verdantartifice.primalmagick.common.worldgen.features.ConfiguredStructureFeaturesPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.StructureFeaturesPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.OreFeaturesPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.OrePlacementsPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.TreeFeaturesPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.TreePlacementsPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.VegetationPlacementsPM;
+import com.verdantartifice.primalmagick.common.worldgen.features.ConfiguredFeaturesPM;
+import com.verdantartifice.primalmagick.common.worldgen.features.FeaturesPM;
 
-import net.minecraft.Util;
-import net.minecraft.commands.synchronization.ArgumentTypes;
-import net.minecraft.commands.synchronization.EmptyArgumentSerializer;
-import net.minecraft.core.Position;
-import net.minecraft.core.dispenser.AbstractProjectileDispenseBehavior;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.SpawnPlacements;
-import net.minecraft.world.entity.SpawnPlacements.Type;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.DispenserBlock;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.block.DispenserBlock;
+import net.minecraft.command.arguments.ArgumentSerializer;
+import net.minecraft.command.arguments.ArgumentTypes;
+import net.minecraft.entity.EntitySpawnPlacementRegistry;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.EntitySpawnPlacementRegistry.PlacementType;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.gen.Heightmap;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.InterModComms;
 import net.minecraftforge.fml.common.Mod;
@@ -62,7 +49,7 @@ import net.minecraftforge.fml.event.lifecycle.InterModProcessEvent;
  * 
  * @author Daedalus4096
  */
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID, bus=Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID, bus=Mod.EventBusSubscriber.Bus.MOD)
 public class ModLifecycleEvents {
     @SubscribeEvent
     public static void commonSetup(FMLCommonSetupEvent event) {
@@ -70,20 +57,16 @@ public class ModLifecycleEvents {
         
         InitRecipes.initRecipeTypes();
         InitRecipes.initWandTransforms();
+        InitCapabilities.initCapabilities();
         InitAttunements.initAttunementAttributeModifiers();
         InitResearch.initResearch();
         InitSpells.initSpells();
         InitStats.initStats();
         InitRunes.initRuneEnchantments();
-        InitCauldron.initCauldronInteractions();
         
-        OreFeaturesPM.setupOreFeatures();
-        OrePlacementsPM.setupOrePlacements();
-        TreeFeaturesPM.setupTreeFeatures();
-        TreePlacementsPM.setupTreePlacements();
-        VegetationPlacementsPM.setupTreePlacements();
-        StructureFeaturesPM.setupStructures();
-        ConfiguredStructureFeaturesPM.registerConfiguredStructures();
+        FeaturesPM.setupFeatures();
+        FeaturesPM.setupStructures();
+        ConfiguredFeaturesPM.registerConfiguredStructures();
         LootConditionTypesPM.register();
 
         registerCommandArguments(event);
@@ -92,19 +75,19 @@ public class ModLifecycleEvents {
     }
     
     private static void registerCommandArguments(FMLCommonSetupEvent event) {
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "research")).toString(), ResearchArgument.class, new EmptyArgumentSerializer<>(ResearchArgument::research));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "discipline")).toString(), DisciplineArgument.class, new EmptyArgumentSerializer<>(DisciplineArgument::discipline));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "knowledge_type")).toString(), KnowledgeTypeArgument.class, new EmptyArgumentSerializer<>(KnowledgeTypeArgument::knowledgeType));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "knowledge_amount").toString()), KnowledgeAmountArgument.class, new EmptyArgumentSerializer<>(KnowledgeAmountArgument::amount));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "source")).toString(), SourceArgument.class, new EmptyArgumentSerializer<>(SourceArgument::source));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "stat_value")).toString(), StatValueArgument.class, new EmptyArgumentSerializer<>(StatValueArgument::value));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "attunement_type")).toString(), AttunementTypeArgument.class, new EmptyArgumentSerializer<>(AttunementTypeArgument::attunementType));
-        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "attunement_value")).toString(), AttunementValueArgument.class, new EmptyArgumentSerializer<>(AttunementValueArgument::value));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "research")).toString(), ResearchArgument.class, new ArgumentSerializer<>(ResearchArgument::research));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "discipline")).toString(), DisciplineArgument.class, new ArgumentSerializer<>(DisciplineArgument::discipline));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "knowledge_type")).toString(), KnowledgeTypeArgument.class, new ArgumentSerializer<>(KnowledgeTypeArgument::knowledgeType));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "knowledge_amount").toString()), KnowledgeAmountArgument.class, new ArgumentSerializer<>(KnowledgeAmountArgument::amount));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "source")).toString(), SourceArgument.class, new ArgumentSerializer<>(SourceArgument::source));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "stat_value")).toString(), StatValueArgument.class, new ArgumentSerializer<>(StatValueArgument::value));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "attunement_type")).toString(), AttunementTypeArgument.class, new ArgumentSerializer<>(AttunementTypeArgument::attunementType));
+        ArgumentTypes.register((new ResourceLocation(PrimalMagick.MODID, "attunement_value")).toString(), AttunementValueArgument.class, new ArgumentSerializer<>(AttunementValueArgument::value));
     }
     
     private static void registerEntityPlacements(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            SpawnPlacements.register(EntityTypesPM.TREEFOLK.get(), Type.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, TreefolkEntity::canSpawnOn);
+            EntitySpawnPlacementRegistry.register(EntityTypesPM.TREEFOLK.get(), PlacementType.ON_GROUND, Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, TreefolkEntity::canSpawnOn);
         });
     }
     
@@ -112,16 +95,8 @@ public class ModLifecycleEvents {
         event.enqueueWork(() -> {
             DispenseLazySpawnEggBehavior eggBehavior = new DispenseLazySpawnEggBehavior();
             for (LazySpawnEggItem egg : LazySpawnEggItem.getEggs()) {
-                DispenserBlock.registerBehavior(egg, eggBehavior);
+                DispenserBlock.registerDispenseBehavior(egg, eggBehavior);
             }
-            DispenserBlock.registerBehavior(ItemsPM.IGNYX.get(), new AbstractProjectileDispenseBehavior() {
-                @Override
-                protected Projectile getProjectile(Level level, Position pos, ItemStack stack) {
-                    return Util.make(new IgnyxEntity(level, pos.x(), pos.y(), pos.z()), p -> {
-                        p.setItem(stack);
-                    });
-                }
-            });
         });
     }
 
@@ -142,7 +117,7 @@ public class ModLifecycleEvents {
     @SubscribeEvent
     public static void processIMC(InterModProcessEvent event) {
         // Populate the polymorph allow list with entity types from incoming messages
-        List<Object> allowMessageList = event.getIMCStream(m -> "polymorphAllow".equals(m)).map(m -> m.messageSupplier().get()).collect(Collectors.toList());
+        List<Object> allowMessageList = event.getIMCStream(m -> "polymorphAllow".equals(m)).map(m -> m.getMessageSupplier().get()).collect(Collectors.toList());
         for (Object obj : allowMessageList) {
             if (obj instanceof EntityType<?>) {
                 SpellManager.setPolymorphAllowed((EntityType<?>)obj);
@@ -150,7 +125,7 @@ public class ModLifecycleEvents {
         }
         
         // Populate the polymorph ban list with entity types from incoming messages
-        List<Object> banMessageList = event.getIMCStream(m -> "polymorphBan".equals(m)).map(m -> m.messageSupplier().get()).collect(Collectors.toList());
+        List<Object> banMessageList = event.getIMCStream(m -> "polymorphBan".equals(m)).map(m -> m.getMessageSupplier().get()).collect(Collectors.toList());
         for (Object obj : banMessageList) {
             if (obj instanceof EntityType<?>) {
                 SpellManager.setPolymorphBanned((EntityType<?>)obj);

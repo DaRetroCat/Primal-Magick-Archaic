@@ -5,20 +5,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
-import com.verdantartifice.primalmagick.common.network.PacketHandler;
-import com.verdantartifice.primalmagick.common.network.packets.data.SyncCompanionsPacket;
 
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.INBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.LazyOptional;
 
 /**
@@ -30,31 +30,31 @@ public class PlayerCompanions implements IPlayerCompanions {
     private Map<CompanionType, LinkedList<UUID>> companions = new ConcurrentHashMap<>();
 
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag rootTag = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT rootTag = new CompoundNBT();
         for (CompanionType type : CompanionType.values()) {
-            ListTag list = new ListTag();
+            ListNBT list = new ListNBT();
             List<UUID> companions = this.get(type);
             for (UUID id : companions) {
-                CompoundTag companionTag = new CompoundTag();
-                companionTag.putUUID("Id", id);
+                CompoundNBT companionTag = new CompoundNBT();
+                companionTag.putUniqueId("Id", id);
                 list.add(companionTag);
             }
-            rootTag.put(type.getSerializedName(), list);
+            rootTag.put(type.getString(), list);
         }
         return rootTag;
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         this.clear();
         for (CompanionType type : CompanionType.values()) {
-            if (nbt.contains(type.getSerializedName(), Tag.TAG_LIST)) {
-                ListTag list = nbt.getList(type.getSerializedName(), Tag.TAG_COMPOUND);
+            if (nbt.contains(type.getString(), Constants.NBT.TAG_LIST)) {
+                ListNBT list = nbt.getList(type.getString(), Constants.NBT.TAG_COMPOUND);
                 for (int index = 0; index < list.size(); index++) {
-                    CompoundTag companionTag = list.getCompound(index);
-                    if (companionTag.hasUUID("Id")) {
-                        this.companions.computeIfAbsent(type, (t) -> new LinkedList<>()).add(companionTag.getUUID("Id"));
+                    CompoundNBT companionTag = list.getCompound(index);
+                    if (companionTag.hasUniqueId("Id")) {
+                        this.companions.computeIfAbsent(type, (t) -> new LinkedList<>()).add(companionTag.getUniqueId("Id"));
                     }
                 }
             }
@@ -97,9 +97,9 @@ public class PlayerCompanions implements IPlayerCompanions {
     }
 
     @Override
-    public void sync(ServerPlayer player) {
+    public void sync(ServerPlayerEntity player) {
         if (player != null) {
-            PacketHandler.sendToPlayer(new SyncCompanionsPacket(player), player);
+            // TODO send sync packet
         }
     }
 
@@ -109,15 +109,15 @@ public class PlayerCompanions implements IPlayerCompanions {
      * @author Daedalus4096
      * @see {@link com.verdantartifice.primalmagick.common.events.CapabilityEvents}
      */
-    public static class Provider implements ICapabilitySerializable<CompoundTag> {
+    public static class Provider implements ICapabilitySerializable<CompoundNBT> {
         public static final ResourceLocation NAME = new ResourceLocation(PrimalMagick.MODID, "capability_companions");
         
-        private final IPlayerCompanions instance = new PlayerCompanions();
+        private final IPlayerCompanions instance = PrimalMagicCapabilities.COMPANIONS.getDefaultInstance();
         private final LazyOptional<IPlayerCompanions> holder = LazyOptional.of(() -> instance);  // Cache a lazy optional of the capability instance
 
         @Override
         public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-            if (cap == PrimalMagickCapabilities.COMPANIONS) {
+            if (cap == PrimalMagicCapabilities.COMPANIONS) {
                 return holder.cast();
             } else {
                 return LazyOptional.empty();
@@ -125,13 +125,46 @@ public class PlayerCompanions implements IPlayerCompanions {
         }
 
         @Override
-        public CompoundTag serializeNBT() {
+        public CompoundNBT serializeNBT() {
             return instance.serializeNBT();
         }
 
         @Override
-        public void deserializeNBT(CompoundTag nbt) {
+        public void deserializeNBT(CompoundNBT nbt) {
             instance.deserializeNBT(nbt);
+        }
+    }
+    
+    /**
+     * Storage manager for the player companions capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Storage implements Capability.IStorage<IPlayerCompanions> {
+        @Override
+        public INBT writeNBT(Capability<IPlayerCompanions> capability, IPlayerCompanions instance, Direction side) {
+            // Use the instance's pre-defined serialization
+            return instance.serializeNBT();
+        }
+
+        @Override
+        public void readNBT(Capability<IPlayerCompanions> capability, IPlayerCompanions instance, Direction side, INBT nbt) {
+            // Use the instance's pre-defined deserialization
+            instance.deserializeNBT((CompoundNBT)nbt);
+        }
+    }
+    
+    /**
+     * Factory for the player companions capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Factory implements Callable<IPlayerCompanions> {
+        @Override
+        public IPlayerCompanions call() throws Exception {
+            return new PlayerCompanions();
         }
     }
 }

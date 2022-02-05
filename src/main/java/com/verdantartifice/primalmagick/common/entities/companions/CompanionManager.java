@@ -7,11 +7,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerCompanions;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.world.server.ServerWorld;
 
 /**
  * Primary access point for companion-related methods.  Companions are entities that follow a
@@ -23,17 +23,17 @@ public class CompanionManager {
     // Set of unique IDs of players that need their companions synced to their client
     private static final Set<UUID> SYNC_SET = ConcurrentHashMap.newKeySet();
 
-    public static boolean isSyncScheduled(@Nullable Player player) {
+    public static boolean isSyncScheduled(@Nullable PlayerEntity player) {
         if (player == null) {
             return false;
         } else {
-            return SYNC_SET.remove(player.getUUID());
+            return SYNC_SET.remove(player.getUniqueID());
         }
     }
     
-    public static void scheduleSync(@Nullable Player player) {
+    public static void scheduleSync(@Nullable PlayerEntity player) {
         if (player != null) {
-            SYNC_SET.add(player.getUUID());
+            SYNC_SET.add(player.getUniqueID());
         }
     }
     
@@ -44,17 +44,17 @@ public class CompanionManager {
      * @param player the player to gain the companion
      * @param companion the companion to be added
      */
-    public static void addCompanion(@Nullable Player player, @Nullable AbstractCompanionEntity companion) {
+    public static void addCompanion(@Nullable PlayerEntity player, @Nullable AbstractCompanionEntity companion) {
         if (player != null && companion != null) {
-            companion.setCompanionOwnerId(player.getUUID());
-            IPlayerCompanions companions = PrimalMagickCapabilities.getCompanions(player);
+            companion.setCompanionOwnerId(player.getUniqueID());
+            IPlayerCompanions companions = PrimalMagicCapabilities.getCompanions(player);
             if (companions != null) {
-                UUID oldCompanion = companions.add(companion.getCompanionType(), companion.getUUID());
-                if (oldCompanion != null && player.level instanceof ServerLevel) {
-                    for (ServerLevel serverWorld : ((ServerLevel)player.level).getServer().getAllLevels()) {
-                        Entity entity = serverWorld.getEntity(oldCompanion);
+                UUID oldCompanion = companions.add(companion.getCompanionType(), companion.getUniqueID());
+                if (oldCompanion != null && player.world instanceof ServerWorld) {
+                    for (ServerWorld serverWorld : ((ServerWorld)player.world).getServer().getWorlds()) {
+                        Entity entity = serverWorld.getEntityByUuid(oldCompanion);
                         if (entity != null) {
-                            entity.kill();
+                            entity.onKillCommand();
                             break;
                         }
                     }
@@ -70,11 +70,11 @@ public class CompanionManager {
      * @param player the player to lose the companion
      * @param companion the companion to be removed
      */
-    public static void removeCompanion(@Nullable Player player, @Nullable AbstractCompanionEntity companion) {
+    public static void removeCompanion(@Nullable PlayerEntity player, @Nullable AbstractCompanionEntity companion) {
         if (player != null && companion != null) {
             companion.setCompanionOwnerId(null);
-            IPlayerCompanions companions = PrimalMagickCapabilities.getCompanions(player);
-            if (companions != null && companions.remove(companion.getCompanionType(), companion.getUUID())) {
+            IPlayerCompanions companions = PrimalMagicCapabilities.getCompanions(player);
+            if (companions != null && companions.remove(companion.getCompanionType(), companion.getUniqueID())) {
                 CompanionManager.scheduleSync(player);
             }
         }

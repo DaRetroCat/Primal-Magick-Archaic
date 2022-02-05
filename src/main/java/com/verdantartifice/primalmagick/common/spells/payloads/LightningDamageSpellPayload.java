@@ -6,12 +6,11 @@ import com.verdantartifice.primalmagick.common.sounds.SoundsPM;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 /**
  * Definition of a lightning damage spell.  Deals lower than standard damage at low power property
@@ -41,13 +40,13 @@ public class LightningDamageSpellPayload extends AbstractDamageSpellPayload {
     }
 
     @Override
-    public void playSounds(Level world, BlockPos origin) {
-        world.playSound(null, origin, SoundsPM.ELECTRIC.get(), SoundSource.PLAYERS, 1.0F, 1.0F + (float)(world.random.nextGaussian() * 0.05D));
+    public void playSounds(World world, BlockPos origin) {
+        world.playSound(null, origin, SoundsPM.ELECTRIC.get(), SoundCategory.PLAYERS, 1.0F, 1.0F + (float)(world.rand.nextGaussian() * 0.05D));
     }
 
     @Override
-    protected float getBaseDamage(SpellPackage spell, ItemStack spellSource) {
-        return 5.0F * this.getModdedPropertyValue("power", spell, spellSource);
+    protected float getTotalDamage(Entity target, SpellPackage spell, ItemStack spellSource) {
+        return 2.0F * this.getModdedPropertyValue("power", spell, spellSource);
     }
 
     @Override
@@ -57,12 +56,6 @@ public class LightningDamageSpellPayload extends AbstractDamageSpellPayload {
     
     @Override
     public int getBaseManaCost() {
-        int power = this.getPropertyValue("power");
-        return (1 << Math.max(0, power - 1)) + ((1 << Math.max(0, power - 1)) >> 1);
-    }
-
-    @Override
-    public Component getDetailTooltip(SpellPackage spell, ItemStack spellSource) {
-        return new TranslatableComponent("primalmagick.spell.payload.detail_tooltip." + this.getPayloadType(), DECIMAL_FORMATTER.format(this.getBaseDamage(spell, spellSource)));
+        return 2 * this.getPropertyValue("power");
     }
 }

@@ -5,15 +5,13 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import com.verdantartifice.primalmagick.client.fx.FxDispatcher;
-import com.verdantartifice.primalmagick.client.util.ClientUtils;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToClient;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent from the server to trigger a prop marker particle effect on the client.
@@ -29,11 +27,11 @@ public class PropMarkerPacket implements IMessageToClient {
         this.pos = pos;
     }
     
-    public static void encode(PropMarkerPacket message, FriendlyByteBuf buf) {
+    public static void encode(PropMarkerPacket message, PacketBuffer buf) {
         buf.writeBlockPos(message.pos);
     }
     
-    public static PropMarkerPacket decode(FriendlyByteBuf buf) {
+    public static PropMarkerPacket decode(PacketBuffer buf) {
         PropMarkerPacket message = new PropMarkerPacket();
         message.pos = buf.readBlockPos();
         return message;
@@ -44,10 +42,11 @@ public class PropMarkerPacket implements IMessageToClient {
         public static void onMessage(PropMarkerPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                Level world = (FMLEnvironment.dist == Dist.CLIENT) ? ClientUtils.getCurrentLevel() : null;
+            	Minecraft mc = Minecraft.getInstance();
+                World world = mc.world;
                 // Only process positions that are currently loaded into the world.  Safety check to prevent
                 // resource thrashing from falsified packets.
-                if (world != null && world.hasChunkAt(message.pos)) {
+                if (world != null && world.isBlockLoaded(message.pos)) {
                     FxDispatcher.INSTANCE.propMarker(message.pos);
                 }
             });

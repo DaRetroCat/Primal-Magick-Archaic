@@ -1,18 +1,14 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class PotionBonusAffinity extends AbstractAffinity {
@@ -35,7 +31,7 @@ public class PotionBonusAffinity extends AbstractAffinity {
     }
 
     @Override
-    protected SourceList calculateTotal(@Nullable RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    protected SourceList calculateTotal(@Nonnull RecipeManager recipeManager) {
         if (this.bonusValues != null) {
             return this.bonusValues;
         } else {
@@ -52,7 +48,7 @@ public class PotionBonusAffinity extends AbstractAffinity {
             }
             
             ResourceLocation targetId = new ResourceLocation(target);
-            if (!ForgeRegistries.POTIONS.containsKey(targetId)) {
+            if (!ForgeRegistries.POTION_TYPES.containsKey(targetId)) {
                 throw new JsonSyntaxException("Unknown target potion type " + target + " in affinity JSON for " + affinityId.toString());
             }
             
@@ -64,19 +60,6 @@ public class PotionBonusAffinity extends AbstractAffinity {
             }
             
             return entry;
-        }
-
-        @Override
-        public PotionBonusAffinity fromNetwork(FriendlyByteBuf buf) {
-            PotionBonusAffinity affinity = new PotionBonusAffinity(buf.readResourceLocation());
-            affinity.bonusValues = SourceList.fromNetwork(buf);
-            return affinity;
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, PotionBonusAffinity affinity) {
-            buf.writeResourceLocation(affinity.targetId);
-            SourceList.toNetwork(buf, affinity.bonusValues);
         }
     }
 }

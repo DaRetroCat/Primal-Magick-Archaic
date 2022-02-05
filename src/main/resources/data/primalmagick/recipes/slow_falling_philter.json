@@ -1,6 +1,5 @@
 {
   "type": "primalmagick:concocting",
-  "group": "slow_falling",
   "research": "CONCOCTING_PHILTERS",
   "mana": {
     "infernal": 3
@@ -10,7 +9,7 @@
       "type": "forge:nbt",
       "item": "primalmagick:concoction",
       "count": 1,
-      "nbt": "{ConcoctionDoses:1,ConcoctionType:\"water\",Potion:\"minecraft:water\"}"
+      "nbt": "{ConcoctionType:\"water\",Potion:\"minecraft:water\",ConcoctionDoses:1}"
     },
     {
       "item": "primalmagick:essence_shard_sky"
@@ -25,6 +24,6 @@
   "result": {
     "item": "primalmagick:concoction",
     "count": 1,
-    "nbt": "{ConcoctionDoses:6,ConcoctionType:\"philter\",Potion:\"minecraft:slow_falling\"}"
+    "nbt": "{ConcoctionType:\"philter\",Potion:\"minecraft:slow_falling\",ConcoctionDoses:6}"
   }
 }

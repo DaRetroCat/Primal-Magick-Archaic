@@ -1,16 +1,12 @@
 package com.verdantartifice.primalmagick.common.theorycrafting;
 
-import java.util.Set;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Definition of a project material that requires experience levels, which may or may not be consumed as part
@@ -40,15 +36,15 @@ public class ExperienceProjectMaterial extends AbstractProjectMaterial {
     }
     
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag tag = super.serializeNBT();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT tag = super.serializeNBT();
         tag.putInt("Levels", this.levels);
         tag.putBoolean("Consumed", this.consumed);
         return tag;
     }
     
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         super.deserializeNBT(nbt);
         this.levels = nbt.getInt("Levels");
         this.consumed = nbt.getBoolean("Consumed");
@@ -60,13 +56,13 @@ public class ExperienceProjectMaterial extends AbstractProjectMaterial {
     }
 
     @Override
-    public boolean isSatisfied(Player player, Set<Block> surroundings) {
+    public boolean isSatisfied(PlayerEntity player) {
         return player.experienceLevel >= this.levels;
     }
 
     @Override
-    public boolean consume(Player player) {
-        player.giveExperienceLevels(-1 * this.levels);
+    public boolean consume(PlayerEntity player) {
+        player.addExperienceLevel(-1 * this.levels);
         return true;
     }
     
@@ -80,18 +76,12 @@ public class ExperienceProjectMaterial extends AbstractProjectMaterial {
     }
 
     @Override
-    public void toNetwork(FriendlyByteBuf buf) {
-        SERIALIZER.toNetwork(buf, this);
-    }
-
-    @Override
     public AbstractProjectMaterial copy() {
         ExperienceProjectMaterial retVal = new ExperienceProjectMaterial();
         retVal.levels = this.levels;
         retVal.consumed = this.consumed;
         retVal.selected = this.selected;
         retVal.weight = this.weight;
-        retVal.bonusReward = this.bonusReward;
         if (this.requiredResearch != null) {
             retVal.requiredResearch = this.requiredResearch.copy();
         }
@@ -136,35 +126,11 @@ public class ExperienceProjectMaterial extends AbstractProjectMaterial {
             ExperienceProjectMaterial retVal = new ExperienceProjectMaterial(levels, consumed);
             
             retVal.setWeight(json.getAsJsonPrimitive("weight").getAsDouble());
-            if (json.has("bonus_reward")) {
-                retVal.setBonusReward(json.getAsJsonPrimitive("bonus_reward").getAsDouble());
-            }
             if (json.has("required_research")) {
                 retVal.setRequiredResearch(CompoundResearchKey.parse(json.getAsJsonPrimitive("required_research").getAsString()));
             }
             
             return retVal;
-        }
-
-        @Override
-        public ExperienceProjectMaterial fromNetwork(FriendlyByteBuf buf) {
-            ExperienceProjectMaterial material = new ExperienceProjectMaterial(buf.readVarInt(), buf.readBoolean());
-            material.setWeight(buf.readDouble());
-            material.setBonusReward(buf.readDouble());
-            CompoundResearchKey research = CompoundResearchKey.parse(buf.readUtf());
-            if (research != null) {
-                material.setRequiredResearch(research);
-            }
-            return material;
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, ExperienceProjectMaterial material) {
-            buf.writeVarInt(material.levels);
-            buf.writeBoolean(material.consumed);
-            buf.writeDouble(material.weight);
-            buf.writeDouble(material.bonusReward);
-            buf.writeUtf(material.requiredResearch == null ? "" : material.requiredResearch.toString());
         }
     }
 }

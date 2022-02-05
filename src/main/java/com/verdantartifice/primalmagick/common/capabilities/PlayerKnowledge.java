@@ -3,37 +3,34 @@ package com.verdantartifice.primalmagick.common.capabilities;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.common.collect.ImmutableList;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.data.SyncKnowledgePacket;
 import com.verdantartifice.primalmagick.common.research.ResearchEntries;
 import com.verdantartifice.primalmagick.common.research.ResearchEntry;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
-import com.verdantartifice.primalmagick.common.research.topics.AbstractResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.ResearchTopicFactory;
 import com.verdantartifice.primalmagick.common.theorycrafting.Project;
 import com.verdantartifice.primalmagick.common.theorycrafting.ProjectFactory;
 
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.INBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.LazyOptional;
 
 /**
@@ -46,20 +43,18 @@ public class PlayerKnowledge implements IPlayerKnowledge {
     private final Map<String, Integer> stages = new ConcurrentHashMap<>();          // Map of research keys to current stage numbers
     private final Map<String, Set<ResearchFlag>> flags = new ConcurrentHashMap<>(); // Map of research keys to attached flag sets
     private final Map<IPlayerKnowledge.KnowledgeType, Integer> knowledge = new ConcurrentHashMap<>();   // Map of knowledge types to accrued points
-    private final List<AbstractResearchTopic> topicHistory = new LinkedList<>();    // Grimoire research topic history
     
     private Project project = null;     // Currently active research project
-    private AbstractResearchTopic topic = null; // Last active grimoire research topic
 
     @Override
     @Nonnull
-    public CompoundTag serializeNBT() {
-        CompoundTag rootTag = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT rootTag = new CompoundNBT();
         
         // Serialize known research, including stage number and attached flags
-        ListTag researchList = new ListTag();
+        ListNBT researchList = new ListNBT();
         for (String res : this.research) {
-            CompoundTag tag = new CompoundTag();
+            CompoundNBT tag = new CompoundNBT();
             tag.putString("key", res);
             if (this.stages.containsKey(res)) {
                 tag.putInt("stage", this.stages.get(res).intValue());
@@ -78,12 +73,12 @@ public class PlayerKnowledge implements IPlayerKnowledge {
         rootTag.put("research", researchList);
         
         // Serialize knowledge types, including accrued points
-        ListTag knowledgeList = new ListTag();
+        ListNBT knowledgeList = new ListNBT();
         for (IPlayerKnowledge.KnowledgeType knowledgeKey : this.knowledge.keySet()) {
             if (knowledgeKey != null) {
                 Integer points = this.knowledge.get(knowledgeKey);
                 if (points != null && points.intValue() > 0) {
-                    CompoundTag tag = new CompoundTag();
+                    CompoundNBT tag = new CompoundNBT();
                     tag.putString("key", knowledgeKey.name());
                     tag.putInt("value", points);
                     knowledgeList.add(tag);
@@ -97,23 +92,11 @@ public class PlayerKnowledge implements IPlayerKnowledge {
             rootTag.put("project", this.project.serializeNBT());
         }
         
-        // Serialize last active grimoire topic, if any
-        if (this.topic != null) {
-            rootTag.put("topic", this.topic.serializeNBT());
-        }
-        
-        // Serialize grimoire topic history
-        ListTag historyList = new ListTag();
-        for (AbstractResearchTopic topic : this.topicHistory) {
-            historyList.add(topic.serializeNBT());
-        }
-        rootTag.put("topicHistory", historyList);
-        
         return rootTag;
     }
 
     @Override
-    public void deserializeNBT(@Nullable CompoundTag nbt) {
+    public void deserializeNBT(@Nullable CompoundNBT nbt) {
         if (nbt == null) {
             return;
         }
@@ -123,9 +106,9 @@ public class PlayerKnowledge implements IPlayerKnowledge {
         this.project = null;
         
         // Deserialize known research, including stage number and attached flags
-        ListTag researchList = nbt.getList("research", Tag.TAG_COMPOUND);
+        ListNBT researchList = nbt.getList("research", Constants.NBT.TAG_COMPOUND);
         for (int index = 0; index < researchList.size(); index++) {
-            CompoundTag tag = researchList.getCompound(index);
+            CompoundNBT tag = researchList.getCompound(index);
             SimpleResearchKey keyObj = SimpleResearchKey.parse(tag.getString("key"));
             if (keyObj != null && !this.isResearchKnown(keyObj)) {
                 this.research.add(keyObj.getRootKey());
@@ -147,9 +130,9 @@ public class PlayerKnowledge implements IPlayerKnowledge {
         }
 
         // Deserialize knowledge types, including accrued points
-        ListTag knowledgeList = nbt.getList("knowledge", Tag.TAG_COMPOUND);
+        ListNBT knowledgeList = nbt.getList("knowledge", Constants.NBT.TAG_COMPOUND);
         for (int index = 0; index < knowledgeList.size(); index++) {
-            CompoundTag tag = knowledgeList.getCompound(index);
+            CompoundNBT tag = knowledgeList.getCompound(index);
             String keyStr = tag.getString("key");
             IPlayerKnowledge.KnowledgeType key = null;
             try {
@@ -165,20 +148,6 @@ public class PlayerKnowledge implements IPlayerKnowledge {
         if (nbt.contains("project")) {
             this.project = ProjectFactory.getProjectFromNBT(nbt.getCompound("project"));
         }
-        
-        // Deserialize last active grimoire topic
-        if (nbt.contains("topic")) {
-            this.topic = ResearchTopicFactory.deserializeNBT(nbt.getCompound("topic"));
-        }
-        
-        // Deserialize grimoire topic history
-        ListTag historyList = nbt.getList("topicHistory", Tag.TAG_COMPOUND);
-        for (int index = 0; index < historyList.size(); index++) {
-            AbstractResearchTopic topic = ResearchTopicFactory.deserializeNBT(historyList.getCompound(index));
-            if (topic != null) {
-                this.topicHistory.add(topic);
-            }
-        }
     }
 
     @Override
@@ -186,9 +155,6 @@ public class PlayerKnowledge implements IPlayerKnowledge {
         this.research.clear();
         this.stages.clear();
         this.flags.clear();
-        this.project = null;
-        this.topic = null;
-        this.topicHistory.clear();
     }
     
     @Override
@@ -383,28 +349,7 @@ public class PlayerKnowledge implements IPlayerKnowledge {
     }
 
     @Override
-    public AbstractResearchTopic getLastResearchTopic() {
-        return this.topic;
-    }
-
-    @Override
-    public void setLastResearchTopic(AbstractResearchTopic topic) {
-        this.topic = topic;
-    }
-
-    @Override
-    public List<AbstractResearchTopic> getResearchTopicHistory() {
-        return ImmutableList.copyOf(this.topicHistory);
-    }
-
-    @Override
-    public void setResearchTopicHistory(List<AbstractResearchTopic> history) {
-        this.topicHistory.clear();
-        this.topicHistory.addAll(history);
-    }
-
-    @Override
-    public void sync(@Nullable ServerPlayer player) {
+    public void sync(@Nullable ServerPlayerEntity player) {
         if (player != null) {
             PacketHandler.sendToPlayer(new SyncKnowledgePacket(player), player);
             
@@ -421,15 +366,15 @@ public class PlayerKnowledge implements IPlayerKnowledge {
      * @author Daedalus4096
      * @see {@link com.verdantartifice.primalmagick.common.events.CapabilityEvents}
      */
-    public static class Provider implements ICapabilitySerializable<CompoundTag> {
+    public static class Provider implements ICapabilitySerializable<CompoundNBT> {
         public static final ResourceLocation NAME = new ResourceLocation(PrimalMagick.MODID, "capability_knowledge");
         
-        private final IPlayerKnowledge instance = new PlayerKnowledge();
+        private final IPlayerKnowledge instance = PrimalMagicCapabilities.KNOWLEDGE.getDefaultInstance();
         private final LazyOptional<IPlayerKnowledge> holder = LazyOptional.of(() -> instance);  // Cache a lazy optional of the capability instance
         
         @Override
         public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-            if (cap == PrimalMagickCapabilities.KNOWLEDGE) {
+            if (cap == PrimalMagicCapabilities.KNOWLEDGE) {
                 return holder.cast();
             } else {
                 return LazyOptional.empty();
@@ -437,13 +382,46 @@ public class PlayerKnowledge implements IPlayerKnowledge {
         }
 
         @Override
-        public CompoundTag serializeNBT() {
+        public CompoundNBT serializeNBT() {
             return instance.serializeNBT();
         }
 
         @Override
-        public void deserializeNBT(CompoundTag nbt) {
+        public void deserializeNBT(CompoundNBT nbt) {
             instance.deserializeNBT(nbt);
+        }
+    }
+
+    /**
+     * Storage manager for the player knowledge capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Storage implements Capability.IStorage<IPlayerKnowledge> {
+        @Override
+        public INBT writeNBT(Capability<IPlayerKnowledge> capability, IPlayerKnowledge instance, Direction side) {
+            // Use the instance's pre-defined serialization
+            return instance.serializeNBT();
+        }
+
+        @Override
+        public void readNBT(Capability<IPlayerKnowledge> capability, IPlayerKnowledge instance, Direction side, INBT nbt) {
+            // Use the instance's pre-defined deserialization
+            instance.deserializeNBT((CompoundNBT)nbt);
+        }
+    }
+    
+    /**
+     * Factory for the player knowledge capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Factory implements Callable<IPlayerKnowledge> {
+        @Override
+        public IPlayerKnowledge call() throws Exception {
+            return new PlayerKnowledge();
         }
     }
 }

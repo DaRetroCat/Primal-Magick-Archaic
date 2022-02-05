@@ -4,35 +4,35 @@ import com.verdantartifice.primalmagick.common.blocks.BlocksPM;
 import com.verdantartifice.primalmagick.common.containers.slots.AnalysisResultSlot;
 import com.verdantartifice.primalmagick.common.research.ResearchManager;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IWorldPosCallable;
 
 /**
  * Server data container for the analysis table GUI.
  * 
  * @author Daedalus4096
  */
-public class AnalysisTableContainer extends AbstractContainerMenu {
-    protected final Container analysisInventory = new SimpleContainer(2) {
-        public int getMaxStackSize() {
+public class AnalysisTableContainer extends Container {
+    protected final IInventory analysisInventory = new Inventory(2) {
+        public int getInventoryStackLimit() {
             return 1;
         }
     };
-    protected final ContainerLevelAccess worldPosCallable;
-    protected final Player player;
+    protected final IWorldPosCallable worldPosCallable;
+    protected final PlayerEntity player;
     
-    public AnalysisTableContainer(int windowId, Inventory inv) {
-        this(windowId, inv, ContainerLevelAccess.NULL);
+    public AnalysisTableContainer(int windowId, PlayerInventory inv) {
+        this(windowId, inv, IWorldPosCallable.DUMMY);
     }
     
-    public AnalysisTableContainer(int windowId, Inventory inv, ContainerLevelAccess callable) {
+    public AnalysisTableContainer(int windowId, PlayerInventory inv, IWorldPosCallable callable) {
         super(ContainersPM.ANALYSIS_TABLE.get(), windowId);
         this.worldPosCallable = callable;
         this.player = inv.player;
@@ -58,38 +58,38 @@ public class AnalysisTableContainer extends AbstractContainerMenu {
     }
     
     @Override
-    public boolean stillValid(Player playerIn) {
-        return stillValid(this.worldPosCallable, playerIn, BlocksPM.ANALYSIS_TABLE.get());
+    public boolean canInteractWith(PlayerEntity playerIn) {
+        return isWithinUsableDistance(this.worldPosCallable, playerIn, BlocksPM.ANALYSIS_TABLE.get());
     }
     
     @Override
-    public ItemStack quickMoveStack(Player playerIn, int index) {
+    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index) {
         ItemStack stack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasItem()) {
-            ItemStack slotStack = slot.getItem();
+        Slot slot = this.inventorySlots.get(index);
+        if (slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
             stack = slotStack.copy();
             if (index == 0) {
                 // If transferring the input item, move it into the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 2, 38, true)) {
+                if (!this.mergeItemStack(slotStack, 2, 38, true)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index >= 2 && index < 29) {
                 // If transferring from the player's backpack, attempt to place it in the input item slot
-                if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index >= 29 && index < 38) {
                 // If transferring from the player's hotbar, attempt to place it in the input item slot
-                if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
             }
 
             if (slotStack.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.putStack(ItemStack.EMPTY);
             } else {
-                slot.setChanged();
+                slot.onSlotChanged();
             }
 
             if (slotStack.getCount() == stack.getCount()) {
@@ -101,27 +101,20 @@ public class AnalysisTableContainer extends AbstractContainerMenu {
     }
     
     public ItemStack getLastScannedStack() {
-        return this.analysisInventory.getItem(1);
+        return this.analysisInventory.getStackInSlot(1);
     }
     
     public void doScan() {
-        if (!this.player.level.isClientSide && this.player instanceof ServerPlayer) {
+        if (!this.player.world.isRemote && this.player instanceof ServerPlayerEntity) {
             // Move the input item into the recently-scanned slot and mark it as scanned
-            ItemStack stack = this.analysisInventory.getItem(0).copy();
+            ItemStack stack = this.analysisInventory.getStackInSlot(0).copy();
             if (!stack.isEmpty()) {
-                this.analysisInventory.setItem(0, ItemStack.EMPTY);
-                this.analysisInventory.setItem(1, stack);
+                this.analysisInventory.setInventorySlotContents(0, ItemStack.EMPTY);
+                this.analysisInventory.setInventorySlotContents(1, stack);
                 if (!ResearchManager.isScanned(stack, this.player)) {
-                    ResearchManager.setScanned(stack, (ServerPlayer)this.player);
+                    ResearchManager.setScanned(stack, (ServerPlayerEntity)this.player);
                 }
             }
         }
-    }
-
-    @Override
-    public void removed(Player player) {
-        super.removed(player);
-        this.analysisInventory.setItem(1, ItemStack.EMPTY);
-        this.clearContainer(player, this.analysisInventory);
     }
 }

@@ -1,6 +1,5 @@
 package com.verdantartifice.primalmagick.common.spells.payloads;
 
-import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,11 +13,11 @@ import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 import com.verdantartifice.primalmagick.common.spells.mods.AmplifySpellMod;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
 
 /**
  * Base class for a spell payload.  Handles property management and serialization.
@@ -26,8 +25,6 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
  * @author Daedalus4096
  */
 public abstract class AbstractSpellPayload implements ISpellPayload {
-    protected static final DecimalFormat DECIMAL_FORMATTER = new DecimalFormat("#######.##");
-
     protected final Map<String, SpellProperty> properties;
     
     public AbstractSpellPayload() {
@@ -42,8 +39,8 @@ public abstract class AbstractSpellPayload implements ISpellPayload {
     protected abstract String getPayloadType();
     
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag nbt = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT nbt = new CompoundNBT();
         nbt.putString("PayloadType", this.getPayloadType());
         for (Map.Entry<String, SpellProperty> entry : this.properties.entrySet()) {
             nbt.putInt(entry.getKey(), entry.getValue().getValue());
@@ -52,7 +49,7 @@ public abstract class AbstractSpellPayload implements ISpellPayload {
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         for (Map.Entry<String, SpellProperty> entry : this.properties.entrySet()) {
             entry.getValue().setValue(nbt.getInt(entry.getKey()));
         }
@@ -94,7 +91,7 @@ public abstract class AbstractSpellPayload implements ISpellPayload {
                 retVal += ampMod.getPropertyValue("power");
             }
             if (spellSource != null) {
-                int enchLevel = EnchantmentHelper.getItemEnchantmentLevel(EnchantmentsPM.SPELL_POWER.get(), spellSource);
+                int enchLevel = EnchantmentHelper.getEnchantmentLevel(EnchantmentsPM.SPELL_POWER.get(), spellSource);
                 if (enchLevel > 0) {
                     retVal += enchLevel;
                 }
@@ -104,13 +101,13 @@ public abstract class AbstractSpellPayload implements ISpellPayload {
     }
     
     @Override
-    public Component getTypeName() {
-        return new TranslatableComponent("primalmagick.spell.payload.type." + this.getPayloadType());
+    public ITextComponent getTypeName() {
+        return new TranslationTextComponent("primalmagick.spell.payload.type." + this.getPayloadType());
     }
     
     @Override
-    public Component getDefaultNamePiece() {
-        return new TranslatableComponent("primalmagick.spell.payload.default_name." + this.getPayloadType());
+    public ITextComponent getDefaultNamePiece() {
+        return new TranslationTextComponent("primalmagick.spell.payload.default_name." + this.getPayloadType());
     }
     
     @Override

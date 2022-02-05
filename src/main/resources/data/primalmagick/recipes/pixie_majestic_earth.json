@@ -36,10 +36,10 @@
       "block": "primalmagick:ritual_bell"
     },
     {
-      "block": "primalmagick:soul_anvil"
+      "block": "primalmagick:bloodletter"
     },
     {
-      "block": "primalmagick:celestial_harp"
+      "block": "primalmagick:soul_anvil"
     }
   ],
   "result": {

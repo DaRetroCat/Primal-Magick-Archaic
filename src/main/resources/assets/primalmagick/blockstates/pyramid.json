@@ -1,0 +1,10 @@
+{
+    "variants": {
+        "facing=north": { "model": "primalmagick:block/pyramid" },
+        "facing=south": { "model": "primalmagick:block/pyramid", "y": 180 },
+        "facing=west":  { "model": "primalmagick:block/pyramid", "y": 270 },
+        "facing=east":  { "model": "primalmagick:block/pyramid", "y": 90 },
+        "facing=up":    { "model": "primalmagick:block/pyramid", "x": 270 },
+        "facing=down":  { "model": "primalmagick:block/pyramid", "x": 90 }
+    }
+}

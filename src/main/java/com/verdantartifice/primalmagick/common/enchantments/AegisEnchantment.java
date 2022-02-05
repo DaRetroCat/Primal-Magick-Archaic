@@ -1,29 +1,29 @@
 package com.verdantartifice.primalmagick.common.enchantments;
 
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.ProtectionEnchantment;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.ProtectionEnchantment;
+import net.minecraft.inventory.EquipmentSlotType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
 
 /**
  * Definition of a rune enchantment that combines the damage reduction of the base five protection
- * enchantments plus Magick Protection.  Does not reduce burn time or explosion knockback, however.
+ * enchantments.  Does not reduce burn time or explosion knockback, however.
  * 
  * @author Daedalus4096
  */
 public class AegisEnchantment extends ProtectionEnchantment {
-    public AegisEnchantment(Enchantment.Rarity rarity, EquipmentSlot... slotTypes) {
+    public AegisEnchantment(Enchantment.Rarity rarity, EquipmentSlotType... slotTypes) {
         super(rarity, ProtectionEnchantment.Type.ALL, slotTypes);
     }
     
     @Override
-    public int getDamageProtection(int level, DamageSource source) {
-        if (source.isBypassInvul()) {
+    public int calcModifierDamage(int level, DamageSource source) {
+        if (source.canHarmInCreative()) {
             return 0;
         } else if (source == DamageSource.FALL) {
             return level * 3;
-        } else if (source.isFire() || source.isExplosion() || source.isProjectile() || source.isMagic()) {
+        } else if (source.isFireDamage() || source.isExplosion() || source.isProjectile()) {
             return level * 2;
         } else {
             return level;
@@ -31,12 +31,12 @@ public class AegisEnchantment extends ProtectionEnchantment {
     }
     
     @Override
-    public boolean checkCompatibility(Enchantment ench) {
+    public boolean canApplyTogether(Enchantment ench) {
         return !(ench instanceof ProtectionEnchantment);
     }
     
     @Override
-    public boolean canEnchant(ItemStack stack) {
+    public boolean canApply(ItemStack stack) {
         return stack.canApplyAtEnchantingTable(this);
     }
     

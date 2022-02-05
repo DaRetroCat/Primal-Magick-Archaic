@@ -11,9 +11,9 @@ import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.tags.BlockTagsForgeExt;
 
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeType;
 
 /**
  * Point of registration for mod recipe types, as well as other crafting related things.
@@ -22,16 +22,15 @@ import net.minecraft.world.level.block.Blocks;
  */
 public class InitRecipes {
     public static void initRecipeTypes() {
-        RecipeTypesPM.ARCANE_CRAFTING = RecipeType.register(PrimalMagick.MODID + ":arcane_crafting");
-        RecipeTypesPM.RITUAL = RecipeType.register(PrimalMagick.MODID + ":ritual");
-        RecipeTypesPM.RUNECARVING = RecipeType.register(PrimalMagick.MODID + ":runecarving");
-        RecipeTypesPM.CONCOCTING = RecipeType.register(PrimalMagick.MODID + ":concocting");
-        RecipeTypesPM.DISSOLUTION = RecipeType.register(PrimalMagick.MODID + ":dissolution");
+        RecipeTypesPM.ARCANE_CRAFTING = IRecipeType.register(PrimalMagick.MODID + ":arcane_crafting");
+        RecipeTypesPM.RITUAL = IRecipeType.register(PrimalMagick.MODID + ":ritual");
+        RecipeTypesPM.RUNECARVING = IRecipeType.register(PrimalMagick.MODID + ":runecarving");
+        RecipeTypesPM.CONCOCTING = IRecipeType.register(PrimalMagick.MODID + ":concocting");
     }
     
     public static void initWandTransforms() {
-        WandTransforms.register(new WandTransformBlockTag(BlockTagsForgeExt.BOOKSHELVES, new ItemStack(ItemsPM.GRIMOIRE.get()), CompoundResearchKey.from(false, SimpleResearchKey.parse("t_got_dream"), SimpleResearchKey.parse("FIRST_STEPS"))));
+        WandTransforms.register(new WandTransformBlockTag(BlockTagsForgeExt.BOOKSHELVES, new ItemStack(ItemsPM.GRIMOIRE.get()), CompoundResearchKey.from(SimpleResearchKey.parse("t_got_dream"))));
         WandTransforms.register(new WandTransformBlock(Blocks.CRAFTING_TABLE, new ItemStack(BlocksPM.ARCANE_WORKBENCH.get()), CompoundResearchKey.from(SimpleResearchKey.parse("FIRST_STEPS@1"))));
-        WandTransforms.register(new WandTransformBlock(Blocks.FURNACE, new ItemStack(BlocksPM.ESSENCE_FURNACE.get()), CompoundResearchKey.from(SimpleResearchKey.parse("BASIC_ALCHEMY@1"))));
+        WandTransforms.register(new WandTransformBlock(Blocks.FURNACE, new ItemStack(BlocksPM.ESSENCE_FURNACE.get()), CompoundResearchKey.from(SimpleResearchKey.parse("BASIC_ALCHEMY"))));
     }
 }

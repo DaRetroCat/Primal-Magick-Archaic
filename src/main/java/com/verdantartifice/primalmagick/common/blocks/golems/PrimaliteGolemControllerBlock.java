@@ -5,8 +5,8 @@ import com.verdantartifice.primalmagick.common.entities.EntityTypesPM;
 import com.verdantartifice.primalmagick.common.entities.companions.golems.PrimaliteGolemEntity;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.entity.EntityType;
 
 /**
  * Definition for the "head" block of a primalite golem.  Place it on top of a T shape of

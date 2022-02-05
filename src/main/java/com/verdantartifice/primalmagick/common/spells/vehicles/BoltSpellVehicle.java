@@ -9,12 +9,10 @@ import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
 
 /**
  * Definition of a bolt spell vehicle.  Bolts are mid-range, instant spell vehicles that are not
@@ -32,7 +30,7 @@ public class BoltSpellVehicle extends AbstractRaycastSpellVehicle {
 
     @Override
     protected double getReachDistance(LivingEntity caster) {
-        return (double)this.getRangeBlocks();
+        return 6.0D + (2.0D * this.getPropertyValue("range"));
     }
 
     @Override
@@ -53,28 +51,14 @@ public class BoltSpellVehicle extends AbstractRaycastSpellVehicle {
     }
     
     @Override
-    protected void drawFx(Level world, SpellPackage spell, Vec3 source, Vec3 target) {
+    protected void drawFx(World world, SpellPackage spell, Vector3d source, Vector3d target) {
         if (spell.getPayload() != null) {
             // Show a bolt particle effect to every player in range
             PacketHandler.sendToAllAround(
                     new SpellBoltPacket(source, target, spell.getPayload().getSource().getColor()), 
-                    world.dimension(), 
+                    world.getDimensionKey(), 
                     new BlockPos(source), 
                     64.0D);
         }
-    }
-    
-    protected int getRangeBlocks() {
-        return 6 + (2 * this.getPropertyValue("range"));
-    }
-
-    @Override
-    public Component getDetailTooltip() {
-        return new TranslatableComponent("primalmagick.spell.vehicle.detail_tooltip." + this.getVehicleType(), this.getRangeBlocks());
-    }
-
-    @Override
-    public boolean isIndirect() {
-        return true;
     }
 }

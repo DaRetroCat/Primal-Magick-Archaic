@@ -1,9 +1,9 @@
 package com.verdantartifice.primalmagick.common.containers.slots;
 
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
 
 /**
  * Custom GUI slot for generic device outputs.
@@ -11,43 +11,43 @@ import net.minecraft.world.item.ItemStack;
  * @author Daedalus4096
  */
 public class GenericResultSlot extends Slot {
-    protected final Player player;
+    protected final PlayerEntity player;
     protected int removeCount = 0;
     
-    public GenericResultSlot(Player player, Container inventoryIn, int index, int xPosition, int yPosition) {
+    public GenericResultSlot(PlayerEntity player, IInventory inventoryIn, int index, int xPosition, int yPosition) {
         super(inventoryIn, index, xPosition, yPosition);
         this.player = player;
     }
     
     @Override
-    public boolean mayPlace(ItemStack stack) {
+    public boolean isItemValid(ItemStack stack) {
         // Don't allow anything to be dropped into the slot
         return false;
     }
     
     @Override
-    public ItemStack remove(int amount) {
-        if (this.hasItem()) {
-            this.removeCount += Math.min(amount, this.getItem().getCount());
+    public ItemStack decrStackSize(int amount) {
+        if (this.getHasStack()) {
+            this.removeCount += Math.min(amount, this.getStack().getCount());
         }
-        return super.remove(amount);
+        return super.decrStackSize(amount);
     }
     
     @Override
-    public void onTake(Player thePlayer, ItemStack stack) {
-        this.checkTakeAchievements(stack);
-        super.onTake(thePlayer, stack);
+    public ItemStack onTake(PlayerEntity thePlayer, ItemStack stack) {
+        this.onCrafting(stack);
+        return super.onTake(thePlayer, stack);
     }
     
     @Override
-    protected void onQuickCraft(ItemStack stack, int amount) {
+    protected void onCrafting(ItemStack stack, int amount) {
         this.removeCount += amount;
-        this.checkTakeAchievements(stack);
+        this.onCrafting(stack);
     }
     
     @Override
-    protected void checkTakeAchievements(ItemStack stack) {
-        stack.onCraftedBy(this.player.level, this.player, this.removeCount);
+    protected void onCrafting(ItemStack stack) {
+        stack.onCrafting(this.player.world, this.player, this.removeCount);
         this.removeCount = 0;
     }
 }

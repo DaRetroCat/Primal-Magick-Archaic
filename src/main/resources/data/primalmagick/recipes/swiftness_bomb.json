@@ -9,7 +9,7 @@
       "type": "forge:nbt",
       "item": "primalmagick:alchemical_bomb",
       "count": 1,
-      "nbt": "{BombFuse:\"medium\",ConcoctionDoses:6,ConcoctionType:\"bomb\",Potion:\"minecraft:water\"}"
+      "nbt": "{ConcoctionType:\"bomb\",Potion:\"minecraft:water\",BombFuse:\"medium\",ConcoctionDoses:6}"
     },
     {
       "item": "primalmagick:essence_shard_sky"
@@ -24,6 +24,6 @@
   "result": {
     "item": "primalmagick:alchemical_bomb",
     "count": 1,
-    "nbt": "{BombFuse:\"medium\",ConcoctionDoses:6,ConcoctionType:\"bomb\",Potion:\"minecraft:swiftness\"}"
+    "nbt": "{BombFuse:\"medium\",ConcoctionType:\"bomb\",Potion:\"minecraft:swiftness\",ConcoctionDoses:6}"
   }
 }

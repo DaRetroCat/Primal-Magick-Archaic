@@ -2,12 +2,8 @@
   "key": "SOURCE_HALLOWED",
   "name": "primalmagick.research.source_hallowed.title",
   "discipline": "BASICS",
-  "icon": {
-    "isItem": false,
-    "location": "primalmagick:textures/sources/hallowed.png"
-  },
   "parents": [
-    "HEAVENLY_MAGICK"
+    "HEAVENLY_MAGIC"
   ],
   "stages": [
     {

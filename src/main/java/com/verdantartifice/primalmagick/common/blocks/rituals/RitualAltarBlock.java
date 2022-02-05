@@ -1,71 +1,66 @@
 package com.verdantartifice.primalmagick.common.blocks.rituals;
 
+import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.rituals.ISaltPowered;
-import com.verdantartifice.primalmagick.common.tiles.TileEntityTypesPM;
 import com.verdantartifice.primalmagick.common.tiles.rituals.RitualAltarTileEntity;
+import com.verdantartifice.primalmagick.common.util.VoxelShapeUtils;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.Containers;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.level.material.MaterialColor;
-import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.SoundType;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.material.MaterialColor;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Direction;
+import net.minecraft.util.Hand;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.math.shapes.ISelectionContext;
+import net.minecraft.util.math.shapes.VoxelShape;
+import net.minecraft.world.IBlockReader;
+import net.minecraft.world.World;
 
 /**
- * Block definition for the ritual altar.  It is the central component of magickal rituals, providing
+ * Block definition for the ritual altar.  It is the central component of magical rituals, providing
  * the salt "power" that enables the functionality of other ritual props.  It's also where the ritual
  * output appears.
  * 
  * @author Daedalus4096
  */
-public class RitualAltarBlock extends BaseEntityBlock implements ISaltPowered {
+public class RitualAltarBlock extends Block implements ISaltPowered {
+    protected static final VoxelShape SHAPE = VoxelShapeUtils.fromModel(new ResourceLocation(PrimalMagick.MODID, "block/ritual_altar"));
+    
     public RitualAltarBlock() {
-        super(Block.Properties.of(Material.STONE, MaterialColor.QUARTZ).strength(1.5F, 6.0F).sound(SoundType.STONE).noOcclusion());
+        super(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.5F, 6.0F).sound(SoundType.STONE));
     }
     
     @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
+        return SHAPE;
     }
-
+    
     @Override
-    public void onPlace(BlockState state, Level worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
+    public void onBlockAdded(BlockState state, World worldIn, BlockPos pos, BlockState oldState, boolean isMoving) {
         for (Direction dir : Direction.values()) {
-            worldIn.updateNeighborsAt(pos.relative(dir), this);
+            worldIn.notifyNeighborsOfStateChange(pos.offset(dir), this);
         }
     }
     
     @SuppressWarnings("deprecation")
     @Override
-    public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+    public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!isMoving) {
             for (Direction dir : Direction.values()) {
-                worldIn.updateNeighborsAt(pos.relative(dir), this);
+                worldIn.notifyNeighborsOfStateChange(pos.offset(dir), this);
             }
         }
-        if (state.getBlock() != newState.getBlock()) {
-            BlockEntity tile = worldIn.getBlockEntity(pos);
-            if (tile instanceof RitualAltarTileEntity) {
-                Containers.dropContents(worldIn, pos, (RitualAltarTileEntity)tile);
-            }
-        }
-        super.onRemove(state, worldIn, pos, newState, isMoving);
+        super.onReplaced(state, worldIn, pos, newState, isMoving);
     }
     
     public int getMaxSaltPower() {
@@ -77,38 +72,47 @@ public class RitualAltarBlock extends BaseEntityBlock implements ISaltPowered {
     }
     
     @Override
-    public int getStrongSaltPower(BlockState blockState, BlockGetter blockAccess, BlockPos pos, Direction side) {
+    public int getStrongSaltPower(BlockState blockState, IBlockReader blockAccess, BlockPos pos, Direction side) {
         return (side != Direction.UP) ? this.getMaxSaltPower() : 0;
     }
     
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new RitualAltarTileEntity(pos, state);
+    public boolean hasTileEntity(BlockState state) {
+        return true;
     }
     
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, TileEntityTypesPM.RITUAL_ALTAR.get(), RitualAltarTileEntity::tick);
+    public TileEntity createTileEntity(BlockState state, IBlockReader world) {
+        return new RitualAltarTileEntity();
     }
-
+    
     @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn, BlockHitResult hit) {
-        if (!worldIn.isClientSide && handIn == InteractionHand.MAIN_HAND) {
-            BlockEntity tile = worldIn.getBlockEntity(pos);
+    public boolean eventReceived(BlockState state, World worldIn, BlockPos pos, int id, int param) {
+        // Pass any received events on to the tile entity and let it decide what to do with it
+        super.eventReceived(state, worldIn, pos, id, param);
+        TileEntity tile = worldIn.getTileEntity(pos);
+        return (tile == null) ? false : tile.receiveClientEvent(id, param);
+    }
+    
+    @SuppressWarnings("deprecation")
+    @Override
+    public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit) {
+        if (!worldIn.isRemote && handIn == Hand.MAIN_HAND) {
+            TileEntity tile = worldIn.getTileEntity(pos);
             if (tile instanceof RitualAltarTileEntity) {
                 RitualAltarTileEntity altarTile = (RitualAltarTileEntity)tile;
-                if (!altarTile.getItem(0).isEmpty() && player.getItemInHand(handIn).isEmpty()) {
+                if (!altarTile.getStackInSlot(0).isEmpty() && player.getHeldItem(handIn).isEmpty()) {
                     // When activating a full altar with an empty hand, pick up the item
-                    ItemStack stack = altarTile.getItem(0).copy();
-                    altarTile.setItem(0, ItemStack.EMPTY);
-                    player.setItemInHand(handIn, stack);
-                    player.getInventory().setChanged();
-                    worldIn.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
-                    return InteractionResult.SUCCESS;
+                    ItemStack stack = altarTile.getStackInSlot(0).copy();
+                    altarTile.setInventorySlotContents(0, ItemStack.EMPTY);
+                    player.setHeldItem(handIn, stack);
+                    player.inventory.markDirty();
+                    worldIn.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.4F, 1.0F);
+                    return ActionResultType.SUCCESS;
                 }
             }
         }
-        return super.use(state, worldIn, pos, player, handIn, hit);
+        return super.onBlockActivated(state, worldIn, pos, player, handIn, hit);
     }
 }

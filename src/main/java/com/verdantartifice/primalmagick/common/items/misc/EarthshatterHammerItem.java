@@ -1,13 +1,10 @@
 package com.verdantartifice.primalmagick.common.items.misc;
 
-import java.util.Random;
-
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Rarity;
-import net.minecraftforge.common.Tags;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Rarity;
 
 /**
  * Item definition for an earthshatter hammer.  Can be crafting with ore to break it into grit for
@@ -16,17 +13,15 @@ import net.minecraftforge.common.Tags;
  * @author Daedalus4096
  */
 public class EarthshatterHammerItem extends Item {
-    protected static final Random RNG = new Random();
-    
     public EarthshatterHammerItem() {
-        super(new Item.Properties().tab(PrimalMagick.ITEM_GROUP).durability(255).rarity(Rarity.UNCOMMON));
+        super(new Item.Properties().group(PrimalMagick.ITEM_GROUP).maxDamage(255).rarity(Rarity.UNCOMMON));
     }
     
     @Override
     public ItemStack getContainerItem(ItemStack stack) {
         if (this.hasContainerItem(stack)) {
             ItemStack newStack = stack.copy();
-            newStack.hurt(1, RNG, null);
+            newStack.setDamage(stack.getDamage() + 1);
             return newStack;
         } else {
             return ItemStack.EMPTY;
@@ -35,11 +30,6 @@ public class EarthshatterHammerItem extends Item {
     
     @Override
     public boolean hasContainerItem(ItemStack stack) {
-        return stack.getItem() instanceof EarthshatterHammerItem && stack.getDamageValue() < stack.getMaxDamage();
-    }
-
-    @Override
-    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
-        return repair.is(Tags.Items.INGOTS_IRON) || super.isValidRepairItem(toRepair, repair);
+        return stack.getItem() instanceof EarthshatterHammerItem && stack.getDamage() < stack.getMaxDamage();
     }
 }

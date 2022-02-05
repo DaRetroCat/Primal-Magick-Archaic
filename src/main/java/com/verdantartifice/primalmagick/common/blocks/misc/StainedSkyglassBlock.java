@@ -1,8 +1,8 @@
 package com.verdantartifice.primalmagick.common.blocks.misc;
 
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.BeaconBeamBlock;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.block.IBeaconBeamColorProvider;
+import net.minecraft.item.DyeColor;
 
 /**
  * Block definition for stained skyglass.  Like normal stained glass, except that it connects to
@@ -11,7 +11,7 @@ import net.minecraft.world.level.block.Block;
  * 
  * @author Daedalus4096
  */
-public class StainedSkyglassBlock extends SkyglassBlock implements BeaconBeamBlock {
+public class StainedSkyglassBlock extends SkyglassBlock implements IBeaconBeamColorProvider {
     protected final DyeColor color;
     
     public StainedSkyglassBlock(DyeColor colorIn, Block.Properties properties) {

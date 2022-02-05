@@ -6,15 +6,19 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.verdantartifice.primalmagick.client.gui.GrimoireScreen;
 import com.verdantartifice.primalmagick.common.research.ResearchStage;
+
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Grimoire page showing the page elements for a research stage.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class StagePage extends AbstractPage {
     protected ResearchStage stage;
     protected List<IPageElement> contents = new ArrayList<>();
@@ -48,7 +52,7 @@ public class StagePage extends AbstractPage {
     }
     
     @Override
-    public void render(PoseStack matrixStack, int side, int x, int y, int mouseX, int mouseY) {
+    public void render(MatrixStack matrixStack, int side, int x, int y, int mouseX, int mouseY) {
         // Draw title page if applicable
         if (this.isFirstPage() && side == 0) {
             this.renderTitle(matrixStack, side, x, y, mouseX, mouseY, null);

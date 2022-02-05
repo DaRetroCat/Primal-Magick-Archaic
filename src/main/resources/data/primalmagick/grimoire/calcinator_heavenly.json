@@ -2,10 +2,6 @@
   "key": "CALCINATOR_HEAVENLY",
   "name": "primalmagick.research.calcinator_heavenly.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:calcinator_heavenly"
-  },
   "parents": [
     "SUPREME_ALCHEMY",
     "SUPREME_MANAWEAVING",

@@ -1,45 +1,44 @@
 package com.verdantartifice.primalmagick.common.tiles.base;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.ContainerListener;
-import net.minecraft.world.WorldlyContainer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.ISidedInventory;
+import net.minecraft.inventory.InventoryHelper;
+import net.minecraft.inventory.ItemStackHelper;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraft.tileentity.TileEntityType;
+import net.minecraft.util.Direction;
+import net.minecraft.util.NonNullList;
+import net.minecraftforge.common.util.Constants;
 
 /**
  * Base class for a tile entity containing an inventory which may be synced to the client.
  * 
  * @author Daedalus4096
  */
-public class TileInventoryPM extends TilePM implements WorldlyContainer {
-    protected static final int[] NULL_SLOTS = new int[0];
-    
+public class TileInventoryPM extends TilePM implements ISidedInventory {
     protected NonNullList<ItemStack> items;         // The tile's inventory
     protected NonNullList<ItemStack> syncedItems;   // Client-side inventory data received from the server
-    protected List<ContainerListener> listeners;    // Listeners to be informed when the inventory contents change
     protected final Set<Integer> syncedSlotIndices; // Which slots of the inventory should be synced to the client
+    protected final int[] faceSlots;                // The slots of this tile's inventory visible from its sides
     
-    public TileInventoryPM(BlockEntityType<?> type, BlockPos pos, BlockState state, int invSize) {
-        super(type, pos, state);
+    public TileInventoryPM(TileEntityType<?> type, int invSize) {
+        super(type);
         this.items = NonNullList.withSize(invSize, ItemStack.EMPTY);
         this.syncedItems = NonNullList.withSize(invSize, ItemStack.EMPTY);
         this.syncedSlotIndices = this.getSyncedSlotIndices();
+        this.faceSlots = new int[invSize];
+        for (int index = 0; index < invSize; index++) {
+            this.faceSlots[index] = index;
+        }
     }
     
     protected Set<Integer> getSyncedSlotIndices() {
@@ -47,19 +46,8 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
         return Collections.emptySet();
     }
     
-    public void addListener(ContainerListener listener) {
-        if (this.listeners == null) {
-            this.listeners = new ArrayList<>();
-        }
-        this.listeners.add(listener);
-    }
-    
-    public void removeListener(ContainerListener listener) {
-        this.listeners.remove(listener);
-    }
-    
     @Override
-    public int getContainerSize() {
+    public int getSizeInventory() {
         return this.items.size();
     }
 
@@ -74,7 +62,7 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
     }
 
     @Override
-    public ItemStack getItem(int index) {
+    public ItemStack getStackInSlot(int index) {
         return this.items.get(index);
     }
     
@@ -83,35 +71,35 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
     }
 
     @Override
-    public ItemStack removeItem(int index, int count) {
-        ItemStack stack = ContainerHelper.removeItem(this.items, index, count);
+    public ItemStack decrStackSize(int index, int count) {
+        ItemStack stack = ItemStackHelper.getAndSplit(this.items, index, count);
         if (!stack.isEmpty() && this.isSyncedSlot(index)) {
             // Sync the inventory change to nearby clients
             this.syncSlots(null);
         }
-        this.setChanged();
+        this.markDirty();
         return stack;
     }
 
     @Override
-    public ItemStack removeItemNoUpdate(int index) {
-        ItemStack stack = ContainerHelper.takeItem(this.items, index);
+    public ItemStack removeStackFromSlot(int index) {
+        ItemStack stack = ItemStackHelper.getAndRemove(this.items, index);
         if (!stack.isEmpty() && this.isSyncedSlot(index)) {
             // Sync the inventory change to nearby clients
             this.syncSlots(null);
         }
-        this.setChanged();
+        this.markDirty();
         return stack;
     }
 
     @Override
-    public void setItem(int index, ItemStack stack) {
+    public void setInventorySlotContents(int index, ItemStack stack) {
         this.items.set(index, stack);
-        if (stack.getCount() > this.getMaxStackSize()) {
+        if (stack.getCount() > this.getInventoryStackLimit()) {
             // If the input stack is too big, pare it down to the allowed size
-            stack.setCount(this.getMaxStackSize());
+            stack.setCount(this.getInventoryStackLimit());
         }
-        this.setChanged();
+        this.markDirty();
         if (this.isSyncedSlot(index)) {
             // Sync the inventory change to nearby clients
             this.syncSlots(null);
@@ -119,24 +107,16 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
     }
 
     @Override
-    public void setChanged() {
-        super.setChanged();
-        if (this.listeners != null) {
-            this.listeners.forEach((listener) -> { listener.containerChanged(this); });
-        }
-    }
-
-    @Override
-    public boolean stillValid(Player player) {
-        if (this.level.getBlockEntity(this.worldPosition) != this) {
+    public boolean isUsableByPlayer(PlayerEntity player) {
+        if (this.world.getTileEntity(this.pos) != this) {
             return false;
         } else {
-            return player.distanceToSqr((double)this.worldPosition.getX() + 0.5D, (double)this.worldPosition.getY() + 0.5D, (double)this.worldPosition.getZ() + 0.5D) <= 64.0D;
+            return player.getDistanceSq((double)this.pos.getX() + 0.5D, (double)this.pos.getY() + 0.5D, (double)this.pos.getZ() + 0.5D) <= 64.0D;
         }
     }
 
     @Override
-    public void clearContent() {
+    public void clear() {
         this.items.clear();
         if (!this.syncedSlotIndices.isEmpty()) {
             this.syncSlots(null);
@@ -145,20 +125,17 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
 
     @Override
     public int[] getSlotsForFace(Direction side) {
-        // Disable piping by default
-        return NULL_SLOTS;
+        return this.faceSlots;
     }
 
     @Override
-    public boolean canPlaceItemThroughFace(int index, ItemStack itemStackIn, Direction direction) {
-        // Disable piping by default
-        return false;
+    public boolean canInsertItem(int index, ItemStack itemStackIn, Direction direction) {
+        return this.isItemValidForSlot(index, itemStackIn);
     }
 
     @Override
-    public boolean canTakeItemThroughFace(int index, ItemStack stack, Direction direction) {
-        // Disable piping by default
-        return false;
+    public boolean canExtractItem(int index, ItemStack stack, Direction direction) {
+        return true;
     }
 
     protected boolean isSyncedSlot(int index) {
@@ -170,17 +147,17 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
      * 
      * @param player the player of the client to receive the sync data
      */
-    protected void syncSlots(@Nullable ServerPlayer player) {
+    protected void syncSlots(@Nullable ServerPlayerEntity player) {
         if (!this.syncedSlotIndices.isEmpty()) {
-            CompoundTag nbt = new CompoundTag();
-            ListTag tagList = new ListTag();
+            CompoundNBT nbt = new CompoundNBT();
+            ListNBT tagList = new ListNBT();
             for (int index = 0; index < this.items.size(); index++) {
                 ItemStack stack = this.items.get(index);
                 if (this.isSyncedSlot(index) && !stack.isEmpty()) {
                     // Only include populated, sync-tagged slots to lessen packet size
-                    CompoundTag slotTag = new CompoundTag();
+                    CompoundNBT slotTag = new CompoundNBT();
                     slotTag.putByte("Slot", (byte)index);
-                    stack.save(slotTag);
+                    stack.write(slotTag);
                     tagList.add(slotTag);
                 }
             }
@@ -196,7 +173,7 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
     }
     
     @Override
-    public void onMessageFromClient(CompoundTag nbt, ServerPlayer player) {
+    public void onMessageFromClient(CompoundNBT nbt, ServerPlayerEntity player) {
         super.onMessageFromClient(nbt, player);
         if (nbt.contains("RequestSync")) {
             // If the message was a request for a sync, send one to just that player's client
@@ -205,50 +182,53 @@ public class TileInventoryPM extends TilePM implements WorldlyContainer {
     }
     
     @Override
-    public void onMessageFromServer(CompoundTag nbt) {
+    public void onMessageFromServer(CompoundNBT nbt) {
         // If the message was a data sync, load the data into the sync inventory
         super.onMessageFromServer(nbt);
         if (nbt.contains("ItemsSynced")) {
-            this.syncedItems = NonNullList.withSize(this.getContainerSize(), ItemStack.EMPTY);
-            ListTag tagList = nbt.getList("ItemsSynced", Tag.TAG_COMPOUND);
+            this.syncedItems = NonNullList.withSize(this.getSizeInventory(), ItemStack.EMPTY);
+            ListNBT tagList = nbt.getList("ItemsSynced", Constants.NBT.TAG_COMPOUND);
             for (int index = 0; index < tagList.size(); index++) {
-                CompoundTag slotTag = tagList.getCompound(index);
+                CompoundNBT slotTag = tagList.getCompound(index);
                 byte slotIndex = slotTag.getByte("Slot");
                 if (this.isSyncedSlot(slotIndex)) {
-                    this.syncedItems.set(slotIndex, ItemStack.of(slotTag));
+                    this.syncedItems.set(slotIndex, ItemStack.read(slotTag));
                 }
             }
         }
     }
     
     @Override
-    public void load(CompoundTag compound) {
-        super.load(compound);
-        this.items = NonNullList.withSize(this.getContainerSize(), ItemStack.EMPTY);
-        ContainerHelper.loadAllItems(compound, this.items);
+    public void read(BlockState state, CompoundNBT compound) {
+        super.read(state, compound);
+        this.items = NonNullList.withSize(this.getSizeInventory(), ItemStack.EMPTY);
+        ItemStackHelper.loadAllItems(compound, this.items);
     }
     
     @Override
-    protected void saveAdditional(CompoundTag compound) {
-        super.saveAdditional(compound);
-        ContainerHelper.saveAllItems(compound, this.items);
+    public CompoundNBT write(CompoundNBT compound) {
+        super.write(compound);
+        ItemStackHelper.saveAllItems(compound, this.items);
+        return compound;
     }
-
+    
     @Override
     public void onLoad() {
         super.onLoad();
-        this.doInventorySync();
-    }
-    
-    protected void doInventorySync() {
-        if (!this.level.isClientSide) {
+        if (!this.world.isRemote) {
             // When first loaded, server-side tiles should immediately sync their contents to all nearby clients
             this.syncSlots(null);
         } else {
             // When first loaded, client-side tiles should request a sync from the server
-            CompoundTag nbt = new CompoundTag();
+            CompoundNBT nbt = new CompoundNBT();
             nbt.putBoolean("RequestSync", true);
             this.sendMessageToServer(nbt);
         }
+    }
+    
+    @Override
+    public void remove() {
+        InventoryHelper.dropInventoryItems(this.world, this.pos, this);
+        super.remove();
     }
 }

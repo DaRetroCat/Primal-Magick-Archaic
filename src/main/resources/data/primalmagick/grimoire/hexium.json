@@ -2,10 +2,6 @@
   "key": "HEXIUM",
   "name": "primalmagick.research.hexium.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:hexium_ingot"
-  },
   "parents": [
     "MASTER_ALCHEMY",
     "PRIMALITE",
@@ -38,10 +34,6 @@
       },
       "recipes": [
         "primalmagick:hexium_ingot",
-        "primalmagick:hexium_nugget",
-        "primalmagick:hexium_ingot_from_nuggets",
-        "primalmagick:hexium_block",
-        "primalmagick:hexium_ingots_from_block",
         "primalmagick:hexium_sword",
         "primalmagick:hexium_trident",
         "primalmagick:hexium_bow",

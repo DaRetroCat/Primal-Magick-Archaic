@@ -9,12 +9,10 @@ import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Definition of a research addendum.  An addendum is an addon to a research entry that is separately
@@ -27,7 +25,6 @@ public class ResearchAddendum {
     protected ResearchEntry researchEntry;
     protected String textTranslationKey;
     protected List<ResourceLocation> recipes = new ArrayList<>();
-    protected List<SimpleResearchKey> siblings = new ArrayList<>();
     protected CompoundResearchKey requiredResearch;
     protected SourceList attunements = new SourceList();
 
@@ -51,9 +48,6 @@ public class ResearchAddendum {
         if (obj.has("recipes")) {
             addendum.recipes = JsonUtils.toResourceLocations(obj.get("recipes").getAsJsonArray());
         }
-        if (obj.has("siblings")) {
-            addendum.siblings = JsonUtils.toSimpleResearchKeys(obj.get("siblings").getAsJsonArray());
-        }
         if (obj.has("required_research")) {
             addendum.requiredResearch = CompoundResearchKey.parse(obj.get("required_research").getAsJsonArray());
         }
@@ -61,40 +55,6 @@ public class ResearchAddendum {
             addendum.attunements = JsonUtils.toSourceList(obj.get("attunements").getAsJsonObject());
         }
         return addendum;
-    }
-    
-    @Nonnull
-    public static ResearchAddendum fromNetwork(FriendlyByteBuf buf, ResearchEntry entry) {
-        ResearchAddendum addendum = create(entry, buf.readUtf());
-        int recipeSize = buf.readVarInt();
-        for (int index = 0; index < recipeSize; index++) {
-            addendum.recipes.add(new ResourceLocation(buf.readUtf()));
-        }
-        int siblingSize = buf.readVarInt();
-        for (int index = 0; index < siblingSize; index++) {
-            addendum.siblings.add(SimpleResearchKey.parse(buf.readUtf()));
-        }
-        addendum.requiredResearch = CompoundResearchKey.parse(buf.readUtf());
-        for (Source source : Source.SORTED_SOURCES) {
-            addendum.attunements.add(source, buf.readVarInt());
-        }
-        return addendum;
-    }
-    
-    public static void toNetwork(FriendlyByteBuf buf, ResearchAddendum addendum) {
-        buf.writeUtf(addendum.textTranslationKey);
-        buf.writeVarInt(addendum.recipes.size());
-        for (ResourceLocation recipe : addendum.recipes) {
-            buf.writeUtf(recipe.toString());
-        }
-        buf.writeVarInt(addendum.siblings.size());
-        for (SimpleResearchKey key : addendum.siblings) {
-            buf.writeUtf(key.toString());
-        }
-        buf.writeUtf(addendum.requiredResearch == null ? "" : addendum.requiredResearch.toString());
-        for (Source source : Source.SORTED_SOURCES) {
-            buf.writeVarInt(addendum.attunements.getAmount(source));
-        }
     }
     
     @Nonnull
@@ -110,11 +70,6 @@ public class ResearchAddendum {
     @Nonnull
     public List<ResourceLocation> getRecipes() {
         return Collections.unmodifiableList(this.recipes);
-    }
-    
-    @Nonnull
-    public List<SimpleResearchKey> getSiblings() {
-        return Collections.unmodifiableList(this.siblings);
     }
     
     @Nullable

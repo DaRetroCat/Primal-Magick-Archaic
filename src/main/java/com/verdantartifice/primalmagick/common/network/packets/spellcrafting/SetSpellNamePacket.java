@@ -5,9 +5,9 @@ import java.util.function.Supplier;
 import com.verdantartifice.primalmagick.common.containers.SpellcraftingAltarContainer;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.network.PacketBuffer;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent to update a spell package's name on the server in the spellcrafting altar GUI.
@@ -28,15 +28,15 @@ public class SetSpellNamePacket implements IMessageToServer {
         this.name = name;
     }
     
-    public static void encode(SetSpellNamePacket message, FriendlyByteBuf buf) {
+    public static void encode(SetSpellNamePacket message, PacketBuffer buf) {
         buf.writeInt(message.windowId);
-        buf.writeUtf(message.name);
+        buf.writeString(message.name);
     }
     
-    public static SetSpellNamePacket decode(FriendlyByteBuf buf) {
+    public static SetSpellNamePacket decode(PacketBuffer buf) {
         SetSpellNamePacket message = new SetSpellNamePacket();
         message.windowId = buf.readInt();
-        message.name = buf.readUtf();
+        message.name = buf.readString();
         return message;
     }
     
@@ -44,10 +44,10 @@ public class SetSpellNamePacket implements IMessageToServer {
         public static void onMessage(SetSpellNamePacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player.containerMenu != null && player.containerMenu.containerId == message.windowId && player.containerMenu instanceof SpellcraftingAltarContainer) {
+                ServerPlayerEntity player = ctx.get().getSender();
+                if (player.openContainer != null && player.openContainer.windowId == message.windowId && player.openContainer instanceof SpellcraftingAltarContainer) {
                     // Update the spell name if the open container window matches the given one
-                    ((SpellcraftingAltarContainer)player.containerMenu).setSpellName(message.name);
+                    ((SpellcraftingAltarContainer)player.openContainer).setSpellName(message.name);
                 }
             });
             

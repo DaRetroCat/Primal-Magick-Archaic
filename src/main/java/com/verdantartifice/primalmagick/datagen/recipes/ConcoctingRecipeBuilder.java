@@ -15,17 +15,17 @@ import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.data.recipes.FinishedRecipe;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.Tag;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.data.IFinishedRecipe;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeSerializer;
+import net.minecraft.item.crafting.Ingredient;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionUtils;
+import net.minecraft.potion.Potions;
+import net.minecraft.tags.ITag;
+import net.minecraft.util.IItemProvider;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -36,8 +36,6 @@ import net.minecraftforge.registries.ForgeRegistries;
 public class ConcoctingRecipeBuilder {
     protected final ItemStack result;
     protected final List<Ingredient> ingredients = new ArrayList<>();
-    protected String group;
-    protected boolean useDefaultGroup = false;
     protected CompoundResearchKey research;
     protected SourceList manaCosts;
 
@@ -60,12 +58,12 @@ public class ConcoctingRecipeBuilder {
         return this.addIngredient(ingredient, 1);
     }
     
-    public ConcoctingRecipeBuilder addIngredient(ItemLike item) {
+    public ConcoctingRecipeBuilder addIngredient(IItemProvider item) {
         return this.addIngredient(item, 1);
     }
     
-    public ConcoctingRecipeBuilder addIngredient(ItemLike item, int quantity) {
-        return this.addIngredient(Ingredient.of(item), quantity);
+    public ConcoctingRecipeBuilder addIngredient(IItemProvider item, int quantity) {
+        return this.addIngredient(Ingredient.fromItems(item), quantity);
     }
     
     public ConcoctingRecipeBuilder addIngredient(ItemStack stack) {
@@ -74,18 +72,8 @@ public class ConcoctingRecipeBuilder {
         return this.addIngredient(NBTIngredientPM.fromStack(stack));
     }
     
-    public ConcoctingRecipeBuilder addIngredient(Tag<Item> tag) {
-        return this.addIngredient(Ingredient.of(tag));
-    }
-    
-    public ConcoctingRecipeBuilder setGroup(String group) {
-        this.group = group;
-        return this;
-    }
-    
-    public ConcoctingRecipeBuilder useDefaultGroup() {
-        this.useDefaultGroup = true;
-        return this;
+    public ConcoctingRecipeBuilder addIngredient(ITag<Item> tag) {
+        return this.addIngredient(Ingredient.fromTag(tag));
     }
     
     public ConcoctingRecipeBuilder research(CompoundResearchKey research) {
@@ -107,43 +95,37 @@ public class ConcoctingRecipeBuilder {
         }
     }
     
-    public void build(Consumer<FinishedRecipe> consumer, ResourceLocation id) {
+    public void build(Consumer<IFinishedRecipe> consumer, ResourceLocation id) {
         this.validate(id);
-        String groupStr = this.useDefaultGroup ? PotionUtils.getPotion(this.result).getRegistryName().getPath() : this.group;
-        consumer.accept(new ConcoctingRecipeBuilder.Result(id, this.result, this.ingredients, groupStr, this.research, this.manaCosts));
+        consumer.accept(new ConcoctingRecipeBuilder.Result(id, this.result, this.ingredients, this.research, this.manaCosts));
     }
     
-    public void build(Consumer<FinishedRecipe> consumer) {
-        Potion potion = PotionUtils.getPotion(this.result);
+    public void build(Consumer<IFinishedRecipe> consumer) {
+        Potion potion = PotionUtils.getPotionFromItem(this.result);
         ConcoctionType type = ConcoctionUtils.getConcoctionType(this.result);
         if (type == null || potion == null || potion == Potions.EMPTY) {
-            throw new IllegalStateException("Output is not a concoction for concocting recipe with output " + this.result.getHoverName().getString());
+            throw new IllegalStateException("Output is not a concoction for concocting recipe with output " + this.result.getDisplayName().getString());
         }
-        this.build(consumer, new ResourceLocation(PrimalMagick.MODID, potion.getRegistryName().getPath() + "_" + type.getSerializedName()));
+        this.build(consumer, new ResourceLocation(PrimalMagick.MODID, potion.getRegistryName().getPath() + "_" + type.getString()));
     }
     
-    public static class Result implements FinishedRecipe {
+    public static class Result implements IFinishedRecipe {
         protected final ResourceLocation id;
         protected final ItemStack result;
         protected final List<Ingredient> ingredients;
-        protected final String group;
         protected final CompoundResearchKey research;
         protected final SourceList manaCosts;
         
-        public Result(ResourceLocation id, ItemStack result, List<Ingredient> ingredients, String group, CompoundResearchKey research, SourceList manaCosts) {
+        public Result(ResourceLocation id, ItemStack result, List<Ingredient> ingredients, CompoundResearchKey research, SourceList manaCosts) {
             this.id = id;
             this.result = result;
             this.ingredients = ingredients;
-            this.group = group;
             this.research = research;
             this.manaCosts = manaCosts;
         }
 
         @Override
-        public void serializeRecipeData(JsonObject json) {
-            if (this.group != null && !this.group.isEmpty()) {
-                json.addProperty("group", this.group);
-            }
+        public void serialize(JsonObject json) {
             if (this.research != null) {
                 json.addProperty("research", this.research.toString());
             }
@@ -158,7 +140,7 @@ public class ConcoctingRecipeBuilder {
             
             JsonArray ingredientsJson = new JsonArray();
             for (Ingredient ingredient : this.ingredients) {
-                ingredientsJson.add(ingredient.toJson());
+                ingredientsJson.add(ingredient.serialize());
             }
             json.add("ingredients", ingredientsJson);
             
@@ -172,23 +154,23 @@ public class ConcoctingRecipeBuilder {
         }
 
         @Override
-        public ResourceLocation getId() {
+        public ResourceLocation getID() {
             return this.id;
         }
 
         @Override
-        public RecipeSerializer<?> getType() {
+        public IRecipeSerializer<?> getSerializer() {
             return RecipeSerializersPM.CONCOCTING.get();
         }
 
         @Override
-        public JsonObject serializeAdvancement() {
+        public JsonObject getAdvancementJson() {
             // Concocting recipes don't use the vanilla advancement unlock system, so return null
             return null;
         }
 
         @Override
-        public ResourceLocation getAdvancementId() {
+        public ResourceLocation getAdvancementID() {
             return new ResourceLocation("");
         }
     }

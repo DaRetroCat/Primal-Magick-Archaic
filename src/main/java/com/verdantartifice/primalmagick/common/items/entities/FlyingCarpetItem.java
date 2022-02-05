@@ -3,25 +3,28 @@ package com.verdantartifice.primalmagick.common.items.entities;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.entities.misc.FlyingCarpetEntity;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.cauldron.CauldronInteraction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.DyeItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.LayeredCauldronBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.CauldronBlock;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.DyeColor;
+import net.minecraft.item.DyeItem;
+import net.minecraft.item.IItemPropertyGetter;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUseContext;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.util.Constants;
 
 /**
  * Item definition for a flying carpet.  Spawns a flying carpet entity when used for the player to
@@ -31,27 +34,27 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class FlyingCarpetItem extends Item {
     public static final ResourceLocation COLOR_PROPERTY = new ResourceLocation(PrimalMagick.MODID, "color");
-    
-    public static final CauldronInteraction DYED_CARPET = (BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, ItemStack stack) -> {
-        Item item = stack.getItem();
-        if (!(item instanceof FlyingCarpetItem)) {
-            return InteractionResult.PASS;
-        } else {
-            FlyingCarpetItem carpet = (FlyingCarpetItem)item;
-            if (carpet.getDyeColor(stack) == null) {
-                return InteractionResult.PASS;
-            } else {
-                if (!level.isClientSide) {
-                    carpet.removeDyeColor(stack);
-                    LayeredCauldronBlock.lowerFillLevel(state, level, pos);
-                }
-                return InteractionResult.sidedSuccess(level.isClientSide);
-            }
-        }
-    };
 
     public FlyingCarpetItem(Item.Properties properties) {
         super(properties);
+    }
+    
+    public static IItemPropertyGetter getColorProperty() {
+        return new IItemPropertyGetter() {
+            @OnlyIn(Dist.CLIENT)
+            @Override
+            public float call(ItemStack stack, ClientWorld world, LivingEntity entity) {
+                DyeColor color = null;
+                if (stack != null && stack.getItem() instanceof FlyingCarpetItem) {
+                    color = ((FlyingCarpetItem)stack.getItem()).getDyeColor(stack);
+                }
+                if (color == null) {
+                    // Default to white if no dye color is applied
+                    color = DyeColor.WHITE;
+                }
+                return ((float)color.getId() / 16.0F);
+            }
+        };
     }
     
     public static ItemStack dyeCarpet(ItemStack carpetStack, DyeItem dye) {
@@ -65,36 +68,46 @@ public class FlyingCarpetItem extends Item {
     }
 
     @Override
-    public InteractionResult useOn(UseOnContext context) {
-        Level world = context.getLevel();
-        if (!world.isClientSide) {
-            if (context.getClickedFace() != Direction.UP) {
-                return InteractionResult.PASS;
+    public ActionResultType onItemUseFirst(ItemStack stack, ItemUseContext context) {
+        World world = context.getWorld();
+        BlockPos pos = context.getPos();
+        BlockState state = world.getBlockState(pos);
+        if (!world.isRemote && state.getBlock() == Blocks.CAULDRON) {
+            int level = state.get(CauldronBlock.LEVEL).intValue();
+            if (level > 0) {
+                this.removeDyeColor(stack);
+                ((CauldronBlock)Blocks.CAULDRON).setWaterLevel(world, pos, state, level - 1);
+                return ActionResultType.SUCCESS;
+            } else {
+                return ActionResultType.PASS;
             }
-            ItemStack stack = context.getItemInHand();
-            double posX = context.getClickLocation().x;
-            double posY = context.getClickLocation().y;
-            double posZ = context.getClickLocation().z;
+        } else if (!world.isRemote) {
+            if (context.getFace() != Direction.UP) {
+                return ActionResultType.PASS;
+            }
+            double posX = /* (double)pos.getX() + */ context.getHitVec().x;
+            double posY = /* (double)pos.getY() + */ context.getHitVec().y;
+            double posZ = /* (double)pos.getZ() + */ context.getHitVec().z;
             FlyingCarpetEntity entityCarpet = new FlyingCarpetEntity(world, posX, posY, posZ);
             if (stack.hasTag()) {
                 entityCarpet.setDyeColor(this.getDyeColor(stack));
             }
-            entityCarpet.setYRot(context.getPlayer().getYRot());
-            world.addFreshEntity(entityCarpet);
-            world.playSound(null, posX, posY, posZ, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+            entityCarpet.rotationYaw = context.getPlayer().rotationYaw;
+            world.addEntity(entityCarpet);
+            world.playSound(null, posX, posY, posZ, SoundEvents.BLOCK_WOOL_PLACE, SoundCategory.BLOCKS, 1.0F, 1.0F);
             stack.shrink(1);
-            return InteractionResult.SUCCESS;
+            return ActionResultType.SUCCESS;
         } else {
-            return InteractionResult.PASS;
+            return ActionResultType.PASS;
         }
     }
     
     public DyeColor getDyeColor(ItemStack stack) {
         if (stack.hasTag()) {
-            CompoundTag nbt = stack.getTag();
-            if (nbt != null && nbt.contains("display", Tag.TAG_COMPOUND)) {
-                CompoundTag displayNbt = nbt.getCompound("display");
-                if (displayNbt != null && displayNbt.contains("color", Tag.TAG_INT)) {
+            CompoundNBT nbt = stack.getTag();
+            if (nbt != null && nbt.contains("display", Constants.NBT.TAG_COMPOUND)) {
+                CompoundNBT displayNbt = nbt.getCompound("display");
+                if (displayNbt != null && displayNbt.contains("color", Constants.NBT.TAG_INT)) {
                     return DyeColor.byId(displayNbt.getInt("color"));
                 }
             }
@@ -107,21 +120,21 @@ public class FlyingCarpetItem extends Item {
             return;
         }
         if (!stack.hasTag()) {
-            stack.setTag(new CompoundTag());
+            stack.setTag(new CompoundNBT());
         }
-        CompoundTag nbt = stack.getTag();
-        if (!nbt.contains("display", Tag.TAG_COMPOUND)) {
-            nbt.put("display", new CompoundTag());
+        CompoundNBT nbt = stack.getTag();
+        if (!nbt.contains("display", Constants.NBT.TAG_COMPOUND)) {
+            nbt.put("display", new CompoundNBT());
         }
         nbt.getCompound("display").putInt("color", color.getId());
     }
     
     public void removeDyeColor(ItemStack stack) {
         if (stack.hasTag()) {
-            CompoundTag nbt = stack.getTag();
-            if (nbt != null && nbt.contains("display", Tag.TAG_COMPOUND)) {
-                CompoundTag displayNbt = nbt.getCompound("display");
-                if (displayNbt != null && displayNbt.contains("color", Tag.TAG_INT)) {
+            CompoundNBT nbt = stack.getTag();
+            if (nbt != null && nbt.contains("display", Constants.NBT.TAG_COMPOUND)) {
+                CompoundNBT displayNbt = nbt.getCompound("display");
+                if (displayNbt != null && displayNbt.contains("color", Constants.NBT.TAG_INT)) {
                     displayNbt.remove("color");
                 }
             }

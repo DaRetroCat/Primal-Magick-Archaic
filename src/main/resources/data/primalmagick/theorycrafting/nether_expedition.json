@@ -2,20 +2,19 @@
   "key": "primalmagick:nether_expedition",
   "required_research": "t_discover_infernal",
   "reward_multiplier": 0.5,
-  "aid_blocks": [],
   "material_options": [
     {
       "type": "item",
       "stack": "minecraft:diamond_sword;1;{Damage:0}",
       "consumed": false,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:crossbow;1;{Damage:0}",
       "consumed": false,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
@@ -29,7 +28,7 @@
       "type": "item",
       "stack": "minecraft:diamond_chestplate;1;{Damage:0}",
       "consumed": false,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
@@ -65,8 +64,7 @@
       "stack": "minecraft:potion;1;{Potion:\u0027minecraft:fire_resistance\u0027}",
       "consumed": true,
       "match_nbt": true,
-      "weight": 4.0,
-      "bonus_reward": 0.25
+      "weight": 4.0
     },
     {
       "type": "item",
@@ -86,7 +84,7 @@
       "type": "item",
       "stack": "minecraft:flint_and_steel;1;{Damage:0}",
       "consumed": false,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     }
   ]

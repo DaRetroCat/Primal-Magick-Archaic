@@ -1,24 +1,27 @@
 package com.verdantartifice.primalmagick.client.renderers.itemstack;
 
-import net.minecraft.client.renderer.texture.TextureAtlas;
-import net.minecraft.client.resources.model.Material;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.model.RenderMaterial;
+import net.minecraft.client.renderer.texture.AtlasTexture;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Custom item stack renderer for a primalite shield.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class PrimaliteShieldISTER extends AbstractTieredShieldISTER {
     public static final ResourceLocation TEXTURE_SHIELD_BASE = new ResourceLocation("primalmagick:entity/shield/primalite_shield_base");
     public static final ResourceLocation TEXTURE_SHIELD_NO_PATTERN = new ResourceLocation("primalmagick:entity/shield/primalite_shield_base_nopattern");
     @SuppressWarnings("deprecation")
-    protected static final Material LOCATION_SHIELD_BASE = new Material(TextureAtlas.LOCATION_BLOCKS, TEXTURE_SHIELD_BASE);
+    protected static final RenderMaterial LOCATION_SHIELD_BASE = new RenderMaterial(AtlasTexture.LOCATION_BLOCKS_TEXTURE, TEXTURE_SHIELD_BASE);
     @SuppressWarnings("deprecation")
-    protected static final Material LOCATION_SHIELD_NO_PATTERN = new Material(TextureAtlas.LOCATION_BLOCKS, TEXTURE_SHIELD_NO_PATTERN);
+    protected static final RenderMaterial LOCATION_SHIELD_NO_PATTERN = new RenderMaterial(AtlasTexture.LOCATION_BLOCKS_TEXTURE, TEXTURE_SHIELD_NO_PATTERN);
 
     @Override
-    protected Material getRenderMaterial(boolean hasPattern) {
+    protected RenderMaterial getRenderMaterial(boolean hasPattern) {
         return hasPattern ? LOCATION_SHIELD_BASE : LOCATION_SHIELD_NO_PATTERN;
     }
 }

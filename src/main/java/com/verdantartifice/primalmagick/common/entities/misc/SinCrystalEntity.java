@@ -9,26 +9,28 @@ import javax.annotation.Nullable;
 import com.verdantartifice.primalmagick.common.entities.EntityTypesPM;
 import com.verdantartifice.primalmagick.common.util.EntityUtils;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.AreaEffectCloud;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.Explosion;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.entity.AreaEffectCloudEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.NBTUtil;
+import net.minecraft.network.IPacket;
+import net.minecraft.network.datasync.DataParameter;
+import net.minecraft.network.datasync.DataSerializers;
+import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.particles.ParticleTypes;
+import net.minecraft.potion.EffectInstance;
+import net.minecraft.potion.Effects;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.Explosion;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fml.network.NetworkHooks;
 
 /**
  * Definition of a sin crystal entity.  Created by an inner demon to heal it, similar to an ender crystal.
@@ -36,26 +38,26 @@ import net.minecraftforge.network.NetworkHooks;
  * @author Daedalus4096
  */
 public class SinCrystalEntity extends Entity {
-    private static final EntityDataAccessor<Optional<BlockPos>> BEAM_TARGET = SynchedEntityData.defineId(SinCrystalEntity.class, EntityDataSerializers.OPTIONAL_BLOCK_POS);
-    private static final EntityDataAccessor<Optional<UUID>> DAMAGE_CLOUD = SynchedEntityData.defineId(SinCrystalEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    private static final DataParameter<Optional<BlockPos>> BEAM_TARGET = EntityDataManager.createKey(SinCrystalEntity.class, DataSerializers.OPTIONAL_BLOCK_POS);
+    private static final DataParameter<Optional<UUID>> DAMAGE_CLOUD = EntityDataManager.createKey(SinCrystalEntity.class, DataSerializers.OPTIONAL_UNIQUE_ID);
     
     public int innerRotation;
 
-    public SinCrystalEntity(EntityType<? extends SinCrystalEntity> entityTypeIn, Level worldIn) {
+    public SinCrystalEntity(EntityType<? extends SinCrystalEntity> entityTypeIn, World worldIn) {
         super(entityTypeIn, worldIn);
-        this.blocksBuilding = true;
-        this.innerRotation = this.random.nextInt(100000);
+        this.preventEntitySpawning = true;
+        this.innerRotation = this.rand.nextInt(100000);
     }
     
-    public SinCrystalEntity(Level worldIn, double x, double y, double z) {
+    public SinCrystalEntity(World worldIn, double x, double y, double z) {
         this(EntityTypesPM.SIN_CRYSTAL.get(), worldIn);
-        this.setPos(x, y, z);
+        this.setPosition(x, y, z);
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.getEntityData().define(BEAM_TARGET, Optional.empty());
-        this.getEntityData().define(DAMAGE_CLOUD, Optional.empty());
+    protected void registerData() {
+        this.getDataManager().register(BEAM_TARGET, Optional.empty());
+        this.getDataManager().register(DAMAGE_CLOUD, Optional.empty());
     }
 
     @Override
@@ -64,22 +66,22 @@ public class SinCrystalEntity extends Entity {
         this.innerRotation++;
         
         // Create or extend damage cloud
-        if (!this.level.isClientSide && this.level instanceof ServerLevel) {
+        if (!this.world.isRemote && this.world instanceof ServerWorld) {
             UUID cloudId = this.getDamageCloud();
             if (cloudId == null) {
-                AreaEffectCloud cloud = new AreaEffectCloud(this.level, this.getX(), this.getY(), this.getZ());
-                cloud.setParticle(ParticleTypes.DRAGON_BREATH);
+                AreaEffectCloudEntity cloud = new AreaEffectCloudEntity(this.world, this.getPosX(), this.getPosY(), this.getPosZ());
+                cloud.setParticleData(ParticleTypes.DRAGON_BREATH);
                 cloud.setRadius(3.0F);
                 cloud.setDuration(5);
                 cloud.setWaitTime(0);
-                cloud.addEffect(new MobEffectInstance(MobEffects.HARM, 1, 1));
-                this.level.addFreshEntity(cloud);
-                this.setDamageCloud(cloud.getUUID());
+                cloud.addEffect(new EffectInstance(Effects.INSTANT_DAMAGE, 1, 1));
+                this.world.addEntity(cloud);
+                this.setDamageCloud(cloud.getUniqueID());
             } else {
-                ServerLevel serverWorld = (ServerLevel)this.level;
-                Entity entity = serverWorld.getEntity(cloudId);
-                if (entity instanceof AreaEffectCloud) {
-                    AreaEffectCloud cloud = (AreaEffectCloud)entity;
+                ServerWorld serverWorld = (ServerWorld)this.world;
+                Entity entity = serverWorld.getEntityByUuid(cloudId);
+                if (entity instanceof AreaEffectCloudEntity) {
+                    AreaEffectCloudEntity cloud = (AreaEffectCloudEntity)entity;
                     cloud.setDuration(1 + cloud.getDuration());     // Extend the cloud's duration by a tick so that it lives as long as the crystal
                 } else {
                     this.setDamageCloud(null);
@@ -89,51 +91,51 @@ public class SinCrystalEntity extends Entity {
     }
 
     @Override
-    protected void readAdditionalSaveData(CompoundTag compound) {
-        if (compound.contains("BeamTarget", Tag.TAG_COMPOUND)) {
-            this.setBeamTarget(NbtUtils.readBlockPos(compound.getCompound("BeamTarget")));
+    protected void readAdditional(CompoundNBT compound) {
+        if (compound.contains("BeamTarget", Constants.NBT.TAG_COMPOUND)) {
+            this.setBeamTarget(NBTUtil.readBlockPos(compound.getCompound("BeamTarget")));
         }
-        if (compound.contains("DamageCloudUUID", Tag.TAG_COMPOUND)) {
-            this.setDamageCloud(compound.getUUID("DamageCloudUUID"));
+        if (compound.contains("DamageCloudUUID", Constants.NBT.TAG_COMPOUND)) {
+            this.setDamageCloud(compound.getUniqueId("DamageCloudUUID"));
         }
     }
 
     @Override
-    protected void addAdditionalSaveData(CompoundTag compound) {
+    protected void writeAdditional(CompoundNBT compound) {
         if (this.getBeamTarget() != null) {
-            compound.put("BeamTarget", NbtUtils.writeBlockPos(this.getBeamTarget()));
+            compound.put("BeamTarget", NBTUtil.writeBlockPos(this.getBeamTarget()));
         }
         if (this.getDamageCloud() != null) {
-            compound.putUUID("DamageCloudUUID", this.getDamageCloud());
+            compound.putUniqueId("DamageCloudUUID", this.getDamageCloud());
         }
     }
 
     @Override
-    public boolean isPickable() {
+    public boolean canBeCollidedWith() {
         return true;
     }
 
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean attackEntityFrom(DamageSource source, float amount) {
         if (this.isInvulnerableTo(source)) {
             return false;
-        } else if (source.getEntity() instanceof InnerDemonEntity) {
+        } else if (source.getTrueSource() instanceof InnerDemonEntity) {
             return false;
         } else {
-            if (this.isAlive() && !this.level.isClientSide) {
+            if (this.isAlive() && !this.world.isRemote) {
                 // Cause backlash to any inner demons being healed by this crystal
-                List<InnerDemonEntity> demonsInRange = EntityUtils.getEntitiesInRange(this.level, this.position(), null, InnerDemonEntity.class, InnerDemonEntity.HEAL_RANGE);
+                List<InnerDemonEntity> demonsInRange = EntityUtils.getEntitiesInRange(this.world, this.getPositionVec(), null, InnerDemonEntity.class, InnerDemonEntity.HEAL_RANGE);
                 if (!demonsInRange.isEmpty()) {
-                    LivingEntity trueSource = source.getEntity() instanceof LivingEntity ? (LivingEntity)source.getEntity() : null;
+                    LivingEntity trueSource = source.getTrueSource() instanceof LivingEntity ? (LivingEntity)source.getTrueSource() : null;
                     for (InnerDemonEntity demon : demonsInRange) {
-                        demon.hurt(DamageSource.explosion(trueSource), 10.0F);
+                        demon.attackEntityFrom(DamageSource.causeExplosionDamage(trueSource), 10.0F);
                     }
                 }
                 
                 // Detonate when attacked
-                this.discard();
+                this.remove();
                 if (!source.isExplosion()) {
-                    this.level.explode(null, this.getX(), this.getY(), this.getZ(), 4.0F, Explosion.BlockInteraction.DESTROY);
+                    this.world.createExplosion(null, this.getPosX(), this.getPosY(), this.getPosZ(), 4.0F, Explosion.Mode.DESTROY);
                 }
             }
             return true;
@@ -141,32 +143,33 @@ public class SinCrystalEntity extends Entity {
     }
 
     @Override
-    public Packet<?> getAddEntityPacket() {
+    public IPacket<?> createSpawnPacket() {
         return NetworkHooks.getEntitySpawningPacket(this);
     }
 
     public void setBeamTarget(@Nullable BlockPos beamTarget) {
-        this.getEntityData().set(BEAM_TARGET, Optional.ofNullable(beamTarget));
+        this.getDataManager().set(BEAM_TARGET, Optional.ofNullable(beamTarget));
     }
 
     @Nullable
     public BlockPos getBeamTarget() {
-        return this.getEntityData().get(BEAM_TARGET).orElse((BlockPos)null);
+        return this.getDataManager().get(BEAM_TARGET).orElse((BlockPos)null);
     }
     
     public void setDamageCloud(@Nullable UUID cloudId) {
-        this.getEntityData().set(DAMAGE_CLOUD, Optional.ofNullable(cloudId));
+        this.getDataManager().set(DAMAGE_CLOUD, Optional.ofNullable(cloudId));
     }
     
     @Nullable
     public UUID getDamageCloud() {
-        return this.getEntityData().get(DAMAGE_CLOUD).orElse(null);
+        return this.getDataManager().get(DAMAGE_CLOUD).orElse(null);
     }
     
     /**
      * Checks if the entity is in range to render.
      */
-    public boolean shouldRenderAtSqrDistance(double distance) {
-        return super.shouldRenderAtSqrDistance(distance) || this.getBeamTarget() != null;
+    @OnlyIn(Dist.CLIENT)
+    public boolean isInRangeToRenderDist(double distance) {
+        return super.isInRangeToRenderDist(distance) || this.getBeamTarget() != null;
     }
 }

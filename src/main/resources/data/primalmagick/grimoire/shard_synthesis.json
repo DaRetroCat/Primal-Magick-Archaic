@@ -2,10 +2,6 @@
   "key": "SHARD_SYNTHESIS",
   "name": "primalmagick.research.shard_synthesis.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:essence_shard_earth"
-  },
   "parents": [
     "EXPERT_ALCHEMY"
   ],

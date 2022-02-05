@@ -8,11 +8,12 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.research.ResearchManager;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
 
 /**
  * Collection of triggers which grant a player research when they meet or exceed a given threshold
@@ -37,9 +38,10 @@ public class StatTriggers {
         }
     }
     
-    public static void checkTriggers(@Nullable ServerPlayer player, @Nullable Stat stat, int value) {
+    public static void checkTriggers(@Nullable ServerPlayerEntity player, @Nullable Stat stat, int value) {
         if (player != null && stat != null) {
-            PrimalMagickCapabilities.getKnowledge(player).ifPresent(knowledge -> {
+            IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
+            if (knowledge != null) {
                 boolean found = false;
                 
                 // Iterate through the map of thresholds to research for the stat, or an empty map if it doesn't exist
@@ -61,7 +63,7 @@ public class StatTriggers {
                 if (found) {
                     ResearchManager.scheduleSync(player);
                 }
-            });
+            }
         }
     }
 }

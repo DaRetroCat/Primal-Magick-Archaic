@@ -1,0 +1,43 @@
+{
+  "parent": "minecraft:recipes/root",
+  "rewards": {
+    "recipes": [
+      "primalmagick:salted_baked_potato"
+    ]
+  },
+  "criteria": {
+    "has_salt": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "item": "primalmagick:refined_salt"
+          }
+        ]
+      }
+    },
+    "has_baked_potato": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "item": "minecraft:baked_potato"
+          }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": {
+        "recipe": "primalmagick:salted_baked_potato"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_salt",
+      "has_baked_potato",
+      "has_the_recipe"
+    ]
+  ]
+}

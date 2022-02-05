@@ -2,10 +2,6 @@
   "key": "CALCINATOR_BASIC",
   "name": "primalmagick.research.calcinator_basic.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:calcinator_basic"
-  },
   "parents": [
     "BASIC_ALCHEMY"
   ],

@@ -2,12 +2,12 @@ package com.verdantartifice.primalmagick.common.sounds;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
+import net.minecraftforge.fml.RegistryObject;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 
 /**
  * Deferred registry for mod sound events.
@@ -42,5 +42,4 @@ public class SoundsPM {
     public static final RegistryObject<SoundEvent> TREEFOLK_DEATH = SOUNDS.register("treefolk_death", () -> new SoundEvent(new ResourceLocation(PrimalMagick.MODID, "treefolk_death")));
     public static final RegistryObject<SoundEvent> CLANK = SOUNDS.register("clank", () -> new SoundEvent(new ResourceLocation(PrimalMagick.MODID, "clank")));
     public static final RegistryObject<SoundEvent> HARP = SOUNDS.register("harp", () -> new SoundEvent(new ResourceLocation(PrimalMagick.MODID, "harp")));
-    public static final RegistryObject<SoundEvent> RITUAL = SOUNDS.register("ritual", () -> new SoundEvent(new ResourceLocation(PrimalMagick.MODID, "ritual")));
 }

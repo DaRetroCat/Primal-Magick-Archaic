@@ -10,8 +10,8 @@ import com.verdantartifice.primalmagick.common.affinities.AffinityType;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.potion.Potion;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class PotionBonusAffinityBuilder {
@@ -43,7 +43,7 @@ public class PotionBonusAffinityBuilder {
         if (this.targetId == null) {
             throw new IllegalStateException("No target potion for affinity " + id.toString());
         }
-        if (!ForgeRegistries.POTIONS.containsKey(this.targetId)) {
+        if (!ForgeRegistries.POTION_TYPES.containsKey(this.targetId)) {
             throw new IllegalStateException("Unknown target potion " + this.targetId.toString() + " for affinity " + id.toString());
         }
     }

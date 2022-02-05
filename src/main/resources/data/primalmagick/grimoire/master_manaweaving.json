@@ -2,13 +2,8 @@
   "key": "MASTER_MANAWEAVING",
   "name": "primalmagick.research.master_manaweaving.title",
   "discipline": "MANAWEAVING",
-  "icon": {
-    "isItem": false,
-    "location": "primalmagick:textures/research/discipline_manaweaving.png"
-  },
   "parents": [
-    "WAND_CAP_GOLD",
-    "WAND_GEM_ADEPT"
+    "EXPERT_MANAWEAVING"
   ],
   "stages": [
     {

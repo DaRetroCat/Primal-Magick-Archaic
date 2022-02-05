@@ -2,10 +2,6 @@
   "key": "BASIC_RITUAL",
   "name": "primalmagick.research.basic_ritual.title",
   "discipline": "RITUAL",
-  "icon": {
-    "isItem": false,
-    "location": "primalmagick:textures/research/discipline_ritual.png"
-  },
   "parents": [
     "UNLOCK_RITUAL"
   ],

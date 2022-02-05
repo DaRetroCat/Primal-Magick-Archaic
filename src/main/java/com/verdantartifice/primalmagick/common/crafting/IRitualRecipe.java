@@ -1,11 +1,12 @@
 package com.verdantartifice.primalmagick.common.crafting;
 
 import com.verdantartifice.primalmagick.common.blocks.BlocksPM;
+import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.ICraftingRecipe;
+import net.minecraft.item.crafting.IRecipeType;
+import net.minecraft.util.NonNullList;
 
 /**
  * Crafting recipe interface for a ritual recipe.  Ritual recipes are performed across multiple
@@ -14,7 +15,14 @@ import net.minecraft.world.item.crafting.RecipeType;
  * 
  * @author Daedalus4096
  */
-public interface IRitualRecipe extends CraftingRecipe, IHasManaCost, IHasRequiredResearch {
+public interface IRitualRecipe extends ICraftingRecipe, IHasManaCost {
+    /**
+     * Get the required research for the recipe.
+     * 
+     * @return the required research for the recipe
+     */
+    public SimpleResearchKey getRequiredResearch();
+    
     /**
      * Get the list of props for the recipe.
      * 
@@ -29,19 +37,17 @@ public interface IRitualRecipe extends CraftingRecipe, IHasManaCost, IHasRequire
      */
     public int getInstability();
     
-    @Override
-    default RecipeType<?> getType() {
+    default IRecipeType<?> getType() {
         return RecipeTypesPM.RITUAL;
     }
     
     @Override
-    default boolean isSpecial() {
+    default boolean isDynamic() {
         // Return true to keep ritual recipes from showing up in the vanilla recipe book
         return true;
     }
     
-    @Override
-    default ItemStack getToastSymbol() {
+    default ItemStack getIcon() {
         return new ItemStack(BlocksPM.RITUAL_ALTAR.get());
     }
 }

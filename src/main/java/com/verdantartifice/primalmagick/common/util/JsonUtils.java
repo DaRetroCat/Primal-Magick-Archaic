@@ -8,13 +8,12 @@ import javax.annotation.Nonnull;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.JSONUtils;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Collection of utility methods pertaining to JSON parsing.
@@ -53,25 +52,6 @@ public class JsonUtils {
             try {
                 retVal.add(new ResourceLocation(element.getAsString()));
             } catch (Exception e) {}
-        }
-        return retVal;
-    }
-    
-    /**
-     * Parse the given JSON array into a list of simple research keys, based on its elements' string
-     * representations.
-     * 
-     * @param jsonArray the JSON array to be parsed
-     * @return the list of deserialized simple research keys
-     */
-    @Nonnull
-    public static List<SimpleResearchKey> toSimpleResearchKeys(@Nonnull JsonArray jsonArray) {
-        List<SimpleResearchKey> retVal = new ArrayList<>();
-        for (JsonElement element : jsonArray) {
-            SimpleResearchKey key = SimpleResearchKey.parse(element.getAsString());
-            if (key != null) {
-                retVal.add(key);
-            }
         }
         return retVal;
     }
@@ -122,7 +102,7 @@ public class JsonUtils {
     public static SourceList toSourceList(@Nonnull JsonObject jsonObject) {
         SourceList retVal = new SourceList();
         for (Source source : Source.SORTED_SOURCES) {
-            retVal.add(source, GsonHelper.getAsInt(jsonObject, source.getTag(), 0));
+            retVal.add(source, JSONUtils.getInt(jsonObject, source.getTag(), 0));
         }
         return retVal;
     }

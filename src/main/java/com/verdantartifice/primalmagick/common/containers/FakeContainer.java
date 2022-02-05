@@ -1,21 +1,21 @@
 package com.verdantartifice.primalmagick.common.containers;
 
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.MenuType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.ContainerType;
 
 /**
  * Fake server data container, not tied to any specific GUI.  Used for server-side calculations that would normally be done in a GUI.
  * 
  * @author Daedalus4096
  */
-public class FakeContainer extends AbstractContainerMenu {
+public class FakeContainer extends Container {
     public FakeContainer() {
-        super(MenuType.CRAFTING, 0);
+        super(ContainerType.CRAFTING, 0);
     }
     
     @Override
-    public boolean stillValid(Player playerIn) {
+    public boolean canInteractWith(PlayerEntity playerIn) {
         return false;
     }
 }

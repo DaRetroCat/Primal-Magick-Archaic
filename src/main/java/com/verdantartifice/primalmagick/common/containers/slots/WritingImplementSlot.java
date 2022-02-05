@@ -3,11 +3,11 @@ package com.verdantartifice.primalmagick.common.containers.slots;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.theorycrafting.IWritingImplement;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.Container;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.renderer.texture.AtlasTexture;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Custom GUI slot for writing implement inputs.
@@ -17,13 +17,14 @@ import net.minecraft.world.item.ItemStack;
 public class WritingImplementSlot extends Slot {
     public static final ResourceLocation TEXTURE = new ResourceLocation(PrimalMagick.MODID, "item/empty_pencil_slot");
 
-    public WritingImplementSlot(Container inventoryIn, int index, int xPosition, int yPosition) {
+    @SuppressWarnings("deprecation")
+    public WritingImplementSlot(IInventory inventoryIn, int index, int xPosition, int yPosition) {
         super(inventoryIn, index, xPosition, yPosition);
-        this.setBackground(InventoryMenu.BLOCK_ATLAS, TEXTURE);
+        this.setBackground(AtlasTexture.LOCATION_BLOCKS_TEXTURE, TEXTURE);
     }
 
     @Override
-    public boolean mayPlace(ItemStack stack) {
+    public boolean isItemValid(ItemStack stack) {
         // Only allow writing implements to be dropped in the slot
         return stack.getItem() instanceof IWritingImplement;
     }

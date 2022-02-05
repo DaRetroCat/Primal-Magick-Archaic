@@ -1,18 +1,12 @@
 package com.verdantartifice.primalmagick.common.theorycrafting;
 
-import java.util.Objects;
-import java.util.Set;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -20,10 +14,9 @@ import net.minecraftforge.common.util.INBTSerializable;
  * 
  * @author Daedalus4096
  */
-public abstract class AbstractProjectMaterial implements INBTSerializable<CompoundTag> {
+public abstract class AbstractProjectMaterial implements INBTSerializable<CompoundNBT> {
     protected boolean selected;
     protected double weight;
-    protected double bonusReward;
     protected CompoundResearchKey requiredResearch;
     
     protected AbstractProjectMaterial() {
@@ -31,12 +24,11 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
     }
     
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag retVal = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT retVal = new CompoundNBT();
         retVal.putString("MaterialType", this.getMaterialType());
         retVal.putBoolean("Selected", this.isSelected());
         retVal.putDouble("Weight", this.getWeight());
-        retVal.putDouble("BonusReward", this.bonusReward);
         if (this.requiredResearch != null) {
             retVal.putString("RequiredResearch", this.getRequiredResearch().toString());
         }
@@ -44,10 +36,9 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         this.selected = nbt.getBoolean("Selected");
         this.weight = nbt.getDouble("Weight");
-        this.bonusReward = nbt.getDouble("BonusReward");
         this.requiredResearch = nbt.contains("RequiredResearch") ? CompoundResearchKey.parse(nbt.getString("RequiredResearch")) : null;
     }
     
@@ -62,10 +53,9 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
      * Determine if this material's requirements are satisfied by the given player.
      * 
      * @param player the player doing the research project
-     * @param surroundings TODO
      * @return true if the requirement is satisfied, false otherwise
      */
-    public abstract boolean isSatisfied(Player player, Set<Block> surroundings);
+    public abstract boolean isSatisfied(PlayerEntity player);
     
     /**
      * Consume this project material's requirements from the given player.
@@ -73,7 +63,7 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
      * @param player the player doing the research project
      * @return true if the consumption succeeded, false otherwise
      */
-    public abstract boolean consume(Player player);
+    public abstract boolean consume(PlayerEntity player);
     
     /**
      * Determine whether this material should be consumed upon project completion.
@@ -82,23 +72,12 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
      */
     public abstract boolean isConsumed();
     
-    /**
-     * Write this material to the network using its defined serializer.
-     * 
-     * @param buf the network buffer to be written to
-     */
-    public abstract void toNetwork(FriendlyByteBuf buf);
-    
     public boolean isSelected() {
         return this.selected;
     }
     
     public double getWeight() {
         return this.weight;
-    }
-    
-    public double getBonusReward() {
-        return this.bonusReward;
     }
     
     @Nullable
@@ -114,19 +93,11 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
         this.weight = weight;
     }
     
-    public void setBonusReward(double bonus) {
-        this.bonusReward = bonus;
-    }
-    
     public void setRequiredResearch(@Nonnull CompoundResearchKey key) {
         this.requiredResearch = key.copy();
     }
     
-    public boolean isAllowedInProject(ServerPlayer player) {
-        return this.hasRequiredResearch(player);
-    }
-    
-    public boolean hasRequiredResearch(Player player) {
+    public boolean hasRequiredResearch(PlayerEntity player) {
         if (this.requiredResearch == null) {
             return true;
         } else {
@@ -138,7 +109,14 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
 
     @Override
     public int hashCode() {
-        return Objects.hash(bonusReward, requiredResearch, selected, weight);
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((requiredResearch == null) ? 0 : requiredResearch.hashCode());
+        result = prime * result + (selected ? 1231 : 1237);
+        long temp;
+        temp = Double.doubleToLongBits(weight);
+        result = prime * result + (int) (temp ^ (temp >>> 32));
+        return result;
     }
 
     @Override
@@ -150,8 +128,15 @@ public abstract class AbstractProjectMaterial implements INBTSerializable<Compou
         if (getClass() != obj.getClass())
             return false;
         AbstractProjectMaterial other = (AbstractProjectMaterial) obj;
-        return Double.doubleToLongBits(bonusReward) == Double.doubleToLongBits(other.bonusReward)
-                && Objects.equals(requiredResearch, other.requiredResearch) && selected == other.selected
-                && Double.doubleToLongBits(weight) == Double.doubleToLongBits(other.weight);
+        if (requiredResearch == null) {
+            if (other.requiredResearch != null)
+                return false;
+        } else if (!requiredResearch.equals(other.requiredResearch))
+            return false;
+        if (selected != other.selected)
+            return false;
+        if (Double.doubleToLongBits(weight) != Double.doubleToLongBits(other.weight))
+            return false;
+        return true;
     }
 }

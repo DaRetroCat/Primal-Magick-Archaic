@@ -3,8 +3,8 @@ package com.verdantartifice.primalmagick.common.entities.companions.pixies;
 import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.items.misc.PixieItem;
 
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.EntityType;
+import net.minecraft.world.World;
 
 /**
  * Definition of a majestic hallowed pixie.  Greatest of the hallowed pixies.
@@ -12,7 +12,7 @@ import net.minecraft.world.level.Level;
  * @author Daedalus4096
  */
 public class MajesticHallowedPixieEntity extends AbstractHallowedPixieEntity implements IMajesticPixie {
-    public MajesticHallowedPixieEntity(EntityType<? extends AbstractPixieEntity> type, Level worldIn) {
+    public MajesticHallowedPixieEntity(EntityType<? extends AbstractPixieEntity> type, World worldIn) {
         super(type, worldIn);
     }
 

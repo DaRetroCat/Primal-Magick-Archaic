@@ -5,13 +5,13 @@ import java.util.function.Supplier;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
 import com.verdantartifice.primalmagick.common.tiles.base.TilePM;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet to sync tile entity data from the client to the server.  Primarily used to request a sync of
@@ -21,27 +21,27 @@ import net.minecraftforge.network.NetworkEvent;
  */
 public class TileToServerPacket implements IMessageToServer {
     protected BlockPos pos;
-    protected CompoundTag data;
+    protected CompoundNBT data;
     
     public TileToServerPacket() {
         this.pos = BlockPos.ZERO;
         this.data = null;
     }
     
-    public TileToServerPacket(BlockPos pos, CompoundTag data) {
+    public TileToServerPacket(BlockPos pos, CompoundNBT data) {
         this.pos = pos;
         this.data = data;
     }
     
-    public static void encode(TileToServerPacket message, FriendlyByteBuf buf) {
+    public static void encode(TileToServerPacket message, PacketBuffer buf) {
         buf.writeBlockPos(message.pos);
-        buf.writeNbt(message.data);
+        buf.writeCompoundTag(message.data);
     }
     
-    public static TileToServerPacket decode(FriendlyByteBuf buf) {
+    public static TileToServerPacket decode(PacketBuffer buf) {
         TileToServerPacket message = new TileToServerPacket();
         message.pos = buf.readBlockPos();
-        message.data = buf.readNbt();
+        message.data = buf.readCompoundTag();
         return message;
     }
     
@@ -50,14 +50,14 @@ public class TileToServerPacket implements IMessageToServer {
         public static void onMessage(TileToServerPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                ServerPlayer sender = ctx.get().getSender();
-                Level world = sender.level;
+                ServerPlayerEntity sender = ctx.get().getSender();
+                World world = sender.world;
                 // Only process tile entities that are currently loaded into the world.  Safety check to prevent
                 // resource thrashing from falsified packets.
-                if (world != null && world.hasChunkAt(message.pos)) {
-                    BlockEntity tile = world.getBlockEntity(message.pos);
+                if (world != null && world.isBlockLoaded(message.pos)) {
+                    TileEntity tile = world.getTileEntity(message.pos);
                     if (tile != null && tile instanceof TilePM) {
-                        ((TilePM)tile).onMessageFromClient(message.data == null ? new CompoundTag() : message.data, sender);
+                        ((TilePM)tile).onMessageFromClient(message.data == null ? new CompoundNBT() : message.data, sender);
                     }
                 }
             });

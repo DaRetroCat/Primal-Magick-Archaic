@@ -10,15 +10,15 @@ import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.mods.ForkSpellMod;
 import com.verdantartifice.primalmagick.common.util.RayTraceUtils;
 
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.RayTraceContext;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
 
 /**
  * Base class for a raycast-based spell vehicle.  Finds the first target within a defined distance
@@ -35,52 +35,52 @@ public abstract class AbstractRaycastSpellVehicle extends AbstractSpellVehicle {
      */
     protected abstract double getReachDistance(@Nonnull LivingEntity caster);
     
-    protected void drawFx(@Nonnull Level world, @Nonnull SpellPackage spell, Vec3 source, Vec3 target) {
+    protected void drawFx(@Nonnull World world, @Nonnull SpellPackage spell, Vector3d source, Vector3d target) {
         // Do nothing by default
     }
     
     @Override
-    public void execute(SpellPackage spell, Level world, LivingEntity caster, ItemStack spellSource) {
+    public void execute(SpellPackage spell, World world, LivingEntity caster, ItemStack spellSource) {
         if (spell.getPayload() != null) {
             ForkSpellMod forkMod = spell.getMod(ForkSpellMod.class, "forks");
-            Vec3 baseLookVector = caster.getViewVector(1.0F);
-            List<Vec3> lookVectors;
+            Vector3d baseLookVector = caster.getLook(1.0F);
+            List<Vector3d> lookVectors;
             if (forkMod == null) {
                 // If no Fork mod is in the spell package, use the caster's line of sight for the direction vector
                 lookVectors = Arrays.asList(baseLookVector.normalize());
             } else {
                 // If a Fork mod is in the spell package, calculate a direction vector for each fork, based on the caster's line of sight
-                lookVectors = forkMod.getDirectionUnitVectors(baseLookVector, world.random);
+                lookVectors = forkMod.getDirectionUnitVectors(baseLookVector, world.rand);
             }
             
             double reachDistance = this.getReachDistance(caster);
-            Vec3 eyePos = caster.getEyePosition(1.0F);
-            for (Vec3 lookVector : lookVectors) {
-                Vec3 reachPos = eyePos.add(lookVector.scale(reachDistance));
-                AABB aabb = caster.getBoundingBox().expandTowards(lookVector.scale(reachDistance)).inflate(1.0D, 1.0D, 1.0D);
+            Vector3d eyePos = caster.getEyePosition(1.0F);
+            for (Vector3d lookVector : lookVectors) {
+            	Vector3d reachPos = eyePos.add(lookVector.scale(reachDistance));
+                AxisAlignedBB aabb = caster.getBoundingBox().expand(lookVector.scale(reachDistance)).grow(1.0D, 1.0D, 1.0D);
                 
                 // Determine if an entity hit was found by the raycast
-                EntityHitResult entityResult = RayTraceUtils.rayTraceEntities(world, caster, eyePos, reachPos, aabb, (testEntity) -> {
+                EntityRayTraceResult entityResult = RayTraceUtils.rayTraceEntities(world, caster, eyePos, reachPos, aabb, (testEntity) -> {
                     return !testEntity.isSpectator();
                 }, (reachDistance * reachDistance));
                 
                 // Determine if a block hit was found by the raycast
-                BlockHitResult blockResult = world.clip(new ClipContext(eyePos, reachPos, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, caster));
+                BlockRayTraceResult blockResult = world.rayTraceBlocks(new RayTraceContext(eyePos, reachPos, RayTraceContext.BlockMode.OUTLINE, RayTraceContext.FluidMode.NONE, caster));
                 
-                HitResult result;
+                RayTraceResult result;
                 if (entityResult == null) {
                     // If no entity hit was found, use the block result; this might still be a miss
                     result = blockResult;
                 } else {
                     // If both an entity hit and a block hit were found, pick the one that's closer to the caster
-                    result = (eyePos.distanceToSqr(entityResult.getLocation()) <= eyePos.distanceToSqr(blockResult.getLocation())) ? entityResult : blockResult;
+                    result = (eyePos.squareDistanceTo(entityResult.getHitVec()) <= eyePos.squareDistanceTo(blockResult.getHitVec())) ? entityResult : blockResult;
                 }
                 
                 // Draw any particle effects for the vehicle
-                this.drawFx(world, spell, eyePos.add(lookVector.scale(0.1D)), result.getLocation());
+                this.drawFx(world, spell, eyePos.add(lookVector.scale(0.1D)), result.getHitVec());
                 
                 // Execute the spell payload on the found target
-                SpellManager.executeSpellPayload(spell, result, world, caster, spellSource, true, null);
+                SpellManager.executeSpellPayload(spell, result, world, caster, spellSource, true);
             }
         }
     }

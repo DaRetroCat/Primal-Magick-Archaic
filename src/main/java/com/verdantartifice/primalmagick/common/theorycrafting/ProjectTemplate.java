@@ -3,8 +3,6 @@ package com.verdantartifice.primalmagick.common.theorycrafting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -13,16 +11,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge.KnowledgeType;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 import com.verdantartifice.primalmagick.common.stats.StatsPM;
 import com.verdantartifice.primalmagick.common.util.WeightedRandomBag;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -38,17 +34,17 @@ public class ProjectTemplate {
     protected Optional<Integer> requiredMaterialCountOverride = Optional.empty();
     protected Optional<Double> baseSuccessChanceOverride = Optional.empty();
     protected double rewardMultiplier = 0.25D;
-    protected List<ResourceLocation> aidBlocks = new ArrayList<>();
+    protected ResourceLocation aidBlock;
     
     protected ProjectTemplate(@Nonnull ResourceLocation key, @Nonnull List<AbstractProjectMaterial> materialOptions, @Nullable SimpleResearchKey requiredResearch,
-            @Nonnull Optional<Integer> requiredMaterialCountOverride, @Nonnull Optional<Double> baseSuccessChanceOverride, double rewardMultiplier, @Nonnull List<ResourceLocation> aidBlocks) {
+            @Nonnull Optional<Integer> requiredMaterialCountOverride, @Nonnull Optional<Double> baseSuccessChanceOverride, double rewardMultiplier, @Nullable ResourceLocation aidBlock) {
         this.key = key;
         this.materialOptions = materialOptions;
         this.requiredResearch = requiredResearch;
         this.requiredMaterialCountOverride = requiredMaterialCountOverride;
         this.baseSuccessChanceOverride = baseSuccessChanceOverride;
         this.rewardMultiplier = rewardMultiplier;
-        this.aidBlocks = aidBlocks;
+        this.aidBlock = aidBlock;
     }
 
     public ResourceLocation getKey() {
@@ -56,32 +52,10 @@ public class ProjectTemplate {
     }
     
     @Nullable
-    public List<ResourceLocation> getAidBlocks() {
-        return this.aidBlocks;
-    }
-    
-    @Nullable
-    public Project initialize(ServerPlayer player, Set<Block> nearby) {
+    public Project initialize(PlayerEntity player) {
         if (this.requiredResearch != null && !this.requiredResearch.isKnownByStrict(player)) {
             // Fail initialization to prevent use if the player doesn't have the right research unlocked
             return null;
-        }
-        
-        ResourceLocation foundAid = null;
-        if (!this.aidBlocks.isEmpty()) {
-            boolean found = false;
-            Set<ResourceLocation> nearbyIds = nearby.stream().map(b -> b.getRegistryName()).collect(Collectors.toUnmodifiableSet());
-            for (ResourceLocation aidBlock : this.aidBlocks) {
-                if (nearbyIds.contains(aidBlock)) {
-                    found = true;
-                    foundAid = aidBlock;
-                    break;
-                }
-            }
-            if (!found) {
-                // Fail initialization to prevent use if none of the required aid blocks are nearby
-                return null;
-            }
         }
         
         // Randomly select materials to use from the bag of options, disallowing duplicates
@@ -91,21 +65,17 @@ public class ProjectTemplate {
         WeightedRandomBag<AbstractProjectMaterial> options = this.getMaterialOptions(player);
         while (materials.size() < maxMaterials && attempts < 1000) {
             attempts++;
-            AbstractProjectMaterial material = options.getRandom(player.getRandom()).copy();
+            AbstractProjectMaterial material = options.getRandom(player.getRNG()).copy();
             if (!materials.contains(material)) {
                 materials.add(material);
             }
         }
-        if (materials.size() < maxMaterials) {
-            // Fail initialization to prevent use if not all materials could be allocated
-            return null;
-        }
         
         // Create new initialized project
-        return new Project(this.key, materials, this.getBaseSuccessChance(player), this.rewardMultiplier, foundAid);
+        return new Project(this.key, materials, this.getBaseSuccessChance(player), this.getTheoryPointReward(), this.aidBlock);
     }
     
-    protected int getRequiredMaterialCount(Player player) {
+    protected int getRequiredMaterialCount(PlayerEntity player) {
         return this.requiredMaterialCountOverride.orElseGet(() -> {
             // Get projects completed from stats and calculate based on that
             int completed = StatsManager.getValue(player, StatsPM.RESEARCH_PROJECTS_COMPLETED);
@@ -113,7 +83,7 @@ public class ProjectTemplate {
         });
     }
     
-    protected double getBaseSuccessChance(Player player) {
+    protected double getBaseSuccessChance(PlayerEntity player) {
         return this.baseSuccessChanceOverride.orElseGet(() -> {
             // Get projects completed from stats and calculate based on that
             int completed = StatsManager.getValue(player, StatsPM.RESEARCH_PROJECTS_COMPLETED);
@@ -122,14 +92,18 @@ public class ProjectTemplate {
     }
     
     @Nonnull
-    protected WeightedRandomBag<AbstractProjectMaterial> getMaterialOptions(ServerPlayer player) {
+    protected WeightedRandomBag<AbstractProjectMaterial> getMaterialOptions(PlayerEntity player) {
         WeightedRandomBag<AbstractProjectMaterial> retVal = new WeightedRandomBag<>();
         for (AbstractProjectMaterial material : this.materialOptions) {
-            if (material.isAllowedInProject(player)) {
+            if (material.hasRequiredResearch(player)) {
                 retVal.add(material, material.getWeight());
             }
         }
         return retVal;
+    }
+    
+    protected int getTheoryPointReward() {
+        return (int)(KnowledgeType.THEORY.getProgression() * this.rewardMultiplier);
     }
     
     public static class Serializer implements IProjectTemplateSerializer {
@@ -158,20 +132,12 @@ public class ProjectTemplate {
             
             double rewardMultiplier = json.getAsJsonPrimitive("reward_multiplier").getAsDouble();
             
-            List<ResourceLocation> aidBlocks = new ArrayList<>();
-            JsonArray aidsArray = json.getAsJsonArray("aid_blocks");
-            for (JsonElement aidElement : aidsArray) {
-                ResourceLocation aidBlock;
-                try {
-                    aidBlock = new ResourceLocation(aidElement.getAsString());
-                }
-                catch (Exception e) {
-                    throw new JsonSyntaxException("Invalid aid block in project template JSON for " + templateId.toString());
-                }
+            ResourceLocation aidBlock = null;
+            if (json.has("aid_block")) {
+                aidBlock = new ResourceLocation(json.getAsJsonPrimitive("aid_block").getAsString());
                 if (!ForgeRegistries.BLOCKS.containsKey(aidBlock)) {
                     throw new JsonSyntaxException("Invalid aid block in project template JSON for " + templateId.toString());
                 }
-                aidBlocks.add(aidBlock);
             }
             
             List<AbstractProjectMaterial> materials = new ArrayList<>();
@@ -187,69 +153,7 @@ public class ProjectTemplate {
                 }
             }
             
-            return new ProjectTemplate(key, materials, requiredResearch, materialCountOverride, baseSuccessChanceOverride, rewardMultiplier, aidBlocks);
-        }
-
-        @Override
-        public ProjectTemplate fromNetwork(FriendlyByteBuf buf) {
-            ResourceLocation key = buf.readResourceLocation();
-            SimpleResearchKey requiredResearch = buf.readBoolean() ? SimpleResearchKey.parse(buf.readUtf()) : null;
-            Optional<Integer> materialCountOverride = buf.readBoolean() ? Optional.of(buf.readVarInt()) : Optional.empty();
-            Optional<Double> baseSuccessChanceOverride = buf.readBoolean() ? Optional.of(buf.readDouble()) : Optional.empty();
-            double rewardMultiplier = buf.readDouble();
-            
-            List<ResourceLocation> aidBlocks = new ArrayList<>();
-            int aidCount = buf.readVarInt();
-            for (int index = 0; index < aidCount; index++) {
-                aidBlocks.add(buf.readResourceLocation());
-            }
-            
-            List<AbstractProjectMaterial> materials = new ArrayList<>();
-            int materialCount = buf.readVarInt();
-            for (int index = 0; index < materialCount; index++) {
-                String materialType = buf.readUtf();
-                IProjectMaterialSerializer<?> serializer = TheorycraftManager.getMaterialSerializer(materialType);
-                if (serializer != null) {
-                    materials.add(serializer.fromNetwork(buf));
-                } else {
-                    throw new IllegalArgumentException("Unknown theorycrafting project material type " + materialType);
-                }
-            }
-            
-            return new ProjectTemplate(key, materials, requiredResearch, materialCountOverride, baseSuccessChanceOverride, rewardMultiplier, aidBlocks);
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, ProjectTemplate template) {
-            buf.writeResourceLocation(template.key);
-            if (template.requiredResearch != null) {
-                buf.writeBoolean(true);
-                buf.writeUtf(template.requiredResearch.toString());
-            } else {
-                buf.writeBoolean(false);
-            }
-            template.requiredMaterialCountOverride.ifPresentOrElse((val) -> {
-                buf.writeBoolean(true);
-                buf.writeVarInt(val);
-            }, () -> {
-                buf.writeBoolean(false);
-            });
-            template.baseSuccessChanceOverride.ifPresentOrElse((val) -> {
-                buf.writeBoolean(true);
-                buf.writeDouble(val);
-            }, () -> {
-                buf.writeBoolean(false);
-            });
-            buf.writeDouble(template.rewardMultiplier);
-            buf.writeVarInt(template.aidBlocks.size());
-            for (ResourceLocation aidBlock : template.aidBlocks) {
-                buf.writeResourceLocation(aidBlock);
-            }
-            buf.writeVarInt(template.materialOptions.size());
-            for (AbstractProjectMaterial material : template.materialOptions) {
-                buf.writeUtf(material.getMaterialType());
-                material.toNetwork(buf);
-            }
+            return new ProjectTemplate(key, materials, requiredResearch, materialCountOverride, baseSuccessChanceOverride, rewardMultiplier, aidBlock);
         }
     }
 }

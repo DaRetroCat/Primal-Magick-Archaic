@@ -1,6 +1,5 @@
 {
   "type": "minecraft:blasting",
-  "group": "gold_ingot",
   "ingredient": {
     "item": "primalmagick:gold_grit"
   },

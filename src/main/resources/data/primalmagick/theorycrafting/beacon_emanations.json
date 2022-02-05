@@ -3,13 +3,11 @@
   "required_material_count_override": 1,
   "base_success_chance_override": 0.5,
   "reward_multiplier": 0.5,
-  "aid_blocks": [
-    "minecraft:beacon"
-  ],
+  "aid_block": "minecraft:beacon",
   "material_options": [
     {
       "type": "tag",
-      "name": "minecraft:beacon_payment_items",
+      "name": "forge:beacon_payment",
       "quantity": 1,
       "consumed": true,
       "weight": 1.0

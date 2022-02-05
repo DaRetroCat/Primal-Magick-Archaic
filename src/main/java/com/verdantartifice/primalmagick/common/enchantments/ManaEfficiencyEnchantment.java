@@ -1,7 +1,7 @@
 package com.verdantartifice.primalmagick.common.enchantments;
 
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.inventory.EquipmentSlotType;
 
 /**
  * Definition of a mana efficiency enchantment that can be applied to wands or staves.  Decreases
@@ -10,18 +10,18 @@ import net.minecraft.world.item.enchantment.Enchantment;
  * @author Daedalus4096
  */
 public class ManaEfficiencyEnchantment extends Enchantment {
-    public ManaEfficiencyEnchantment(Enchantment.Rarity rarity, EquipmentSlot... slots) {
+    public ManaEfficiencyEnchantment(Enchantment.Rarity rarity, EquipmentSlotType... slots) {
         super(rarity, EnchantmentTypesPM.WAND, slots);
     }
     
     @Override
-    public int getMinCost(int enchantmentLevel) {
+    public int getMinEnchantability(int enchantmentLevel) {
         return 1 + 10 * (enchantmentLevel - 1);
     }
 
     @Override
-    public int getMaxCost(int enchantmentLevel) {
-        return super.getMinCost(enchantmentLevel) + 50;
+    public int getMaxEnchantability(int enchantmentLevel) {
+        return super.getMinEnchantability(enchantmentLevel) + 50;
     }
     
     @Override

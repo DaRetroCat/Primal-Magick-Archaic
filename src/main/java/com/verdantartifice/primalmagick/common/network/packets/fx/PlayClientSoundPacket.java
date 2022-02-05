@@ -2,16 +2,13 @@ package com.verdantartifice.primalmagick.common.network.packets.fx;
 
 import java.util.function.Supplier;
 
-import com.verdantartifice.primalmagick.client.util.ClientUtils;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToClient;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
+import net.minecraftforge.fml.network.NetworkEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -36,15 +33,15 @@ public class PlayClientSoundPacket implements IMessageToClient {
         this.pitch = pitch;
     }
     
-    public static void encode(PlayClientSoundPacket message, FriendlyByteBuf buf) {
-        buf.writeUtf(message.eventLoc);
+    public static void encode(PlayClientSoundPacket message, PacketBuffer buf) {
+        buf.writeString(message.eventLoc);
         buf.writeFloat(message.volume);
         buf.writeFloat(message.pitch);
     }
     
-    public static PlayClientSoundPacket decode(FriendlyByteBuf buf) {
+    public static PlayClientSoundPacket decode(PacketBuffer buf) {
         PlayClientSoundPacket message = new PlayClientSoundPacket();
-        message.eventLoc = buf.readUtf();
+        message.eventLoc = buf.readString();
         message.volume = buf.readFloat();
         message.pitch = buf.readFloat();
         return message;
@@ -53,11 +50,11 @@ public class PlayClientSoundPacket implements IMessageToClient {
     public static class Handler {
         public static void onMessage(PlayClientSoundPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
-            Player player = (FMLEnvironment.dist == Dist.CLIENT) ? ClientUtils.getCurrentPlayer() : null;
+        	Minecraft mc = Minecraft.getInstance();
             ctx.get().enqueueWork(() -> {
-                ResourceLocation eventLoc = ResourceLocation.tryParse(message.eventLoc);
+                ResourceLocation eventLoc = ResourceLocation.tryCreate(message.eventLoc);
                 if (eventLoc != null && ForgeRegistries.SOUND_EVENTS.containsKey(eventLoc)) {
-                    player.playSound(ForgeRegistries.SOUND_EVENTS.getValue(eventLoc), message.volume, message.pitch);
+                    mc.player.playSound(ForgeRegistries.SOUND_EVENTS.getValue(eventLoc), message.volume, message.pitch);
                 }
             });
             

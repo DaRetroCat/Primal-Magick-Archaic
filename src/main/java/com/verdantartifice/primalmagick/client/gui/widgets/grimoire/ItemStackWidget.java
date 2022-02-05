@@ -2,38 +2,39 @@ package com.verdantartifice.primalmagick.client.gui.widgets.grimoire;
 
 import java.awt.Color;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.client.util.GuiUtils;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.gui.widget.Widget;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Display widget for showing a single itemstack.  Used on the requirements and recipe pages.
  * 
  * @author Daedalus4096
  */
-public class ItemStackWidget extends AbstractWidget {
+@OnlyIn(Dist.CLIENT)
+public class ItemStackWidget extends Widget {
     protected static final ResourceLocation GRIMOIRE_TEXTURE = new ResourceLocation(PrimalMagick.MODID, "textures/gui/grimoire.png");
 
     protected ItemStack stack;
     protected boolean isComplete;
     
     public ItemStackWidget(ItemStack stack, int x, int y, boolean isComplete) {
-        super(x, y, 16, 16, TextComponent.EMPTY);
+        super(x, y, 16, 16, StringTextComponent.EMPTY);
         this.stack = stack;
         this.isComplete = isComplete;
     }
     
     @Override
-    public void renderButton(PoseStack matrixStack, int p_renderButton_1_, int p_renderButton_2_, float p_renderButton_3_) {
+    public void renderWidget(MatrixStack matrixStack, int p_renderButton_1_, int p_renderButton_2_, float p_renderButton_3_) {
         Minecraft mc = Minecraft.getInstance();
         
         // Draw stack icon
@@ -41,24 +42,24 @@ public class ItemStackWidget extends AbstractWidget {
         
         // Draw amount string if applicable
         if (this.stack.getCount() > 1) {
-            Component amountText = new TextComponent(Integer.toString(this.stack.getCount()));
-            int width = mc.font.width(amountText.getString());
-            matrixStack.pushPose();
+            ITextComponent amountText = new StringTextComponent(Integer.toString(this.stack.getCount()));
+            int width = mc.fontRenderer.getStringWidth(amountText.getString());
+            matrixStack.push();
             matrixStack.translate(this.x + 16 - width / 2, this.y + 12, 900.0F);
             matrixStack.scale(0.5F, 0.5F, 1.0F);
-            mc.font.drawShadow(matrixStack, amountText, 0.0F, 0.0F, Color.WHITE.getRGB());
-            matrixStack.popPose();
+            mc.fontRenderer.drawTextWithShadow(matrixStack, amountText, 0.0F, 0.0F, Color.WHITE.getRGB());
+            matrixStack.pop();
         }
         
         if (this.isComplete) {
             // Render completion checkmark if appropriate
-            matrixStack.pushPose();
+            matrixStack.push();
             matrixStack.translate(this.x + 8, this.y, 200.0F);
-            RenderSystem.setShaderTexture(0, GRIMOIRE_TEXTURE);
+            Minecraft.getInstance().getTextureManager().bindTexture(GRIMOIRE_TEXTURE);
             this.blit(matrixStack, 0, 0, 159, 207, 10, 10);
-            matrixStack.popPose();
+            matrixStack.pop();
         }
-        if (this.isHoveredOrFocused()) {
+        if (this.isHovered()) {
             // Render tooltip
             GuiUtils.renderItemTooltip(matrixStack, this.stack, this.x, this.y);
         }
@@ -68,9 +69,5 @@ public class ItemStackWidget extends AbstractWidget {
     public boolean mouseClicked(double p_mouseClicked_1_, double p_mouseClicked_3_, int p_mouseClicked_5_) {
         // Disable click behavior
         return false;
-    }
-
-    @Override
-    public void updateNarration(NarrationElementOutput output) {
     }
 }

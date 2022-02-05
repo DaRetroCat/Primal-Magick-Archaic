@@ -3,22 +3,19 @@ package com.verdantartifice.primalmagick.common.tiles.base;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.data.TileToClientPacket;
 import com.verdantartifice.primalmagick.common.network.packets.data.TileToServerPacket;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.play.server.SUpdateTileEntityPacket;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.tileentity.TileEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.util.Constants;
 
 /**
  * Middleware class for a tile entity for the mod.  Handles things like tile syncing and relevant
@@ -26,44 +23,38 @@ import net.minecraft.world.level.block.state.BlockState;
  * 
  * @author Daedalus4096
  */
-public class TilePM extends BlockEntity {
-    protected static final Logger LOGGER = LogManager.getLogger();
-    
-    public TilePM(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-        super(type, pos, state);
+public class TilePM extends TileEntity {
+    public TilePM(TileEntityType<?> type) {
+        super(type);
     }
-    
+
     /**
      * Update this tile's block in the world, optionally re-rendering it.
      * 
      * @param rerender whether to re-render the tile's block
      */
     public void syncTile(boolean rerender) {
-        BlockState state = this.level.getBlockState(this.worldPosition);
-        int flags = Block.UPDATE_CLIENTS;
+        BlockState state = this.world.getBlockState(this.pos);
+        int flags = Constants.BlockFlags.BLOCK_UPDATE;
         if (!rerender) {
-            flags |= Block.UPDATE_INVISIBLE;
+            flags |= Constants.BlockFlags.NO_RERENDER;
         }
-        this.level.sendBlockUpdated(this.worldPosition, state, state, flags);
+        this.world.notifyBlockUpdate(this.pos, state, state, flags);
     }
     
     @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag retVal = new CompoundTag();
-        this.saveAdditional(retVal);
-        return retVal;
+    public CompoundNBT getUpdateTag() {
+        return this.write(new CompoundNBT());
     }
     
     @Override
-    public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
+    public SUpdateTileEntityPacket getUpdatePacket() {
+        return new SUpdateTileEntityPacket(this.pos, 1, this.getUpdateTag());
     }
     
     @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
-        if (pkt.getTag() != null) {
-            this.load(pkt.getTag());
-        }
+    public void onDataPacket(NetworkManager net, SUpdateTileEntityPacket pkt) {
+        this.read(this.getBlockState(), pkt.getNbtCompound());
     }
     
     /**
@@ -73,13 +64,13 @@ public class TilePM extends BlockEntity {
      * @param nbt the data to be synced
      * @param player the player whose client is to receive the given data
      */
-    public void sendMessageToClient(CompoundTag nbt, @Nullable ServerPlayer player) {
+    public void sendMessageToClient(CompoundNBT nbt, @Nullable ServerPlayerEntity player) {
         if (player == null) {
-            if (this.hasLevel()) {
-                PacketHandler.sendToAllAround(new TileToClientPacket(this.worldPosition, nbt), this.level.dimension(), this.worldPosition, 128.0D);
+            if (this.hasWorld()) {
+                PacketHandler.sendToAllAround(new TileToClientPacket(this.pos, nbt), this.world.getDimensionKey(), this.pos, 128.0D);
             }
         } else {
-            PacketHandler.sendToPlayer(new TileToClientPacket(this.worldPosition, nbt), player);
+            PacketHandler.sendToPlayer(new TileToClientPacket(this.pos, nbt), player);
         }
     }
     
@@ -88,8 +79,8 @@ public class TilePM extends BlockEntity {
      * 
      * @param nbt the data to be synced
      */
-    public void sendMessageToServer(CompoundTag nbt) {
-        PacketHandler.sendToServer(new TileToServerPacket(this.worldPosition, nbt));
+    public void sendMessageToServer(CompoundNBT nbt) {
+        PacketHandler.sendToServer(new TileToServerPacket(this.pos, nbt));
     }
     
     /**
@@ -99,7 +90,7 @@ public class TilePM extends BlockEntity {
      * @param player the player whose client sent the given data
      * @see {@link #sendMessageToServer(CompoundNBT)}
      */
-    public void onMessageFromClient(CompoundTag nbt, @Nonnull ServerPlayer player) {
+    public void onMessageFromClient(CompoundNBT nbt, @Nonnull ServerPlayerEntity player) {
         // Do nothing by default
     }
     
@@ -109,7 +100,7 @@ public class TilePM extends BlockEntity {
      * @param nbt the received data
      * @see {@link #sendMessageToClient(CompoundNBT, ServerPlayerEntity)}
      */
-    public void onMessageFromServer(CompoundTag nbt) {
+    public void onMessageFromServer(CompoundNBT nbt) {
         // Do nothing by default
     }
 }

@@ -10,24 +10,24 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.capabilities.IWorldEntitySwappers;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.effects.EffectsPM;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.fx.WandPoofPacket;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec2;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.potion.EffectInstance;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.vector.Vector2f;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -39,16 +39,16 @@ import net.minecraftforge.common.util.INBTSerializable;
  * @author Daedalus4096
  * @see {@link com.verdantartifice.primalmagick.common.capabilities.IWorldEntitySwappers}
  */
-public class EntitySwapper implements INBTSerializable<CompoundTag> {
+public class EntitySwapper implements INBTSerializable<CompoundNBT> {
     protected UUID targetId = null;
     protected EntityType<?> entityType = null;
-    protected CompoundTag originalData = null;
+    protected CompoundNBT originalData = null;
     protected Optional<Integer> polymorphDuration = Optional.empty();
     protected int delay = 0;
     
     protected EntitySwapper() {}
     
-    public EntitySwapper(@Nonnull UUID targetId, @Nonnull EntityType<?> entityType, @Nullable CompoundTag originalData, @Nonnull Optional<Integer> polymorphDuration, int delay) {
+    public EntitySwapper(@Nonnull UUID targetId, @Nonnull EntityType<?> entityType, @Nullable CompoundNBT originalData, @Nonnull Optional<Integer> polymorphDuration, int delay) {
         this.targetId = targetId;
         this.entityType = entityType;
         this.originalData = originalData;
@@ -56,18 +56,18 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
         this.delay = delay;
     }
     
-    public EntitySwapper(CompoundTag tag) {
+    public EntitySwapper(CompoundNBT tag) {
         // Attempt to deserialize an entity swapper from the given NBT data
         this();
         this.deserializeNBT(tag);
     }
     
-    public static boolean enqueue(@Nonnull Level world, @Nullable EntitySwapper swapper) {
+    public static boolean enqueue(@Nonnull World world, @Nullable EntitySwapper swapper) {
         if (swapper == null) {
             // Don't allow empty swappers in the queue
             return false;
         } else {
-            IWorldEntitySwappers swappers = PrimalMagickCapabilities.getEntitySwappers(world);
+            IWorldEntitySwappers swappers = PrimalMagicCapabilities.getEntitySwappers(world);
             if (swappers == null) {
                 return false;
             } else {
@@ -78,8 +78,8 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
     }
     
     @Nullable
-    public static Queue<EntitySwapper> getWorldSwappers(@Nonnull Level world) {
-        IWorldEntitySwappers swappers = PrimalMagickCapabilities.getEntitySwappers(world);
+    public static Queue<EntitySwapper> getWorldSwappers(@Nonnull World world) {
+        IWorldEntitySwappers swappers = PrimalMagicCapabilities.getEntitySwappers(world);
         if (swappers == null) {
             return null;
         } else {
@@ -87,8 +87,8 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
         }
     }
     
-    public static boolean setWorldSwapperQueue(@Nonnull Level world, @Nonnull Queue<EntitySwapper> swapperQueue) {
-        IWorldEntitySwappers swappers = PrimalMagickCapabilities.getEntitySwappers(world);
+    public static boolean setWorldSwapperQueue(@Nonnull World world, @Nonnull Queue<EntitySwapper> swapperQueue) {
+        IWorldEntitySwappers swappers = PrimalMagicCapabilities.getEntitySwappers(world);
         if (swappers == null) {
             return false;
         } else {
@@ -97,10 +97,10 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
     }
     
     @Nullable
-    public EntitySwapper execute(@Nonnull Level world) {
-        if (!world.isClientSide && world instanceof ServerLevel) {
-            ServerLevel serverWorld = (ServerLevel)world;
-            Entity target = serverWorld.getEntity(this.targetId);
+    public EntitySwapper execute(@Nonnull World world) {
+        if (!world.isRemote && world instanceof ServerWorld) {
+            ServerWorld serverWorld = (ServerWorld)world;
+            Entity target = serverWorld.getEntityByUuid(this.targetId);
             
             // Only proceed if this is a valid swapper and the target is allowed to be swapped
             if (this.isValid() && target != null && this.isValidTarget(target)) {
@@ -110,40 +110,40 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
                 if (livingTarget.isPassenger()) {
                     livingTarget.stopRiding();
                 }
-                if (livingTarget.isVehicle()) {
-                    livingTarget.ejectPassengers();
+                if (livingTarget.isBeingRidden()) {
+                    livingTarget.removePassengers();
                 }
                 
                 EntityType<?> oldType = livingTarget.getType();
-                Vec3 targetPos = livingTarget.position();
-                Vec2 targetRots = livingTarget.getRotationVector();
-                Component customName = livingTarget.getCustomName();
+                Vector3d targetPos = livingTarget.getPositionVec();
+                Vector2f targetRots = livingTarget.getPitchYaw();
+                ITextComponent customName = livingTarget.getCustomName();
                 double healthPercentage = (double)livingTarget.getHealth() / (double)livingTarget.getMaxHealth();
-                Collection<MobEffectInstance> activeEffects = livingTarget.getActiveEffects();
+                Collection<EffectInstance> activeEffects = livingTarget.getActivePotionEffects();
                 
                 // If the original, pre-swapped entity had it's NBT data preserved in this swapper, prepare it for loading into the new entity
-                CompoundTag data = null;
+                CompoundNBT data = null;
                 if (this.originalData != null) {
-                    data = new CompoundTag();
+                    data = new CompoundNBT();
                     data.put("EntityTag", this.pruneData(this.originalData, this.polymorphDuration.isPresent()));
                 }
                 
                 // Send an FX packet to all nearby player clients
                 PacketHandler.sendToAllAround(new WandPoofPacket(targetPos.x, targetPos.y, targetPos.z, Color.WHITE.getRGB(), true, null), 
-                        world.dimension(), new BlockPos(targetPos), 32.0D);
+                        world.getDimensionKey(), new BlockPos(targetPos), 32.0D);
                 
                 // Remove the target entity and spawn a new one of the target type into the world
-                livingTarget.discard();
-                Entity newEntity = this.entityType.create(serverWorld, data, customName, null, new BlockPos(targetPos), MobSpawnType.MOB_SUMMONED, false, false);
-                world.addFreshEntity(newEntity);
-                newEntity.absMoveTo(targetPos.x, targetPos.y, targetPos.z, targetRots.y, targetRots.x);
+                livingTarget.remove();
+                Entity newEntity = this.entityType.create(serverWorld, data, customName, null, new BlockPos(targetPos), SpawnReason.MOB_SUMMONED, false, false);
+                world.addEntity(newEntity);
+                newEntity.setPositionAndRotation(targetPos.x, targetPos.y, targetPos.z, targetRots.y, targetRots.x);
                 
                 // Carry over the previous entity's percentage health and active potion effects
                 if (newEntity instanceof LivingEntity) {
                     LivingEntity newLivingEntity = (LivingEntity)newEntity;
                     newLivingEntity.setHealth((float)(healthPercentage * newLivingEntity.getMaxHealth()));
-                    for (MobEffectInstance activeEffect : activeEffects) {
-                        newLivingEntity.addEffect(activeEffect);
+                    for (EffectInstance activeEffect : activeEffects) {
+                        newLivingEntity.addPotionEffect(activeEffect);
                     }
                 }
                 
@@ -151,9 +151,9 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
                     // If this is a temporary swap, create a new entity swapper to swap back
                     int ticks = this.polymorphDuration.get().intValue();
                     if (newEntity instanceof LivingEntity) {
-                        ((LivingEntity)newEntity).addEffect(new MobEffectInstance(EffectsPM.POLYMORPH.get(), ticks));
+                        ((LivingEntity)newEntity).addPotionEffect(new EffectInstance(EffectsPM.POLYMORPH.get(), ticks));
                     }
-                    return new EntitySwapper(newEntity.getUUID(), oldType, this.originalData, Optional.empty(), ticks);
+                    return new EntitySwapper(newEntity.getUniqueID(), oldType, this.originalData, Optional.empty(), ticks);
                 } else {
                     return null;
                 }
@@ -164,7 +164,7 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
     
     protected boolean isValidTarget(Entity entity) {
         // Only living, non-player entities may be swapped (e.g. no boats, etc)
-        return (entity instanceof LivingEntity) && !(entity instanceof Player);
+        return (entity instanceof LivingEntity) && !(entity instanceof PlayerEntity);
     }
     
     public void decrementDelay() {
@@ -176,10 +176,10 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
     }
 
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag nbt = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT nbt = new CompoundNBT();
         if (this.targetId != null) {
-            nbt.putUUID("TargetId", this.targetId);
+            nbt.putUniqueId("TargetId", this.targetId);
         }
         if (this.entityType != null) {
             nbt.putString("EntityType", EntityType.getKey(this.entityType).toString());
@@ -195,12 +195,12 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
-        if (nbt.hasUUID("TargetId")) {
-            this.targetId = nbt.getUUID("TargetId");
+    public void deserializeNBT(CompoundNBT nbt) {
+        if (nbt.hasUniqueId("TargetId")) {
+            this.targetId = nbt.getUniqueId("TargetId");
         }
         if (nbt.contains("EntityType")) {
-            this.entityType = EntityType.byString(nbt.getString("EntityType")).orElse(null);
+            this.entityType = EntityType.byKey(nbt.getString("EntityType")).orElse(null);
         }
         if (nbt.contains("OriginalData")) {
             this.originalData = nbt.getCompound("OriginalData");
@@ -216,8 +216,8 @@ public class EntitySwapper implements INBTSerializable<CompoundTag> {
     }
     
     @Nonnull
-    protected CompoundTag pruneData(CompoundTag data, boolean initialSwap) {
-        CompoundTag prunedData = new CompoundTag();
+    protected CompoundNBT pruneData(CompoundNBT data, boolean initialSwap) {
+        CompoundNBT prunedData = new CompoundNBT();
         prunedData.merge(data);
         
         // Always remove the entity's ID so there are no spawning conflicts

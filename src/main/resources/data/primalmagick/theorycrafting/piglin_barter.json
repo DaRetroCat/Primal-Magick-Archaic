@@ -2,7 +2,6 @@
   "key": "primalmagick:piglin_barter",
   "required_research": "t_discover_infernal",
   "reward_multiplier": 0.5,
-  "aid_blocks": [],
   "material_options": [
     {
       "type": "item",
@@ -16,16 +15,7 @@
       "name": "forge:storage_blocks/gold",
       "quantity": 1,
       "consumed": true,
-      "weight": 0.5,
-      "bonus_reward": 0.25
-    },
-    {
-      "type": "item",
-      "stack": "minecraft:raw_gold_block",
-      "consumed": true,
-      "match_nbt": false,
-      "weight": 0.5,
-      "bonus_reward": 0.25
+      "weight": 0.5
     },
     {
       "type": "item",
@@ -49,18 +39,18 @@
       "weight": 2.0
     },
     {
-      "type": "item",
-      "stack": "minecraft:raw_gold",
-      "consumed": true,
-      "match_nbt": false,
-      "weight": 2.0
-    },
-    {
       "type": "tag",
       "name": "forge:ingots/gold",
       "quantity": 1,
       "consumed": true,
       "weight": 5.0
+    },
+    {
+      "type": "tag",
+      "name": "forge:ores/gold",
+      "quantity": 1,
+      "consumed": true,
+      "weight": 2.0
     },
     {
       "type": "item",
@@ -73,14 +63,14 @@
       "type": "item",
       "stack": "minecraft:golden_axe;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:golden_boots;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
@@ -94,21 +84,21 @@
       "type": "item",
       "stack": "minecraft:golden_chestplate;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:golden_helmet;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:golden_hoe;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
@@ -122,28 +112,28 @@
       "type": "item",
       "stack": "minecraft:golden_leggings;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:golden_pickaxe;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:golden_shovel;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
       "type": "item",
       "stack": "minecraft:golden_sword;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
+      "match_nbt": true,
       "weight": 1.0
     },
     {
@@ -152,6 +142,13 @@
       "consumed": true,
       "match_nbt": false,
       "weight": 1.0
+    },
+    {
+      "type": "item",
+      "stack": "minecraft:nether_gold_ore",
+      "consumed": true,
+      "match_nbt": false,
+      "weight": 2.0
     }
   ]
 }

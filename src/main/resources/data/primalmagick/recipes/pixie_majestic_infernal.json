@@ -10,7 +10,7 @@
       "item": "primalmagick:mana_salts"
     },
     {
-      "item": "primalmagick:essence_crystal_infernal"
+      "item": "primalmagick:essence_cluster_infernal"
     },
     {
       "tag": "forge:ingots/gold"
@@ -36,10 +36,10 @@
       "block": "primalmagick:ritual_bell"
     },
     {
-      "block": "primalmagick:soul_anvil"
+      "block": "primalmagick:bloodletter"
     },
     {
-      "block": "primalmagick:celestial_harp"
+      "block": "primalmagick:soul_anvil"
     }
   ],
   "result": {

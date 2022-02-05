@@ -3,10 +3,10 @@ package com.verdantartifice.primalmagick.common.loot.modifiers;
 import com.verdantartifice.primalmagick.PrimalMagick;
 
 import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
+import net.minecraftforge.fml.RegistryObject;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 
 /**
  * Deferred registry for the mod's global loot modifier serializers.
@@ -24,6 +24,4 @@ public class LootModifierSerializersPM {
     public static final RegistryObject<GlobalLootModifierSerializer<BonusNuggetModifier>> BONUS_NUGGET = SERIALIZERS.register("bonus_nugget", BonusNuggetModifier.Serializer::new);
     public static final RegistryObject<GlobalLootModifierSerializer<BountyFarmingModifier>> BOUNTY_FARMING = SERIALIZERS.register("bounty_farming", BountyFarmingModifier.Serializer::new);
     public static final RegistryObject<GlobalLootModifierSerializer<BountyFishingModifier>> BOUNTY_FISHING = SERIALIZERS.register("bounty_fishing", BountyFishingModifier.Serializer::new);
-    public static final RegistryObject<GlobalLootModifierSerializer<BloodNotesModifier>> BLOOD_NOTES = SERIALIZERS.register("blood_notes", BloodNotesModifier.Serializer::new);
-    public static final RegistryObject<GlobalLootModifierSerializer<RelicFragmentsModifier>> RELIC_FRAGMENTS = SERIALIZERS.register("relic_fragments", RelicFragmentsModifier.Serializer::new);
 }

@@ -2,9 +2,9 @@ package com.verdantartifice.primalmagick.common.tags;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.item.Item;
 import net.minecraft.tags.ItemTags;
-import net.minecraft.world.item.Item;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.Tags.IOptionalNamedTag;
 
 /**
@@ -21,10 +21,9 @@ public class ItemTagsPM {
     public static final IOptionalNamedTag<Item> DEAD_CORAL_BLOCKS = tag("dead_coral_blocks");
     public static final IOptionalNamedTag<Item> DEAD_CORAL_PLANTS = tag("dead_coral_plants");
     public static final IOptionalNamedTag<Item> DEAD_CORALS = tag("dead_corals");
-    public static final IOptionalNamedTag<Item> ENCHANTING_TABLES = tag("enchanting_tables");
     public static final IOptionalNamedTag<Item> ESSENCES = tag("essences");
     public static final IOptionalNamedTag<Item> HALLOWOOD_LOGS = tag("hallowood_logs");
-    public static final IOptionalNamedTag<Item> MAGICKAL_CLOTH = tag("magickal_cloth");
+    public static final IOptionalNamedTag<Item> MAGICAL_CLOTH = tag("magical_cloth");
     public static final IOptionalNamedTag<Item> MOONWOOD_LOGS = tag("moonwood_logs");
     public static final IOptionalNamedTag<Item> RITUAL_CANDLES = tag("ritual_candles");
     public static final IOptionalNamedTag<Item> SHULKER_BOXES = tag("shulker_boxes");
@@ -58,6 +57,6 @@ public class ItemTagsPM {
     public static final IOptionalNamedTag<Item> STORAGE_BLOCKS_HALLOWSTEEL = tag("storage_blocks/hallowsteel");
 
     private static IOptionalNamedTag<Item> tag(String name) {
-        return ItemTags.createOptional(new ResourceLocation(PrimalMagick.MODID, name));
+    	return ItemTags.createOptional(new ResourceLocation(PrimalMagick.MODID, name));
     }
 }

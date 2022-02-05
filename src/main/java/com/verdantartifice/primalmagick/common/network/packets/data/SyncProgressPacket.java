@@ -6,7 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
 import com.verdantartifice.primalmagick.common.research.Knowledge;
 import com.verdantartifice.primalmagick.common.research.ResearchEntries;
@@ -16,11 +16,11 @@ import com.verdantartifice.primalmagick.common.research.ResearchStage;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.util.InventoryUtils;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet to progress a research entry to its next stage on the server.
@@ -49,16 +49,16 @@ public class SyncProgressPacket implements IMessageToServer {
         this.noFlags = noFlags;
     }
     
-    public static void encode(SyncProgressPacket message, FriendlyByteBuf buf) {
-        buf.writeUtf(message.key.getRootKey());
+    public static void encode(SyncProgressPacket message, PacketBuffer buf) {
+        buf.writeString(message.key.getRootKey());
         buf.writeBoolean(message.firstSync);
         buf.writeBoolean(message.runChecks);
         buf.writeBoolean(message.noFlags);
     }
     
-    public static SyncProgressPacket decode(FriendlyByteBuf buf) {
+    public static SyncProgressPacket decode(PacketBuffer buf) {
         SyncProgressPacket message = new SyncProgressPacket();
-        message.key = SimpleResearchKey.parse(buf.readUtf());
+        message.key = SimpleResearchKey.parse(buf.readString());
         message.firstSync = buf.readBoolean();
         message.runChecks = buf.readBoolean();
         message.noFlags = buf.readBoolean();
@@ -70,7 +70,7 @@ public class SyncProgressPacket implements IMessageToServer {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
                 if (message.key != null) {
-                    Player player = ctx.get().getSender();
+                    PlayerEntity player = ctx.get().getSender();
                     if (message.firstSync != message.key.isKnownBy(player)) {
                         // If called for, ensure that prerequisites for the next stage are checked and consumed
                         if (message.runChecks && !checkAndConsumePrerequisites(player, message.key)) {
@@ -87,13 +87,13 @@ public class SyncProgressPacket implements IMessageToServer {
             ctx.get().setPacketHandled(true);
         }
         
-        protected static boolean checkAndConsumePrerequisites(Player player, SimpleResearchKey key) {
+        protected static boolean checkAndConsumePrerequisites(PlayerEntity player, SimpleResearchKey key) {
             ResearchEntry entry = ResearchEntries.getEntry(key);
             if (entry == null || entry.getStages().isEmpty()) {
                 return true;
             }
 
-            IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+            IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
             if (knowledge == null) {
                 return false;
             }

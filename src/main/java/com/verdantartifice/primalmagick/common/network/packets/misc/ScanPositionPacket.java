@@ -5,21 +5,22 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import com.verdantartifice.primalmagick.common.affinities.AffinityManager;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
 import com.verdantartifice.primalmagick.common.research.ResearchManager;
 import com.verdantartifice.primalmagick.common.util.InventoryUtils;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.Direction;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.network.NetworkEvent;
 import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.network.NetworkEvent;
 
 /**
  * Packet sent to trigger a server-side scan of a particular block in the world.  Used by the
@@ -38,13 +39,13 @@ public class ScanPositionPacket implements IMessageToServer {
         this.pos = pos;
     }
     
-    public static void encode(ScanPositionPacket message, FriendlyByteBuf buf) {
-        buf.writeLong(message.pos.asLong());
+    public static void encode(ScanPositionPacket message, PacketBuffer buf) {
+        buf.writeLong(message.pos.toLong());
     }
     
-    public static ScanPositionPacket decode(FriendlyByteBuf buf) {
+    public static ScanPositionPacket decode(PacketBuffer buf) {
         ScanPositionPacket message = new ScanPositionPacket();
-        message.pos = BlockPos.of(buf.readLong());
+        message.pos = BlockPos.fromLong(buf.readLong());
         return message;
     }
     
@@ -52,51 +53,54 @@ public class ScanPositionPacket implements IMessageToServer {
         public static void onMessage(ScanPositionPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                Level world = player.getCommandSenderWorld();
+                ServerPlayerEntity player = ctx.get().getSender();
+                World world = player.getEntityWorld();
 
                 // Only process blocks that are currently loaded into the world.  Safety check to prevent
                 // resource thrashing from falsified packets.
-                if (message.pos != null && world.isLoaded(message.pos)) {
-                    PrimalMagickCapabilities.getKnowledge(player).ifPresent(knowledge -> {
-                        // Scan the block
-                        boolean found = false;
-                        ItemStack posStack = new ItemStack(world.getBlockState(message.pos).getBlock());
-                        if (!ResearchManager.isScanned(posStack, player)) {
-                            // Delay syncing until scan is done
-                            found = ResearchManager.setScanned(posStack, player, false);
-                        }
-                        
-                        // If the given block has an inventory, scan its contents too
-                        IItemHandler handler = InventoryUtils.getItemHandler(world, message.pos, Direction.UP);
-                        if (handler != null) {
-                            int scanCount = 0;
-                            ItemStack chestStack;
-                            for (int slot = 0; slot < handler.getSlots(); slot++) {
-                                chestStack = handler.getStackInSlot(slot);
-                                if (chestStack != null && !chestStack.isEmpty()) {
-                                    // Limit how much of an inventory can be scanned
-                                    if (scanCount >= AffinityManager.MAX_SCAN_COUNT) {
-                                        player.displayClientMessage(new TranslatableComponent("event.primalmagick.scan.toobig").withStyle(ChatFormatting.RED), true);
-                                        break;
-                                    }
-                                    if (ResearchManager.setScanned(chestStack, player, false)) {
-                                        // Delay syncing until scan is done
-                                        found = true;
-                                    }
-                                    scanCount++;
+                if (message.pos != null && world.isBlockPresent(message.pos)) {
+                    IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
+                    if (knowledge == null) {
+                        return;
+                    }
+                    
+                    // Scan the block
+                    boolean found = false;
+                    ItemStack posStack = new ItemStack(world.getBlockState(message.pos).getBlock());
+                    if (!ResearchManager.isScanned(posStack, player)) {
+                        // Delay syncing until scan is done
+                        found = ResearchManager.setScanned(posStack, player, false);
+                    }
+                    
+                    // If the given block has an inventory, scan its contents too
+                    IItemHandler handler = InventoryUtils.getItemHandler(world, message.pos, Direction.UP);
+                    if (handler != null) {
+                        int scanCount = 0;
+                        ItemStack chestStack;
+                        for (int slot = 0; slot < handler.getSlots(); slot++) {
+                            chestStack = handler.getStackInSlot(slot);
+                            if (chestStack != null && !chestStack.isEmpty()) {
+                                // Limit how much of an inventory can be scanned
+                                if (scanCount >= AffinityManager.MAX_SCAN_COUNT) {
+                                    player.sendStatusMessage(new TranslationTextComponent("event.primalmagick.scan.toobig").mergeStyle(TextFormatting.RED), true);
+                                    break;
                                 }
+                                if (ResearchManager.setScanned(chestStack, player, false)) {
+                                    // Delay syncing until scan is done
+                                    found = true;
+                                }
+                                scanCount++;
                             }
                         }
-                        
-                        // If at least one unscanned item was processed, send a success message
-                        if (found) {
-                            player.displayClientMessage(new TranslatableComponent("event.primalmagick.scan.success").withStyle(ChatFormatting.GREEN), true);
-                            knowledge.sync(player); // Sync immediately, rather than scheduling, for snappy arcanometer response
-                        } else {
-                            player.displayClientMessage(new TranslatableComponent("event.primalmagick.scan.repeat").withStyle(ChatFormatting.RED), true);
-                        }
-                    });
+                    }
+                    
+                    // If at least one unscanned item was processed, send a success message
+                    if (found) {
+                        player.sendStatusMessage(new TranslationTextComponent("event.primalmagick.scan.success").mergeStyle(TextFormatting.GREEN), true);
+                        knowledge.sync(player); // Sync immediately, rather than scheduling, for snappy arcanometer response
+                    } else {
+                        player.sendStatusMessage(new TranslationTextComponent("event.primalmagick.scan.repeat").mergeStyle(TextFormatting.RED), true);
+                    }
                 }
             });
             

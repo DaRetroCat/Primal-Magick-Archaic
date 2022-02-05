@@ -1,96 +1,42 @@
 package com.verdantartifice.primalmagick.common.blocks.misc;
 
-import java.util.Random;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.material.Material;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.shapes.ISelectionContext;
+import net.minecraft.util.math.shapes.VoxelShape;
+import net.minecraft.util.math.shapes.VoxelShapes;
+import net.minecraft.world.IBlockReader;
 
 /**
- * Block definition for the glow field.  An invisible, intangible block that provides light which
- * may fade over time.
+ * Block definition for the glow field.  An invisible, intangible block that provides light.
  * 
  * @author Daedalus4096
  */
-public class GlowFieldBlock extends Block implements SimpleWaterloggedBlock {
-    public static final IntegerProperty LIGHT = IntegerProperty.create("light", 1, 15);
-    public static final BooleanProperty FADING = BooleanProperty.create("fading");
-    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
-    
+public class GlowFieldBlock extends Block {
     public GlowFieldBlock() {
-        super(Block.Properties.of(Material.AIR).strength(-1, 3600000).lightLevel((state) -> { return state.getValue(LIGHT); }).noDrops().noOcclusion().randomTicks());
-        this.registerDefaultState(this.stateDefinition.any().setValue(LIGHT, Integer.valueOf(15)).setValue(FADING, Boolean.FALSE).setValue(WATERLOGGED, Boolean.FALSE));
+        super(Block.Properties.create(Material.AIR).hardnessAndResistance(-1, 3600000).setLightLevel((state) -> { return 15; }).noDrops());
     }
     
     @Override
-    protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-        builder.add(LIGHT, FADING, WATERLOGGED);
-    }
-
-    @Override
-    public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
         // Don't show a selection highlight when mousing over the field
-        return Shapes.empty();
+        return VoxelShapes.empty();
     }
     
     @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.INVISIBLE;
+    public BlockRenderType getRenderType(BlockState state) {
+        return BlockRenderType.INVISIBLE;
     }
     
     @Override
-    public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter world, BlockPos pos, Player player) {
+    public ItemStack getPickBlock(BlockState state, RayTraceResult target, IBlockReader world, BlockPos pos, PlayerEntity player) {
         // Don't work with the creative pick-block feature, as this block has no corresponding item block
         return ItemStack.EMPTY;
-    }
-
-    @Override
-    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
-        return true;
-    }
-
-    @Override
-    public void randomTick(BlockState state, ServerLevel level, BlockPos pos, Random rng) {
-        if (state.getValue(FADING)) {
-            if (state.getValue(LIGHT) <= 1) {
-                level.removeBlock(pos, false);
-            } else {
-                level.setBlock(pos, state.setValue(LIGHT, state.getValue(LIGHT) - 1), Block.UPDATE_CLIENTS);
-            }
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public BlockState updateShape(BlockState stateIn, Direction facing, BlockState facingState, LevelAccessor worldIn, BlockPos currentPos, BlockPos facingPos) {
-        if (stateIn.getValue(WATERLOGGED)) {
-            worldIn.scheduleTick(currentPos, Fluids.WATER, Fluids.WATER.getTickDelay(worldIn));
-        }
-        return super.updateShape(stateIn, facing, facingState, worldIn, currentPos, facingPos);
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public FluidState getFluidState(BlockState state) {
-        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
     }
 }

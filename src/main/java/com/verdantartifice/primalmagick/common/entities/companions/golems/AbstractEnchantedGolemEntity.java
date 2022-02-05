@@ -14,82 +14,84 @@ import com.verdantartifice.primalmagick.common.entities.ai.goals.CompanionStayGo
 import com.verdantartifice.primalmagick.common.entities.ai.goals.FollowCompanionOwnerGoal;
 import com.verdantartifice.primalmagick.common.entities.companions.AbstractCompanionEntity;
 
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.tags.Tag;
-import net.minecraft.util.Mth;
-import net.minecraft.util.TimeUtil;
-import net.minecraft.util.valueproviders.UniformInt;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.NeutralMob;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.world.entity.ai.goal.MoveTowardsTargetGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.ResetUniversalAngerTargetGoal;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Enemy;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.NaturalSpawner;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.IAngerable;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.attributes.Attributes;
+import net.minecraft.entity.ai.goal.HurtByTargetGoal;
+import net.minecraft.entity.ai.goal.LookAtGoal;
+import net.minecraft.entity.ai.goal.LookRandomlyGoal;
+import net.minecraft.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.entity.ai.goal.MoveTowardsTargetGoal;
+import net.minecraft.entity.ai.goal.NearestAttackableTargetGoal;
+import net.minecraft.entity.ai.goal.ResetAngerGoal;
+import net.minecraft.entity.monster.CreeperEntity;
+import net.minecraft.entity.monster.IMob;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.fluid.Fluids;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.datasync.DataParameter;
+import net.minecraft.network.datasync.DataSerializers;
+import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.particles.BlockParticleData;
+import net.minecraft.particles.ParticleTypes;
+import net.minecraft.potion.Effect;
+import net.minecraft.potion.EffectInstance;
+import net.minecraft.potion.Effects;
+import net.minecraft.tags.ITag;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.Hand;
+import net.minecraft.util.RangedInteger;
+import net.minecraft.util.SoundEvent;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.util.TickRangeConverter;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.IWorldReader;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
+import net.minecraft.world.spawner.WorldEntitySpawner;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Base definition for an enchanted golem entity.  Like an iron golem, but follows the player as a
- * companion.  Can be made from a variety of magickal metals.
+ * companion.  Can be made from a variety of magical metals.
  * 
  * @author Daedalus4096
  */
-public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEntity implements NeutralMob {
-    protected static final EntityDataAccessor<Integer> ANGER_TIME = SynchedEntityData.defineId(AbstractEnchantedGolemEntity.class, EntityDataSerializers.INT);
-    protected static final UniformInt ANGER_TIME_RANGE = TimeUtil.rangeOfSeconds(20, 39);
+public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEntity implements IAngerable {
+    protected static final DataParameter<Integer> ANGER_TIME = EntityDataManager.createKey(AbstractEnchantedGolemEntity.class, DataSerializers.VARINT);
+    protected static final RangedInteger ANGER_TIME_RANGE = TickRangeConverter.convertRange(20, 39);
 
     protected int attackTimer;
     protected UUID angerTarget;
     protected long lastStayChangeTime;
 
-    public AbstractEnchantedGolemEntity(EntityType<? extends AbstractEnchantedGolemEntity> type, Level worldIn) {
+    public AbstractEnchantedGolemEntity(EntityType<? extends AbstractEnchantedGolemEntity> type, World worldIn) {
         super(type, worldIn);
-        this.maxUpStep = 1.0F;
+        this.stepHeight = 1.0F;
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
-        this.addPersistentAngerSaveData(compound);
+    public void writeAdditional(CompoundNBT compound) {
+        super.writeAdditional(compound);
+        this.writeAngerNBT(compound);
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag compound) {
-        super.readAdditionalSaveData(compound);
-        if (!this.level.isClientSide) {
-            this.readPersistentAngerSaveData((ServerLevel)this.level, compound);
+    public void readAdditional(CompoundNBT compound) {
+        super.readAdditional(compound);
+        if (!this.world.isRemote) {
+            this.readAngerNBT((ServerWorld)this.world, compound);
         }
     }
 
@@ -99,19 +101,19 @@ public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEnti
         this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.0D, true));
         this.goalSelector.addGoal(3, new MoveTowardsTargetGoal(this, 0.9D, 32.0F));
         this.goalSelector.addGoal(6, new FollowCompanionOwnerGoal(this, 1.0D, 10.0F, 2.0F, false));
-        this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 6.0F));
-        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        this.goalSelector.addGoal(7, new LookAtGoal(this, PlayerEntity.class, 6.0F));
+        this.goalSelector.addGoal(8, new LookRandomlyGoal(this));
         this.targetSelector.addGoal(1, new CompanionOwnerHurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new CompanionOwnerHurtTargetGoal(this));
         this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false, this::isAngryAt));
-        this.targetSelector.addGoal(5, new ResetUniversalAngerTargetGoal<>(this, false));
+        this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, PlayerEntity.class, 10, true, false, this::func_233680_b_));
+        this.targetSelector.addGoal(5, new ResetAngerGoal<>(this, false));
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(ANGER_TIME, 0);
+    protected void registerData() {
+        super.registerData();
+        this.dataManager.register(ANGER_TIME, 0);
     }
 
     @Override
@@ -121,46 +123,52 @@ public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEnti
     }
 
     @Override
-    public int getAmbientSoundInterval() {
-        return 120;
-    }
-
-    @Override
-    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+    public boolean onLivingFall(float distance, float damageMultiplier) {
         return false;
     }
 
     @Override
-    protected void doPush(Entity entityIn) {
-        if (entityIn instanceof Enemy && !(entityIn instanceof Creeper) && this.getRandom().nextInt(20) == 0) {
-            this.setTarget((LivingEntity)entityIn);
-        }
-        super.doPush(entityIn);
+    public int getTalkInterval() {
+        return 120;
     }
 
     @Override
-    public void aiStep() {
-        super.aiStep();
+    public boolean canDespawn(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
+    protected void collideWithEntity(Entity entityIn) {
+        if (entityIn instanceof IMob && !(entityIn instanceof CreeperEntity) && this.getRNG().nextInt(20) == 0) {
+            this.setAttackTarget((LivingEntity)entityIn);
+        }
+        super.collideWithEntity(entityIn);
+    }
+
+    @Override
+    public void livingTick() {
+        super.livingTick();
         
         if (this.attackTimer > 0) {
             this.attackTimer--;
         }
         
-        if (this.getDeltaMovement().horizontalDistanceSqr() > (double)2.5000003E-7F && this.random.nextInt(5) == 0) {
-            int i = Mth.floor(this.getX());
-            int j = Mth.floor(this.getY() - (double)0.2F);
-            int k = Mth.floor(this.getZ());
+        if (horizontalMag(this.getMotion()) > (double)2.5000003E-7F && this.rand.nextInt(5) == 0) {
+            int i = MathHelper.floor(this.getPosX());
+            int j = MathHelper.floor(this.getPosY() - (double)0.2F);
+            int k = MathHelper.floor(this.getPosZ());
             BlockPos pos = new BlockPos(i, j, k);
-            BlockState blockstate = this.level.getBlockState(pos);
+            BlockState blockstate = this.world.getBlockState(pos);
             
-            boolean isAir = blockstate.isAir();
+            @SuppressWarnings("deprecation")
+            boolean isAir = blockstate.isAir(this.world, pos);
             if (!isAir) {
-                this.level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, blockstate).setPos(pos), this.getX() + ((double)this.random.nextFloat() - 0.5D) * (double)this.getBbWidth(), this.getY() + 0.1D, this.getZ() + ((double)this.random.nextFloat() - 0.5D) * (double)this.getBbWidth(), 4.0D * ((double)this.random.nextFloat() - 0.5D), 0.5D, ((double)this.random.nextFloat() - 0.5D) * 4.0D);
+                this.world.addParticle(new BlockParticleData(ParticleTypes.BLOCK, blockstate).setPos(pos), this.getPosX() + ((double)this.rand.nextFloat() - 0.5D) * (double)this.getWidth(), this.getPosY() + 0.1D, this.getPosZ() + ((double)this.rand.nextFloat() - 0.5D) * (double)this.getWidth(), 4.0D * ((double)this.rand.nextFloat() - 0.5D), 0.5D, ((double)this.rand.nextFloat() - 0.5D) * 4.0D);
             }
         }
         
-        if (!this.level.isClientSide) {
-            this.updatePersistentAnger((ServerLevel)this.level, true);
+        if (!this.world.isRemote) {
+            this.func_241359_a_((ServerWorld)this.world, true);
         }
     }
 
@@ -170,8 +178,8 @@ public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEnti
     }
 
     @Override
-    public boolean shouldAttackEntity(LivingEntity target, Player owner) {
-        if (target instanceof Creeper) {
+    public boolean shouldAttackEntity(LivingEntity target, PlayerEntity owner) {
+        if (target instanceof CreeperEntity) {
             return false;
         } else {
             return super.shouldAttackEntity(target, owner);
@@ -179,28 +187,28 @@ public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEnti
     }
 
     @Override
-    public int getRemainingPersistentAngerTime() {
-        return this.entityData.get(ANGER_TIME);
+    public int getAngerTime() {
+        return this.dataManager.get(ANGER_TIME);
     }
 
     @Override
-    public void setRemainingPersistentAngerTime(int time) {
-        this.entityData.set(ANGER_TIME, time);
+    public void setAngerTime(int time) {
+        this.dataManager.set(ANGER_TIME, time);
     }
 
     @Override
-    public UUID getPersistentAngerTarget() {
+    public UUID getAngerTarget() {
         return this.angerTarget;
     }
 
     @Override
-    public void setPersistentAngerTarget(UUID target) {
+    public void setAngerTarget(UUID target) {
         this.angerTarget = target;
     }
 
     @Override
-    public void startPersistentAngerTimer() {
-        this.setRemainingPersistentAngerTime(ANGER_TIME_RANGE.sample(this.random));
+    public void func_230258_H__() {
+        this.setAngerTime(ANGER_TIME_RANGE.getRandomWithinRange(this.rand));
     }
 
     @Override
@@ -213,131 +221,134 @@ public abstract class AbstractEnchantedGolemEntity extends AbstractCompanionEnti
     }
     
     @Override
-    public boolean hurt(DamageSource source, float amount) {
+    public boolean attackEntityFrom(DamageSource source, float amount) {
         AbstractEnchantedGolemEntity.Cracks cracksBefore = this.getCrackLevel();
-        boolean success = super.hurt(source, amount);
+        boolean success = super.attackEntityFrom(source, amount);
         if (success && cracksBefore != this.getCrackLevel()) {
-            this.playSound(SoundEvents.IRON_GOLEM_DAMAGE, 1.0F, 1.0F);
+            this.playSound(SoundEvents.ENTITY_IRON_GOLEM_DAMAGE, 1.0F, 1.0F);
         }
         return success;
     }
 
     @Override
-    public boolean doHurtTarget(Entity entityIn) {
+    public boolean attackEntityAsMob(Entity entityIn) {
         this.attackTimer = 10;
-        this.level.broadcastEntityEvent(this, (byte)4);
+        this.world.setEntityState(this, (byte)4);
         float rawDamage = (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        float damage = ((int)rawDamage > 0) ? (rawDamage / 2.0F) + (float)this.random.nextInt((int)rawDamage) : rawDamage;
-        boolean flag = entityIn.hurt(DamageSource.mobAttack(this), damage);
+        float damage = ((int)rawDamage > 0) ? (rawDamage / 2.0F) + (float)this.rand.nextInt((int)rawDamage) : rawDamage;
+        boolean flag = entityIn.attackEntityFrom(DamageSource.causeMobDamage(this), damage);
         if (flag) {
-            entityIn.setDeltaMovement(entityIn.getDeltaMovement().add(0.0D, 0.4D, 0.0D));
-            this.doEnchantDamageEffects(this, entityIn);
+            entityIn.setMotion(entityIn.getMotion().add(0.0D, 0.4D, 0.0D));
+            this.applyEnchantments(this, entityIn);
         }
-        this.playSound(SoundEvents.IRON_GOLEM_ATTACK, 1.0F, 1.0F);
+        this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
         return flag;
     }
 
     /**
      * Handler for {@link World#setEntityState}
      */
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void handleEntityEvent(byte id) {
+    public void handleStatusUpdate(byte id) {
         if (id == 4) {
             this.attackTimer = 10;
-            this.playSound(SoundEvents.IRON_GOLEM_ATTACK, 1.0F, 1.0F);
+            this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
         } else {
-            super.handleEntityEvent(id);
+            super.handleStatusUpdate(id);
         }
     }
     
+    @OnlyIn(Dist.CLIENT)
     public int getAttackTimer() {
         return this.attackTimer;
     }
 
     @Override
     protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundEvents.IRON_GOLEM_HURT;
+        return SoundEvents.ENTITY_IRON_GOLEM_HURT;
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.IRON_GOLEM_DEATH;
+        return SoundEvents.ENTITY_IRON_GOLEM_DEATH;
     }
     
-    protected abstract Tag<Item> getRepairMaterialTag();
+    protected abstract ITag<Item> getRepairMaterialTag();
     
     protected abstract float getRepairHealAmount();
 
     @Override
-    protected InteractionResult mobInteract(Player playerIn, InteractionHand hand) {
-        ItemStack itemstack = playerIn.getItemInHand(hand);
+    protected ActionResultType getEntityInteractionResult(PlayerEntity playerIn, Hand hand) {
+        ItemStack itemstack = playerIn.getHeldItem(hand);
         Item item = itemstack.getItem();
-        if (!this.getRepairMaterialTag().contains(item)) {
-            InteractionResult actionResult = super.mobInteract(playerIn, hand);
-            if (!actionResult.consumesAction() && this.isCompanionOwner(playerIn) && !this.level.isClientSide) {
-                long time = playerIn.level.getGameTime();
+        if (!item.isIn(this.getRepairMaterialTag())) {
+            ActionResultType actionResult = super.getEntityInteractionResult(playerIn, hand);
+            if (!actionResult.isSuccessOrConsume() && this.isCompanionOwner(playerIn) && !this.world.isRemote) {
+                long time = playerIn.world.getGameTime();
                 if (this.lastStayChangeTime != time) {
                     this.setCompanionStaying(!this.isCompanionStaying());
                     if (this.isCompanionStaying()) {
-                        playerIn.sendMessage(new TranslatableComponent("event.primalmagick.golem.stay"), Util.NIL_UUID);
+                        playerIn.sendMessage(new TranslationTextComponent("event.primalmagick.golem.stay"), Util.DUMMY_UUID);
                     } else {
-                        playerIn.sendMessage(new TranslatableComponent("event.primalmagick.golem.follow"), Util.NIL_UUID);
+                        playerIn.sendMessage(new TranslationTextComponent("event.primalmagick.golem.follow"), Util.DUMMY_UUID);
                     }
                     this.lastStayChangeTime = time;
                 }
-                this.navigation.stop();
-                this.setTarget(null);
-                return InteractionResult.SUCCESS;
+                this.navigator.clearPath();
+                this.setAttackTarget(null);
+                return ActionResultType.SUCCESS;
             }
-            return InteractionResult.PASS;
+            return ActionResultType.PASS;
         } else {
             float healthBefore = this.getHealth();
             this.heal(this.getRepairHealAmount());
             if (this.getHealth() == healthBefore) {
-                return InteractionResult.PASS;
+                return ActionResultType.PASS;
             } else {
-                this.playSound(SoundEvents.IRON_GOLEM_REPAIR, 1.0F, 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F);
-                if (!playerIn.getAbilities().instabuild) {
+                this.playSound(SoundEvents.ENTITY_IRON_GOLEM_REPAIR, 1.0F, 1.0F + (this.rand.nextFloat() - this.rand.nextFloat()) * 0.2F);
+                if (!playerIn.abilities.isCreativeMode) {
                     itemstack.shrink(1);
                 }
-                return InteractionResult.sidedSuccess(this.level.isClientSide);
+                return ActionResultType.func_233537_a_(this.world.isRemote);
             }
         }
     }
 
     @Override
     protected void playStepSound(BlockPos pos, BlockState blockIn) {
-        this.playSound(SoundEvents.IRON_GOLEM_STEP, 1.0F, 1.0F);
+        this.playSound(SoundEvents.ENTITY_IRON_GOLEM_STEP, 1.0F, 1.0F);
     }
 
     @Override
-    public boolean checkSpawnObstruction(LevelReader worldIn) {
-        BlockPos downPos = this.blockPosition().below();
+    public boolean isNotColliding(IWorldReader worldIn) {
+        BlockPos downPos = this.getPosition().down();
         BlockState downState = worldIn.getBlockState(downPos);
-        if (!downState.entityCanStandOn(worldIn, downPos, this)) {
+        if (!downState.canSpawnMobs(worldIn, downPos, this)) {
             return false;
         } else {
             for (int i = 1; i < 3; i++) {
-                BlockPos upPos = this.blockPosition().above(i);
+                BlockPos upPos = this.getPosition().up(i);
                 BlockState upState = worldIn.getBlockState(upPos);
-                if (!NaturalSpawner.isValidEmptySpawnBlock(worldIn, upPos, upState, upState.getFluidState(), this.getType())) {
+                if (!WorldEntitySpawner.func_234968_a_(worldIn, upPos, upState, upState.getFluidState(), this.getType())) {
                     return false;
                 }
             }
-            return NaturalSpawner.isValidEmptySpawnBlock(worldIn, this.blockPosition(), worldIn.getBlockState(this.blockPosition()), Fluids.EMPTY.defaultFluidState(), this.getType()) && 
-                    worldIn.isUnobstructed(this);
+            return WorldEntitySpawner.func_234968_a_(worldIn, this.getPosition(), worldIn.getBlockState(this.getPosition()), Fluids.EMPTY.getDefaultState(), this.getType()) && 
+                    worldIn.checkNoEntityCollision(this);
         }
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public Vec3 getLeashOffset() {
-        return new Vec3(0.0D, (double)(0.875F * this.getEyeHeight()), (double)(this.getBbWidth() * 0.4F));
+    public Vector3d getLeashStartPosition() {
+        return new Vector3d(0.0D, (double)(0.875F * this.getEyeHeight()), (double)(this.getWidth() * 0.4F));
     }
 
     @Override
-    public boolean canBeAffected(MobEffectInstance potioneffectIn) {
-        MobEffect effect = potioneffectIn.getEffect();
-        return (effect == MobEffects.POISON || effect == EffectsPM.BLEEDING.get()) ? false : super.canBeAffected(potioneffectIn);
+    public boolean isPotionApplicable(EffectInstance potioneffectIn) {
+        Effect effect = potioneffectIn.getPotion();
+        return (effect == Effects.POISON || effect == EffectsPM.BLEEDING.get()) ? false : super.isPotionApplicable(potioneffectIn);
     }
 
     public static enum Cracks {

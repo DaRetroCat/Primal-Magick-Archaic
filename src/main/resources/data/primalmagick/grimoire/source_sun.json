@@ -2,12 +2,8 @@
   "key": "SOURCE_SUN",
   "name": "primalmagick.research.source_sun.title",
   "discipline": "BASICS",
-  "icon": {
-    "isItem": false,
-    "location": "primalmagick:textures/sources/sun.png"
-  },
   "parents": [
-    "TERRESTRIAL_MAGICK"
+    "TERRESTRIAL_MAGIC"
   ],
   "stages": [
     {

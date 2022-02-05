@@ -6,22 +6,24 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.verdantartifice.primalmagick.client.gui.GrimoireScreen;
 import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.RuneEnchantmentButton;
-import com.verdantartifice.primalmagick.common.research.topics.OtherResearchTopic;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Grimoire page showing the list of discovered rune enchantments.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class RuneEnchantmentIndexPage extends AbstractPage {
-    public static final OtherResearchTopic TOPIC = new OtherResearchTopic("rune_enchantments", 0);
+    public static final String TOPIC = "rune_enchantments";
 
     protected List<Enchantment> contents = new ArrayList<>();
     protected boolean firstPage;
@@ -35,7 +37,7 @@ public class RuneEnchantmentIndexPage extends AbstractPage {
     }
     
     @Override
-    public void render(PoseStack matrixStack, int side, int x, int y, int mouseX, int mouseY) {
+    public void render(MatrixStack matrixStack, int side, int x, int y, int mouseX, int mouseY) {
         // Just render the title; buttons have already been added
         if (this.isFirstPage() && side == 0) {
             this.renderTitle(matrixStack, side, x, y, mouseX, mouseY, null);
@@ -64,7 +66,7 @@ public class RuneEnchantmentIndexPage extends AbstractPage {
     public void initWidgets(GrimoireScreen screen, int side, int x, int y) {
         // Add a button to the screen for each enchantment in the page's contents
         for (Enchantment enchant : this.getEnchantments()) {
-            Component text = new TranslatableComponent(enchant.getDescriptionId());
+            ITextComponent text = new TranslationTextComponent(enchant.getName());
             screen.addWidgetToScreen(new RuneEnchantmentButton(x + 12 + (side * 140), y, text, screen, enchant));
             y += 12;
         }

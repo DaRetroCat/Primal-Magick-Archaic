@@ -1,10 +1,11 @@
 package com.verdantartifice.primalmagick.common.crafting;
 
 import com.verdantartifice.primalmagick.common.blocks.BlocksPM;
+import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.ICraftingRecipe;
+import net.minecraft.item.crafting.IRecipeType;
 
 /**
  * Crafting recipe interface for an arcane recipe.  An arcane recipe is like a vanilla recipe,
@@ -12,20 +13,25 @@ import net.minecraft.world.item.crafting.RecipeType;
  *  
  * @author Daedalus4096
  */
-public interface IArcaneRecipe extends CraftingRecipe, IHasManaCost, IHasRequiredResearch, IArcaneRecipeBookItem {
-    @Override
-    default RecipeType<?> getType() {
+public interface IArcaneRecipe extends ICraftingRecipe, IHasManaCost {
+    /**
+     * Get the required research for the recipe.
+     * 
+     * @return the required research for the recipe
+     */
+    public SimpleResearchKey getRequiredResearch();
+
+    default IRecipeType<?> getType() {
         return RecipeTypesPM.ARCANE_CRAFTING;
     }
     
     @Override
-    default boolean isSpecial() {
+    default boolean isDynamic() {
         // Return true to keep arcane recipes from showing up in the vanilla recipe book
         return true;
     }
     
-    @Override
-    default ItemStack getToastSymbol() {
+    default ItemStack getIcon() {
         return new ItemStack(BlocksPM.ARCANE_WORKBENCH.get());
     }
 }

@@ -6,58 +6,60 @@ import java.util.Random;
 
 import com.google.common.collect.Maps;
 import com.verdantartifice.primalmagick.client.fx.FxDispatcher;
+import com.verdantartifice.primalmagick.common.misc.HarvestLevel;
 import com.verdantartifice.primalmagick.common.rituals.IRitualPropBlock;
 import com.verdantartifice.primalmagick.common.tiles.rituals.RitualLecternTileEntity;
 import com.verdantartifice.primalmagick.common.util.VoxelShapeUtils;
 
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.Containers;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.BaseEntityBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.level.pathfinder.PathComputationType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.HorizontalBlock;
+import net.minecraft.block.SoundType;
+import net.minecraft.block.material.Material;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockItemUseContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.pathfinding.PathType;
+import net.minecraft.state.BooleanProperty;
+import net.minecraft.state.DirectionProperty;
+import net.minecraft.state.StateContainer.Builder;
+import net.minecraft.state.properties.BlockStateProperties;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Direction;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Mirror;
+import net.minecraft.util.Rotation;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.math.shapes.ISelectionContext;
+import net.minecraft.util.math.shapes.VoxelShape;
+import net.minecraft.util.math.shapes.VoxelShapes;
+import net.minecraft.world.IBlockReader;
+import net.minecraft.world.IWorld;
+import net.minecraft.world.World;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.ToolType;
+import net.minecraftforge.common.util.Constants;
 
 /**
- * Block definition for a ritual lectern.  Ritual lecterns serve as props in magickal rituals; placing
+ * Block definition for a ritual lectern.  Ritual lecterns serve as props in magical rituals; placing
  * an enchanted book on one at the right time can allow a ritual to progress to the next stage.
  * 
  * @author Daedalus4096
  */
-public class RitualLecternBlock extends BaseEntityBlock implements IRitualPropBlock {
-    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+public class RitualLecternBlock extends Block implements IRitualPropBlock {
+    public static final DirectionProperty FACING = HorizontalBlock.HORIZONTAL_FACING;
     public static final BooleanProperty HAS_BOOK = BlockStateProperties.HAS_BOOK;
 
-    protected static final VoxelShape BASE_AND_STAND_SHAPE = Shapes.or(Block.box(0.0D, 0.0D, 0.0D, 16.0D, 2.0D, 16.0D), Block.box(4.0D, 2.0D, 4.0D, 12.0D, 14.0D, 12.0D));
-    protected static final VoxelShape COLLISION_SHAPE = Shapes.or(BASE_AND_STAND_SHAPE, Block.box(0.0D, 15.0D, 0.0D, 16.0D, 15.0D, 16.0D));
-    protected static final VoxelShape SHAPE = Shapes.or(Block.box(0.0D, 10.0D, 1.0D, 16.0D, 14.0D, 5.333333D), Block.box(0.0D, 12.0D, 5.333333D, 16.0D, 16.0D, 9.666667D), Block.box(0.0D, 14.0D, 9.666667D, 16.0D, 18.0D, 14.0D), BASE_AND_STAND_SHAPE);
+    protected static final VoxelShape BASE_AND_STAND_SHAPE = VoxelShapes.or(Block.makeCuboidShape(0.0D, 0.0D, 0.0D, 16.0D, 2.0D, 16.0D), Block.makeCuboidShape(4.0D, 2.0D, 4.0D, 12.0D, 14.0D, 12.0D));
+    protected static final VoxelShape COLLISION_SHAPE = VoxelShapes.or(BASE_AND_STAND_SHAPE, Block.makeCuboidShape(0.0D, 15.0D, 0.0D, 16.0D, 15.0D, 16.0D));
+    protected static final VoxelShape SHAPE = VoxelShapes.or(Block.makeCuboidShape(0.0D, 10.0D, 1.0D, 16.0D, 14.0D, 5.333333D), Block.makeCuboidShape(0.0D, 12.0D, 5.333333D, 16.0D, 16.0D, 9.666667D), Block.makeCuboidShape(0.0D, 14.0D, 9.666667D, 16.0D, 18.0D, 14.0D), BASE_AND_STAND_SHAPE);
     protected static final Map<Direction, VoxelShape> SHAPES = Util.make(Maps.newEnumMap(Direction.class), (map) -> {
         map.put(Direction.NORTH, SHAPE);
         map.put(Direction.SOUTH, VoxelShapeUtils.rotate(SHAPE, Direction.Axis.Y, Rotation.CLOCKWISE_180));
@@ -66,121 +68,110 @@ public class RitualLecternBlock extends BaseEntityBlock implements IRitualPropBl
     });
     
     public RitualLecternBlock() {
-        super(Block.Properties.of(Material.WOOD).strength(2.5F).sound(SoundType.WOOD));
-        this.registerDefaultState(this.defaultBlockState().setValue(FACING, Direction.NORTH).setValue(HAS_BOOK, Boolean.FALSE));
+        super(Block.Properties.create(Material.WOOD).hardnessAndResistance(2.5F).sound(SoundType.WOOD).harvestTool(ToolType.AXE).harvestLevel(HarvestLevel.NONE.getLevel()));
+        this.setDefaultState(this.getDefaultState().with(FACING, Direction.NORTH).with(HAS_BOOK, Boolean.FALSE));
     }
     
     @Override
-    public VoxelShape getOcclusionShape(BlockState state, BlockGetter worldIn, BlockPos pos) {
+    public VoxelShape getRenderShape(BlockState state, IBlockReader worldIn, BlockPos pos) {
         return BASE_AND_STAND_SHAPE;
     }
     
     @Override
-    public boolean useShapeForLightOcclusion(BlockState state) {
+    public boolean isTransparent(BlockState state) {
         return true;
     }
     
     @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    public BlockState getStateForPlacement(BlockItemUseContext context) {
+        return this.getDefaultState().with(FACING, context.getPlacementHorizontalFacing().getOpposite());
     }
     
     @Override
-    public VoxelShape getCollisionShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+    public VoxelShape getCollisionShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
         return COLLISION_SHAPE;
     }
     
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
-        return SHAPES.getOrDefault(state.getValue(FACING), BASE_AND_STAND_SHAPE);
+    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
+        return SHAPES.getOrDefault(state.get(FACING), BASE_AND_STAND_SHAPE);
     }
     
     @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
-    }
-
-    @Override
-    public BlockState rotate(BlockState state, LevelAccessor world, BlockPos pos, Rotation direction) {
-        return state.setValue(FACING, direction.rotate(state.getValue(FACING)));
+    public BlockState rotate(BlockState state, IWorld world, BlockPos pos, Rotation direction) {
+        return state.with(FACING, direction.rotate(state.get(FACING)));
     }
     
     @SuppressWarnings("deprecation")
-    @Override
+	@Override
     public BlockState mirror(BlockState state, Mirror mirrorIn) {
-        return state.rotate(mirrorIn.getRotation(state.getValue(FACING)));
+        return state.rotate(mirrorIn.toRotation(state.get(FACING)));
     }
     
     @Override
-    protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+    protected void fillStateContainer(Builder<Block, BlockState> builder) {
         builder.add(FACING, HAS_BOOK);
     }
     
     @SuppressWarnings("deprecation")
     @Override
-    public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn, BlockHitResult hit) {
-        if (!worldIn.isClientSide && handIn == InteractionHand.MAIN_HAND) {
-            BlockEntity tile = worldIn.getBlockEntity(pos);
+    public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit) {
+        if (!worldIn.isRemote && handIn == Hand.MAIN_HAND) {
+            TileEntity tile = worldIn.getTileEntity(pos);
             if (tile instanceof RitualLecternTileEntity) {
                 RitualLecternTileEntity lecternTile = (RitualLecternTileEntity)tile;
-                if (lecternTile.getItem(0).isEmpty() && player.getItemInHand(handIn).getItem() == Items.ENCHANTED_BOOK) {
+                if (lecternTile.getStackInSlot(0).isEmpty() && player.getHeldItem(handIn).getItem() == Items.ENCHANTED_BOOK) {
                     // When activating an empty lectern with an enchanted book in hand, place it on the lectern
-                    ItemStack stack = player.getItemInHand(handIn).copy();
+                    ItemStack stack = player.getHeldItem(handIn).copy();
                     stack.setCount(1);
-                    lecternTile.setItem(0, stack);
-                    player.getItemInHand(handIn).shrink(1);
-                    if (player.getItemInHand(handIn).getCount() <= 0) {
-                        player.setItemInHand(handIn, ItemStack.EMPTY);
+                    lecternTile.setInventorySlotContents(0, stack);
+                    player.getHeldItem(handIn).shrink(1);
+                    if (player.getHeldItem(handIn).getCount() <= 0) {
+                        player.setHeldItem(handIn, ItemStack.EMPTY);
                     }
-                    player.getInventory().setChanged();
-                    worldIn.playSound(null, pos, SoundEvents.BOOK_PUT, SoundSource.BLOCKS, 1.0F, 1.0F);
-                    worldIn.setBlock(pos, state.setValue(HAS_BOOK, Boolean.TRUE), Block.UPDATE_ALL);
+                    player.inventory.markDirty();
+                    worldIn.playSound(null, pos, SoundEvents.ITEM_BOOK_PUT, SoundCategory.BLOCKS, 1.0F, 1.0F);
+                    worldIn.setBlockState(pos, state.with(HAS_BOOK, Boolean.TRUE), Constants.BlockFlags.DEFAULT);
                     
                     // If this block is awaiting activation for an altar, notify it
                     if (this.isPropOpen(state, worldIn, pos)) {
-                        this.onPropActivated(state, worldIn, pos, this.getUsageStabilityBonus());
+                        this.onPropActivated(state, worldIn, pos);
                     }
 
-                    return InteractionResult.SUCCESS;
-                } else if (!lecternTile.getItem(0).isEmpty() && player.getItemInHand(handIn).isEmpty()) {
+                    return ActionResultType.SUCCESS;
+                } else if (!lecternTile.getStackInSlot(0).isEmpty() && player.getHeldItem(handIn).isEmpty()) {
                     // When activating a full lectern with an empty hand, pick up the book
-                    ItemStack stack = lecternTile.getItem(0).copy();
-                    lecternTile.setItem(0, ItemStack.EMPTY);
-                    player.setItemInHand(handIn, stack);
-                    player.getInventory().setChanged();
-                    worldIn.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4F, 1.0F);
-                    worldIn.setBlock(pos, state.setValue(HAS_BOOK, Boolean.FALSE), Block.UPDATE_ALL);
-                    return InteractionResult.SUCCESS;
+                    ItemStack stack = lecternTile.getStackInSlot(0).copy();
+                    lecternTile.setInventorySlotContents(0, ItemStack.EMPTY);
+                    player.setHeldItem(handIn, stack);
+                    player.inventory.markDirty();
+                    worldIn.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.4F, 1.0F);
+                    worldIn.setBlockState(pos, state.with(HAS_BOOK, Boolean.FALSE), Constants.BlockFlags.DEFAULT);
+                    return ActionResultType.SUCCESS;
                 }
             }
         }
-        return super.use(state, worldIn, pos, player, handIn, hit);
+        return super.onBlockActivated(state, worldIn, pos, player, handIn, hit);
     }
     
     @SuppressWarnings("deprecation")
     @Override
-    public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
+    public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
         // Close out any pending ritual activity if replaced
-        if (!worldIn.isClientSide && state.getBlock() != newState.getBlock()) {
+        if (!worldIn.isRemote && state.getBlock() != newState.getBlock()) {
             this.closeProp(state, worldIn, pos);
         }
-        if (state.getBlock() != newState.getBlock()) {
-            BlockEntity tile = worldIn.getBlockEntity(pos);
-            if (tile instanceof RitualLecternTileEntity) {
-                Containers.dropContents(worldIn, pos, (RitualLecternTileEntity)tile);
-                worldIn.updateNeighbourForOutputSignal(pos, this);
-            }
-        }
-        super.onRemove(state, worldIn, pos, newState, isMoving);
+        super.onReplaced(state, worldIn, pos, newState, isMoving);
     }
     
     @Override
-    public boolean isPathfindable(BlockState state, BlockGetter worldIn, BlockPos pos, PathComputationType type) {
+    public boolean allowsMovement(BlockState state, IBlockReader worldIn, BlockPos pos, PathType type) {
         return false;
     }
     
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public void animateTick(BlockState stateIn, Level worldIn, BlockPos pos, Random rand) {
+    public void animateTick(BlockState stateIn, World worldIn, BlockPos pos, Random rand) {
         // Show spell sparkles if receiving salt power
         if (this.isBlockSaltPowered(worldIn, pos)) {
             FxDispatcher.INSTANCE.spellTrail(pos.getX() + rand.nextDouble(), pos.getY() + rand.nextDouble(), pos.getZ() + rand.nextDouble(), Color.WHITE.getRGB());
@@ -188,19 +179,19 @@ public class RitualLecternBlock extends BaseEntityBlock implements IRitualPropBl
     }
 
     @Override
-    public float getStabilityBonus(Level world, BlockPos pos) {
+    public float getStabilityBonus(World world, BlockPos pos) {
         return 0.02F;
     }
 
     @Override
-    public float getSymmetryPenalty(Level world, BlockPos pos) {
+    public float getSymmetryPenalty(World world, BlockPos pos) {
         return 0.02F;
     }
 
     @Override
-    public boolean isPropActivated(BlockState state, Level world, BlockPos pos) {
+    public boolean isPropActivated(BlockState state, World world, BlockPos pos) {
         if (state != null && state.getBlock() instanceof RitualLecternBlock) {
-            return state.getValue(HAS_BOOK);
+            return state.get(HAS_BOOK);
         } else {
             return false;
         }
@@ -211,12 +202,27 @@ public class RitualLecternBlock extends BaseEntityBlock implements IRitualPropBl
         return "primalmagick.ritual.prop.ritual_lectern";
     }
 
+    @Override
     public float getUsageStabilityBonus() {
         return 10.0F;
     }
     
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new RitualLecternTileEntity(pos, state);
+    public boolean hasTileEntity(BlockState state) {
+        return true;
+    }
+    
+    @Override
+    public TileEntity createTileEntity(BlockState state, IBlockReader world) {
+        return new RitualLecternTileEntity();
+    }
+    
+    @SuppressWarnings("deprecation")
+    @Override
+    public boolean eventReceived(BlockState state, World worldIn, BlockPos pos, int id, int param) {
+        // Pass any received events on to the tile entity and let it decide what to do with it
+        super.eventReceived(state, worldIn, pos, id, param);
+        TileEntity tile = worldIn.getTileEntity(pos);
+        return (tile == null) ? false : tile.receiveClientEvent(id, param);
     }
 }

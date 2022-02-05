@@ -2,45 +2,36 @@ package com.verdantartifice.primalmagick.common.research;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.common.collect.ImmutableSet;
 import com.verdantartifice.primalmagick.common.affinities.AffinityManager;
 import com.verdantartifice.primalmagick.common.attunements.AttunementManager;
 import com.verdantartifice.primalmagick.common.attunements.AttunementType;
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
-import com.verdantartifice.primalmagick.common.crafting.recipe_book.ArcaneRecipeBookManager;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 import com.verdantartifice.primalmagick.common.stats.StatsPM;
 
-import net.minecraft.Util;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IItemProvider;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -58,18 +49,6 @@ public class ResearchManager {
     // Registry of all defined scan triggers
     private static final List<IScanTrigger> SCAN_TRIGGERS = new ArrayList<>();
     
-    // Reverse map of recipe IDs to the research entries that contain the stage or addendum that grants them
-    private static final Map<ResourceLocation, ResearchEntry> RECIPE_MAP = new HashMap<>();
-    
-    // Set of research keys whose children should not be shown in the Upcoming section of the grimoire
-    private static final Set<SimpleResearchKey> OPAQUE_RESEARCH = ImmutableSet.of(
-            Source.BLOOD.getDiscoverKey(), 
-            Source.INFERNAL.getDiscoverKey(), 
-            Source.VOID.getDiscoverKey(), 
-            Source.HALLOWED.getDiscoverKey(),
-            SimpleResearchKey.parse("t_discover_forbidden")
-    );
-    
     public static Set<Integer> getAllCraftingReferences() {
         return Collections.unmodifiableSet(CRAFTING_REFERENCES);
     }
@@ -82,71 +61,21 @@ public class ResearchManager {
         CRAFTING_REFERENCES.clear();
     }
     
-    @Nullable
-    public static ResearchEntry getEntryForRecipe(ResourceLocation recipeId) {
-        return RECIPE_MAP.get(recipeId);
-    }
-    
-    static void addRecipeMapping(ResourceLocation recipeId, ResearchEntry entry) {
-        RECIPE_MAP.put(recipeId, entry);
-    }
-    
-    static void clearRecipeMap() {
-        RECIPE_MAP.clear();
-    }
-    
-    public static boolean isOpaque(SimpleResearchKey key) {
-        return OPAQUE_RESEARCH.contains(key);
-    }
-    
-    public static boolean isRecipeVisible(ResourceLocation recipeId, Player player) {
-        IPlayerKnowledge know = PrimalMagickCapabilities.getKnowledge(player).orElseThrow(() -> new IllegalStateException("No knowledge provider for player"));
-        ResearchEntry entry = ResearchManager.getEntryForRecipe(recipeId);
-        if (entry == null) {
-            // If the recipe has no controlling research, then assume it's visible
-            return true;
-        }
-        
-        // First check to see if the current stage for the entry has the recipe listed
-        int currentStageIndex = know.getResearchStage(entry.getKey());
-        if (currentStageIndex == entry.getStages().size()) {
-            ResearchStage currentStage = entry.getStages().get(currentStageIndex - 1);
-            if (currentStage.getRecipes().contains(recipeId)) {
-                return true;
-            }
-        } else if (currentStageIndex >= 0 && currentStageIndex < entry.getStages().size()) {
-            ResearchStage currentStage = entry.getStages().get(currentStageIndex);
-            if (currentStage.getRecipes().contains(recipeId)) {
-                return true;
-            }
-        }
-        
-        // If that doesn't pan out, check to see if any unlocked addendum lists the recipe
-        for (ResearchAddendum addendum : entry.getAddenda()) {
-            if (addendum.getRequiredResearch() != null && addendum.getRecipes().contains(recipeId) && addendum.getRequiredResearch().isKnownByStrict(player)) {
-                return true;
-            }
-        }
-        
-        // Otherwise, return false
-        return false;
-    }
-    
-    public static boolean isSyncScheduled(@Nullable Player player) {
+    public static boolean isSyncScheduled(@Nullable PlayerEntity player) {
         if (player == null) {
             return false;
         } else {
-            return SYNC_SET.remove(player.getUUID());
+            return SYNC_SET.remove(player.getUniqueID());
         }
     }
     
-    public static void scheduleSync(@Nullable Player player) {
+    public static void scheduleSync(@Nullable PlayerEntity player) {
         if (player != null) {
-            SYNC_SET.add(player.getUUID());
+            SYNC_SET.add(player.getUniqueID());
         }
     }
     
-    public static boolean hasPrerequisites(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static boolean hasPrerequisites(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         if (player == null) {
             return false;
         }
@@ -162,11 +91,11 @@ public class ResearchManager {
         }
     }
     
-    public static boolean isResearchComplete(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static boolean isResearchComplete(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         if (player == null || key == null) {
             return false;
         }
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         } else {
@@ -174,12 +103,12 @@ public class ResearchManager {
         }
     }
     
-    public static boolean completeResearch(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static boolean completeResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         // Complete the given research and sync it to the player's client
         return completeResearch(player, key, true);
     }
     
-    public static boolean completeResearch(@Nullable Player player, @Nullable SimpleResearchKey key, boolean sync) {
+    public static boolean completeResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key, boolean sync) {
         // Repeatedly progress the given research until it is completed, optionally syncing it to the player's client
         boolean retVal = false;
         while (progressResearch(player, key, sync)) {
@@ -188,125 +117,77 @@ public class ResearchManager {
         return retVal;
     }
     
-    public static void forceGrantWithAllParents(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static void forceGrantWithAllParents(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         if (player != null && key != null) {
-            PrimalMagickCapabilities.getKnowledge(player).ifPresent(knowledge -> {
-                SimpleResearchKey strippedKey = key.stripStage(); // When we force-grant, we fully complete the entry, not partially
-                if (!knowledge.isResearchComplete(strippedKey)) {
-                    ResearchEntry entry = ResearchEntries.getEntry(strippedKey);
-                    if (entry != null) {
-                        if (entry.getParentResearch() != null) {
-                            // Recursively force-grant all of this entry's parent entries, even if not all of them are required
-                            for (SimpleResearchKey parentKey : entry.getParentResearch().getKeys()) {
-                                forceGrantWithAllParents(player, parentKey);
-                            }
-                        }
-                        for (ResearchStage stage : entry.getStages()) {
-                            // Complete any research required as a prerequisite for any of the entry's stages
-                            if (stage.getRequiredResearch() != null) {
-                                for (SimpleResearchKey requiredKey : stage.getRequiredResearch().getKeys()) {
-                                    completeResearch(player, requiredKey);
-                                }
-                            }
+            key = key.stripStage(); // When we force-grant, we fully complete the entry, not partially
+            IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
+            if (knowledge != null && !knowledge.isResearchComplete(key)) {
+                ResearchEntry entry = ResearchEntries.getEntry(key);
+                if (entry != null) {
+                    if (entry.getParentResearch() != null) {
+                        // Recursively force-grant all of this entry's parent entries, even if not all of them are required
+                        for (SimpleResearchKey parentKey : entry.getParentResearch().getKeys()) {
+                            forceGrantWithAllParents(player, parentKey);
                         }
                     }
-                    
-                    // Once all prerequisites are out of the way, complete this entry itself
-                    completeResearch(player, strippedKey);
-                    
-                    // Mark as updated any research entry that has a stage which requires completion of this entry
-                    for (ResearchEntry searchEntry : ResearchEntries.getAllEntries()) {
-                        for (ResearchStage searchStage : searchEntry.getStages()) {
-                            if (searchStage.getRequiredResearch() != null && searchStage.getRequiredResearch().contains(strippedKey)) {
-                                knowledge.addResearchFlag(searchEntry.getKey(), IPlayerKnowledge.ResearchFlag.UPDATED);
-                                break;
+                    for (ResearchStage stage : entry.getStages()) {
+                        // Complete any research required as a prerequisite for any of the entry's stages
+                        if (stage.getRequiredResearch() != null) {
+                            for (SimpleResearchKey requiredKey : stage.getRequiredResearch().getKeys()) {
+                                completeResearch(player, requiredKey);
                             }
                         }
                     }
                 }
-            });
-        }
-    }
-    
-    public static void forceGrantParentsOnly(@Nullable Player player, @Nullable SimpleResearchKey key) {
-        if (player != null && key != null) {
-            PrimalMagickCapabilities.getKnowledge(player).ifPresent(knowledge -> {
-                SimpleResearchKey strippedKey = key.stripStage(); // When we force-grant, we fully complete the entry, not partially
-                if (!knowledge.isResearchComplete(strippedKey)) {
-                    ResearchEntry entry = ResearchEntries.getEntry(strippedKey);
-                    if (entry != null) {
-                        if (entry.getParentResearch() != null) {
-                            // Recursively force-grant all of this entry's parent entries, even if not all of them are required
-                            for (SimpleResearchKey parentKey : entry.getParentResearch().getKeys()) {
-                                forceGrantWithAllParents(player, parentKey);
-                            }
-                        }
-                        for (ResearchStage stage : entry.getStages()) {
-                            // Complete any research required as a prerequisite for any of the entry's stages
-                            if (stage.getRequiredResearch() != null) {
-                                for (SimpleResearchKey requiredKey : stage.getRequiredResearch().getKeys()) {
-                                    completeResearch(player, requiredKey);
-                                }
-                            }
+                
+                // Once all prerequisites are out of the way, complete this entry itself
+                completeResearch(player, key);
+                
+                // Mark as updated any research entry that has a stage which requires completion of this entry
+                for (ResearchEntry searchEntry : ResearchEntries.getAllEntries()) {
+                    for (ResearchStage searchStage : searchEntry.getStages()) {
+                        if (searchStage.getRequiredResearch() != null && searchStage.getRequiredResearch().contains(key)) {
+                            knowledge.addResearchFlag(searchEntry.getKey(), IPlayerKnowledge.ResearchFlag.UPDATED);
+                            break;
                         }
                     }
                 }
-            });
-        }
-    }
-    
-    public static void forceGrantAll(@Nullable Player player) {
-        if (player != null) {
-            for (ResearchEntry entry : ResearchEntries.getAllEntries()) {
-                forceGrantWithAllParents(player, entry.getKey());
             }
         }
     }
     
-    public static void forceRevokeWithAllChildren(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static void forceRevokeWithAllChildren(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         if (player != null && key != null) {
-            PrimalMagickCapabilities.getKnowledge(player).ifPresent(knowledge -> {
-                if (knowledge.isResearchComplete(key)) {
-                    // Revoke all child research of this entry
-                    for (ResearchEntry entry : ResearchEntries.getAllEntries()) {
-                        CompoundResearchKey parentResearch = entry.getParentResearch();
-                        if (parentResearch != null && parentResearch.containsStripped(key)) {
-                            forceRevokeWithAllChildren(player, entry.getKey());
-                        }
+            IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
+            if (knowledge != null && knowledge.isResearchComplete(key)) {
+                // Revoke all child research of this entry
+                for (ResearchEntry entry : ResearchEntries.getAllEntries()) {
+                    CompoundResearchKey parentResearch = entry.getParentResearch();
+                    if (parentResearch != null && parentResearch.containsStripped(key)) {
+                        forceRevokeWithAllChildren(player, entry.getKey());
                     }
-                    
-                    // Once all children are revoked, revoke this entry itself
-                    revokeResearch(player, key.stripStage());
                 }
-            });
+                
+                // Once all children are revoked, revoke this entry itself
+                revokeResearch(player, key.stripStage());
+            }
         }
     }
     
-    public static boolean revokeResearch(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static boolean revokeResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         // Revoke the given research and sync it to the player's client
         return revokeResearch(player, key, true);
     }
     
-    public static boolean revokeResearch(@Nullable Player player, @Nullable SimpleResearchKey key, boolean sync) {
+    public static boolean revokeResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key, boolean sync) {
         // Remove the given research from the player's known list and optionally sync to the player's client
         if (player == null || key == null) {
             return false;
         }
         
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
-        }
-        
-        // Remove all recipes that are unlocked by the given research from the player's arcane recipe book
-        if (player instanceof ServerPlayer serverPlayer) {
-            ResearchEntry entry = ResearchEntries.getEntry(key);
-            if (entry != null) {
-                RecipeManager recipeManager = serverPlayer.level.getRecipeManager();
-                Set<Recipe<?>> recipesToRemove = entry.getAllRecipeIds().stream().map(r -> recipeManager.byKey(r).orElse(null)).filter(Objects::nonNull).collect(Collectors.toSet());
-                ArcaneRecipeBookManager.removeRecipes(recipesToRemove, serverPlayer);
-                serverPlayer.resetRecipes(recipesToRemove);
-            }
         }
 
         knowledge.removeResearch(key);
@@ -316,23 +197,23 @@ public class ResearchManager {
         return true;
     }
     
-    public static boolean progressResearch(@Nullable Player player, @Nullable SimpleResearchKey key) {
+    public static boolean progressResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key) {
         // Progress the given research to its next stage and sync to the player's client
         return progressResearch(player, key, true);
     }
     
-    public static boolean progressResearch(@Nullable Player player, @Nullable SimpleResearchKey key, boolean sync) {
+    public static boolean progressResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key, boolean sync) {
         // Progress the given research to its next stage and sync to the player's client
         return progressResearch(player, key, sync, true);
     }
     
-    public static boolean progressResearch(@Nullable Player player, @Nullable SimpleResearchKey key, boolean sync, boolean flags) {
+    public static boolean progressResearch(@Nullable PlayerEntity player, @Nullable SimpleResearchKey key, boolean sync, boolean flags) {
         // Progress the given research to its next stage and optionally sync to the player's client
         if (player == null || key == null) {
             return false;
         }
         
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         }
@@ -383,36 +264,6 @@ public class ResearchManager {
                         AttunementManager.incrementAttunement(player, source, AttunementType.PERMANENT, amount);
                     }
                 }
-                
-                // Add any unlocked recipes from the current stage to the player's arcane recipe book
-                if (player instanceof ServerPlayer serverPlayer) {
-                    RecipeManager recipeManager = serverPlayer.level.getRecipeManager();
-                    Set<Recipe<?>> recipesToUnlock = currentStage.getRecipes().stream().map(r -> recipeManager.byKey(r).orElse(null)).filter(Objects::nonNull).collect(Collectors.toSet());
-                    ArcaneRecipeBookManager.addRecipes(recipesToUnlock, serverPlayer);
-                    serverPlayer.awardRecipes(recipesToUnlock);
-                }
-                
-                // Grant any sibling research from the current stage
-                for (SimpleResearchKey sibling : currentStage.getSiblings()) {
-                    completeResearch(player, sibling, sync);
-                }
-            }
-            
-            if (entryComplete && !entry.getAddenda().isEmpty() && player instanceof ServerPlayer serverPlayer) {
-                RecipeManager recipeManager = serverPlayer.level.getRecipeManager();
-                for (ResearchAddendum addendum : entry.getAddenda()) {
-                    if (addendum.getRequiredResearch() == null || addendum.getRequiredResearch().isKnownByStrict(player)) {
-                        // Add any unlocked recipes from this entry's addenda to the player's arcane recipe book
-                        Set<Recipe<?>> recipesToUnlock = addendum.getRecipes().stream().map(r -> recipeManager.byKey(r).orElse(null)).filter(Objects::nonNull).collect(Collectors.toSet());
-                        ArcaneRecipeBookManager.addRecipes(recipesToUnlock, serverPlayer);
-                        serverPlayer.awardRecipes(recipesToUnlock);
-                        
-                        // Grant any sibling research from this entry's addenda
-                        for (SimpleResearchKey sibling : addendum.getSiblings()) {
-                            completeResearch(player, sibling, sync);
-                        }
-                    }
-                }
             }
 
             // Give the player experience for advancing their research
@@ -436,8 +287,8 @@ public class ResearchManager {
                     for (ResearchAddendum addendum : searchEntry.getAddenda()) {
                         if (addendum.getRequiredResearch() != null && addendum.getRequiredResearch().contains(key) && addendum.getRequiredResearch().isKnownByStrict(player)) {
                             // Announce completion of the addendum
-                            Component nameComp = new TranslatableComponent(searchEntry.getNameTranslationKey());
-                            player.sendMessage(new TranslatableComponent("event.primalmagick.add_addendum", nameComp), Util.NIL_UUID);
+                            ITextComponent nameComp = new TranslationTextComponent(searchEntry.getNameTranslationKey());
+                            player.sendMessage(new TranslationTextComponent("event.primalmagick.add_addendum", nameComp), Util.DUMMY_UUID);
                             knowledge.addResearchFlag(searchEntry.getKey(), IPlayerKnowledge.ResearchFlag.UPDATED);
                             
                             // Process attunement grants
@@ -447,19 +298,6 @@ public class ResearchManager {
                                 if (amount > 0) {
                                     AttunementManager.incrementAttunement(player, source, AttunementType.PERMANENT, amount);
                                 }
-                            }
-                            
-                            // Add any unlocked recipes to the player's arcane recipe book
-                            if (player instanceof ServerPlayer serverPlayer) {
-                                RecipeManager recipeManager = serverPlayer.level.getRecipeManager();
-                                Set<Recipe<?>> recipesToUnlock = addendum.getRecipes().stream().map(r -> recipeManager.byKey(r).orElse(null)).filter(Objects::nonNull).collect(Collectors.toSet());
-                                ArcaneRecipeBookManager.addRecipes(recipesToUnlock, serverPlayer);
-                                serverPlayer.awardRecipes(recipesToUnlock);
-                            }
-                            
-                            // Grant any unlocked sibling research
-                            for (SimpleResearchKey sibling : addendum.getSiblings()) {
-                                completeResearch(player, sibling, sync);
                             }
                         }
                     }
@@ -475,13 +313,13 @@ public class ResearchManager {
         return true;
     }
     
-    public static boolean addKnowledge(Player player, IPlayerKnowledge.KnowledgeType type, int points) {
+    public static boolean addKnowledge(PlayerEntity player, IPlayerKnowledge.KnowledgeType type, int points) {
         return addKnowledge(player, type, points, true);
     }
     
-    public static boolean addKnowledge(Player player, IPlayerKnowledge.KnowledgeType type, int points, boolean scheduleSync) {
+    public static boolean addKnowledge(PlayerEntity player, IPlayerKnowledge.KnowledgeType type, int points, boolean scheduleSync) {
         // Add the given number of knowledge points to the player and sync to their client
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         }
@@ -515,45 +353,28 @@ public class ResearchManager {
         return SCAN_TRIGGERS.add(trigger);
     }
     
-    public static void checkScanTriggers(ServerPlayer player, ItemLike itemProvider) {
+    public static void checkScanTriggers(ServerPlayerEntity player, IItemProvider itemProvider) {
         checkScanTriggersInner(player, itemProvider);
     }
     
-    public static void checkScanTriggers(ServerPlayer player, EntityType<?> entityType) {
+    public static void checkScanTriggers(ServerPlayerEntity player, EntityType<?> entityType) {
         checkScanTriggersInner(player, entityType);
     }
     
-    private static void checkScanTriggersInner(ServerPlayer player, Object obj) {
+    private static void checkScanTriggersInner(ServerPlayerEntity player, Object obj) {
         for (IScanTrigger trigger : SCAN_TRIGGERS) {
             if (trigger.matches(player, obj)) {
                 trigger.onMatch(player, obj);
             }
         }
     }
-    
-    public static boolean hasScanTriggers(ServerPlayer player, ItemLike itemProvider) {
-        return hasScanTriggersInner(player, itemProvider);
-    }
-    
-    public static boolean hasScanTriggers(ServerPlayer player, EntityType<?> entityType) {
-        return hasScanTriggersInner(player, entityType);
-    }
-    
-    private static boolean hasScanTriggersInner(ServerPlayer player, Object obj) {
-        for (IScanTrigger trigger : SCAN_TRIGGERS) {
-            if (trigger.matches(player, obj)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
-    public static boolean isScanned(@Nullable ItemStack stack, @Nullable Player player) {
+    public static boolean isScanned(@Nullable ItemStack stack, @Nullable PlayerEntity player) {
         if (stack == null || stack.isEmpty() || player == null) {
             return false;
         }
-        SourceList affinities = AffinityManager.getInstance().getAffinityValues(stack, player.level);
-        if ((affinities == null || affinities.isEmpty()) && (!(player instanceof ServerPlayer) || !hasScanTriggers((ServerPlayer)player, stack.getItem()))) {
+        SourceList affinities = AffinityManager.getInstance().getAffinityValues(stack, player.world);
+        if (affinities == null || affinities.isEmpty()) {
             // If the given itemstack has no affinities, consider it already scanned
             return true;
         }
@@ -561,7 +382,7 @@ public class ResearchManager {
         return (key != null && key.isKnownByStrict(player));
     }
     
-    public static boolean isScanned(@Nullable EntityType<?> type, @Nullable Player player) {
+    public static boolean isScanned(@Nullable EntityType<?> type, @Nullable PlayerEntity player) {
         if (type == null || player == null) {
             return false;
         }
@@ -570,34 +391,34 @@ public class ResearchManager {
         return (key != null && key.isKnownByStrict(player));
     }
 
-    public static boolean setScanned(@Nullable ItemStack stack, @Nullable ServerPlayer player) {
+    public static boolean setScanned(@Nullable ItemStack stack, @Nullable ServerPlayerEntity player) {
         // Scan the given itemstack and sync the data to the player's client
         return setScanned(stack, player, true);
     }
 
-    public static boolean setScanned(@Nullable ItemStack stack, @Nullable ServerPlayer player, boolean sync) {
+    public static boolean setScanned(@Nullable ItemStack stack, @Nullable ServerPlayerEntity player, boolean sync) {
         if (stack == null || stack.isEmpty() || player == null) {
             return false;
         }
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         }
-        
-        // Check to see if any scan triggers need to be run for the item
-        checkScanTriggers(player, stack.getItem());
         
         // Generate a research key for the itemstack and add that research to the player
         SimpleResearchKey key = SimpleResearchKey.parseItemScan(stack);
         if (key != null && knowledge.addResearch(key)) {
             // Determine how many observation points the itemstack is worth and add those to the player's knowledge
-            int obsPoints = getObservationPoints(stack, player.getCommandSenderWorld());
+            int obsPoints = getObservationPoints(stack, player.getEntityWorld());
             if (obsPoints > 0) {
                 addKnowledge(player, IPlayerKnowledge.KnowledgeType.OBSERVATION, obsPoints, false);
             }
             
             // Increment the items analyzed stat
             StatsManager.incrementValue(player, StatsPM.ITEMS_ANALYZED);
+            
+            // Check to see if any scan triggers need to be run for the item
+            checkScanTriggers(player, stack.getItem());
             
             // Sync the research/knowledge changes to the player's client if requested
             if (sync) {
@@ -609,15 +430,15 @@ public class ResearchManager {
         }
     }
     
-    public static boolean setScanned(@Nullable EntityType<?> type, @Nullable ServerPlayer player) {
+    public static boolean setScanned(@Nullable EntityType<?> type, @Nullable ServerPlayerEntity player) {
         return setScanned(type, player, true);
     }
     
-    public static boolean setScanned(@Nullable EntityType<?> type, @Nullable ServerPlayer player, boolean sync) {
+    public static boolean setScanned(@Nullable EntityType<?> type, @Nullable ServerPlayerEntity player, boolean sync) {
         if (type == null || player == null) {
             return false;
         }
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         }
@@ -647,11 +468,11 @@ public class ResearchManager {
         }
     }
 
-    public static int setAllScanned(@Nullable ServerPlayer player) {
+    public static int setAllScanned(@Nullable ServerPlayerEntity player) {
         if (player == null) {
             return 0;
         }
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return 0;
         }
@@ -668,7 +489,7 @@ public class ResearchManager {
                 count++;
     
                 // Determine how many observation points the itemstack is worth and add those to the player's knowledge
-                int obsPoints = getObservationPoints(stack, player.getCommandSenderWorld());
+                int obsPoints = getObservationPoints(stack, player.getEntityWorld());
                 if (obsPoints > 0) {
                     addKnowledge(player, IPlayerKnowledge.KnowledgeType.OBSERVATION, obsPoints, false);
                 }
@@ -687,7 +508,7 @@ public class ResearchManager {
         return count;
     }
 
-    private static int getObservationPoints(@Nonnull ItemStack stack, @Nonnull Level world) {
+    private static int getObservationPoints(@Nonnull ItemStack stack, @Nonnull World world) {
         // Calculate observation points for the itemstack based on its affinities
         return getObservationPoints(AffinityManager.getInstance().getAffinityValues(stack, world));
     }
@@ -698,7 +519,7 @@ public class ResearchManager {
         return getObservationPoints(affinities);
     }
     
-    private static int getObservationPoints(@Nullable SourceList affinities) {
+    private static int getObservationPoints(@Nonnull SourceList affinities) {
         if (affinities == null || affinities.isEmpty()) {
             return 0;
         }
@@ -712,6 +533,6 @@ public class ResearchManager {
         }
         
         // Round up to ensure that any item with affinities generates at least one observation point
-        return Mth.ceil(total);
+        return MathHelper.ceil(total);
     }
 }

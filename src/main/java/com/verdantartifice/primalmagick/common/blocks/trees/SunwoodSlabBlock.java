@@ -2,8 +2,8 @@ package com.verdantartifice.primalmagick.common.blocks.trees;
 
 import com.verdantartifice.primalmagick.common.blockstates.properties.TimePhase;
 
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.block.Block;
+import net.minecraft.world.IWorld;
 
 /**
  * Block definition for sunwood slabs.  They are decorative blocks that fade out of existence and become indestructable at night.
@@ -16,7 +16,7 @@ public class SunwoodSlabBlock extends AbstractPhasingSlabBlock {
     }
 
     @Override
-    protected TimePhase getCurrentPhase(LevelAccessor world) {
+    protected TimePhase getCurrentPhase(IWorld world) {
         return TimePhase.getSunPhase(world);
     }
 }

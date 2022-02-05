@@ -4,7 +4,7 @@ import java.util.Random;
 import java.util.function.Supplier;
 
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.containers.ResearchTableContainer;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
@@ -16,10 +16,10 @@ import com.verdantartifice.primalmagick.common.stats.StatsPM;
 import com.verdantartifice.primalmagick.common.theorycrafting.Project;
 import com.verdantartifice.primalmagick.common.theorycrafting.TheorycraftManager;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.SoundEvents;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent to complete a research project on the server in the research table GUI.
@@ -37,11 +37,11 @@ public class CompleteProjectPacket implements IMessageToServer {
         this.windowId = windowId;
     }
     
-    public static void encode(CompleteProjectPacket message, FriendlyByteBuf buf) {
+    public static void encode(CompleteProjectPacket message, PacketBuffer buf) {
         buf.writeInt(message.windowId);
     }
     
-    public static CompleteProjectPacket decode(FriendlyByteBuf buf) {
+    public static CompleteProjectPacket decode(PacketBuffer buf) {
         CompleteProjectPacket message = new CompleteProjectPacket();
         message.windowId = buf.readInt();
         return message;
@@ -51,31 +51,34 @@ public class CompleteProjectPacket implements IMessageToServer {
         public static void onMessage(CompleteProjectPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                PrimalMagickCapabilities.getKnowledge(player).ifPresent(knowledge -> {
-                    // Consume paper and ink
-                    if (player.containerMenu != null && player.containerMenu.containerId == message.windowId && player.containerMenu instanceof ResearchTableContainer researchMenu) {
-                        researchMenu.consumeWritingImplements();
-                        researchMenu.getWorldPosCallable().execute((world, blockPos) -> {
-                            // Determine if current project is a success
-                            Project project = knowledge.getActiveResearchProject();
-                            Random rand = player.getRandom();
-                            if (project != null && project.isSatisfied(player, TheorycraftManager.getSurroundings(world, blockPos)) && project.consumeSelectedMaterials(player)) {
-                                if (rand.nextDouble() < project.getSuccessChance()) {
-                                    ResearchManager.addKnowledge(player, IPlayerKnowledge.KnowledgeType.THEORY, project.getTheoryPointReward());
-                                    StatsManager.incrementValue(player, StatsPM.RESEARCH_PROJECTS_COMPLETED);
-                                    PacketHandler.sendToPlayer(new PlayClientSoundPacket(SoundsPM.WRITING.get(), 1.0F, 1.0F + (float)rand.nextGaussian() * 0.05F), player);
-                                } else {
-                                    PacketHandler.sendToPlayer(new PlayClientSoundPacket(SoundEvents.GLASS_BREAK, 1.0F, 1.0F + (float)rand.nextGaussian() * 0.05F), player);
-                                }
-                            }
-                        
-                            // Set new project
-                            knowledge.setActiveResearchProject(TheorycraftManager.createRandomProject(player, blockPos));
-                        });
-                        knowledge.sync(player);
+                ServerPlayerEntity player = ctx.get().getSender();
+                IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
+                
+                // Consume paper and ink
+                if (player.openContainer != null && player.openContainer.windowId == message.windowId && player.openContainer instanceof ResearchTableContainer) {
+                    ((ResearchTableContainer)player.openContainer).consumeWritingImplements();
+                }
+
+                // Determine if current project is a success
+                Project project = knowledge.getActiveResearchProject();
+                Random rand = player.getRNG();
+                if (project != null && project.isSatisfied(player) && project.consumeSelectedMaterials(player)) {
+                    if (rand.nextDouble() < project.getSuccessChance()) {
+                        ResearchManager.addKnowledge(player, IPlayerKnowledge.KnowledgeType.THEORY, project.getTheoryPointReward());
+                        StatsManager.incrementValue(player, StatsPM.RESEARCH_PROJECTS_COMPLETED);
+                        PacketHandler.sendToPlayer(new PlayClientSoundPacket(SoundsPM.WRITING.get(), 1.0F, 1.0F + (float)rand.nextGaussian() * 0.05F), player);
+                    } else {
+                        PacketHandler.sendToPlayer(new PlayClientSoundPacket(SoundEvents.BLOCK_GLASS_BREAK, 1.0F, 1.0F + (float)rand.nextGaussian() * 0.05F), player);
                     }
-                });
+                }
+                
+                // Set new project
+                if (player.openContainer != null && player.openContainer.windowId == message.windowId && player.openContainer instanceof ResearchTableContainer) {
+                    ((ResearchTableContainer)player.openContainer).getWorldPosCallable().consume((world, blockPos) -> {
+                        knowledge.setActiveResearchProject(TheorycraftManager.createRandomProject(player, blockPos));
+                    });
+                    knowledge.sync(player);
+                }
             });
             
             // Mark the packet as handled so we don't get warning log spam

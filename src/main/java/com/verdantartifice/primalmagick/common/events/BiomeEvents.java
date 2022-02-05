@@ -3,17 +3,16 @@ package com.verdantartifice.primalmagick.common.events;
 import javax.annotation.Nonnull;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
-import com.verdantartifice.primalmagick.common.config.Config;
 import com.verdantartifice.primalmagick.common.entities.EntityTypesPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.OrePlacementsPM;
-import com.verdantartifice.primalmagick.common.worldgen.features.VegetationPlacementsPM;
+import com.verdantartifice.primalmagick.common.worldgen.features.ConfiguredFeaturesPM;
+import com.verdantartifice.primalmagick.common.worldgen.features.FeaturesPM;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.biome.Biomes;
-import net.minecraft.world.level.biome.MobSpawnSettings;
-import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.entity.EntityClassification;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.Biomes;
+import net.minecraft.world.biome.MobSpawnInfo;
+import net.minecraft.world.gen.GenerationStage;
 import net.minecraftforge.event.world.BiomeLoadingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -24,42 +23,55 @@ import net.minecraftforge.fml.common.Mod;
  * 
  * @author Daedalus4096
  */
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID)
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID)
 public class BiomeEvents {
-    @SubscribeEvent(priority=EventPriority.HIGH)
-    public static void loadBiome(BiomeLoadingEvent event) {
-        Biome.BiomeCategory cat = event.getCategory();
-        
+	@SubscribeEvent(priority=EventPriority.HIGH)
+	public static void loadBiome(BiomeLoadingEvent event) {
+		Biome.Category cat = event.getCategory();
+		
         // Add raw marble, rock salt, and quartz seams to all non-Nether, non-End biomes
-        if (isOverworldBiome(event.getName(), cat)) {
-            if (Config.GENERATE_MARBLE.get()) {
-                event.getGeneration().addFeature(GenerationStep.Decoration.UNDERGROUND_ORES, OrePlacementsPM.ORE_MARBLE_RAW_UPPER);
-                event.getGeneration().addFeature(GenerationStep.Decoration.UNDERGROUND_ORES, OrePlacementsPM.ORE_MARBLE_RAW_LOWER);
-            }
-            if (Config.GENERATE_ROCK_SALT.get()) {
-                event.getGeneration().addFeature(GenerationStep.Decoration.UNDERGROUND_ORES, OrePlacementsPM.ORE_ROCK_SALT_UPPER);
-                event.getGeneration().addFeature(GenerationStep.Decoration.UNDERGROUND_ORES, OrePlacementsPM.ORE_ROCK_SALT_LOWER);
-            }
-            if (Config.GENERATE_QUARTZ.get()) {
-                event.getGeneration().addFeature(GenerationStep.Decoration.UNDERGROUND_ORES, OrePlacementsPM.ORE_QUARTZ);
-            }
-        }
-        
-        // Add treefolk spawns and sunwood/moonwood trees to forests
-        if (Biome.BiomeCategory.FOREST.equals(cat)) {
-            event.getSpawns().getSpawner(MobCategory.CREATURE).add(new MobSpawnSettings.SpawnerData(EntityTypesPM.TREEFOLK.get(), 100, 1, 3));
-            // TODO Phase sunwood and moonwood trees appropriately
-            event.getGeneration().addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, VegetationPlacementsPM.TREES_WILD_SUNWOOD);
-            event.getGeneration().addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, VegetationPlacementsPM.TREES_WILD_MOONWOOD);
-        }
-    }
+		if (isOverworldBiome(event.getName(), cat)) {
+			event.getGeneration().withFeature(GenerationStage.Decoration.UNDERGROUND_ORES, FeaturesPM.ORE_MARBLE_RAW);
+			event.getGeneration().withFeature(GenerationStage.Decoration.UNDERGROUND_ORES, FeaturesPM.ORE_ROCK_SALT);
+			event.getGeneration().withFeature(GenerationStage.Decoration.UNDERGROUND_ORES, FeaturesPM.ORE_QUARTZ);
+		}
+		
+		// Add earth shrines to flatlands
+		if (Biome.Category.PLAINS.equals(cat) || Biome.Category.SAVANNA.equals(cat)) {
+			event.getGeneration().getStructures().add(() -> ConfiguredFeaturesPM.CONFIGURED_EARTH_SHRINE);
+		}
+		
+		// Add sea shrines to wet biomes
+		if (Biome.Category.RIVER.equals(cat) || Biome.Category.BEACH.equals(cat) || Biome.Category.SWAMP.equals(cat)) {
+			event.getGeneration().getStructures().add(() -> ConfiguredFeaturesPM.CONFIGURED_SEA_SHRINE);
+		}
+		
+		// Add sky shrines to mountains
+		if (Biome.Category.EXTREME_HILLS.equals(cat)) {
+			event.getGeneration().getStructures().add(() -> ConfiguredFeaturesPM.CONFIGURED_SKY_SHRINE);
+		}
+		
+		// Add sun shrines to deserts
+		if (Biome.Category.DESERT.equals(cat)) {
+			event.getGeneration().getStructures().add(() -> ConfiguredFeaturesPM.CONFIGURED_SUN_SHRINE);
+		}
+		
+		// Add moon shrines to forests
+		if (Biome.Category.FOREST.equals(cat)) {
+		    event.getSpawns().getSpawner(EntityClassification.CREATURE).add(new MobSpawnInfo.Spawners(EntityTypesPM.TREEFOLK.get(), 100, 1, 3));
+			// TODO Phase sunwood and moonwood trees appropriately
+		    event.getGeneration().withFeature(GenerationStage.Decoration.VEGETAL_DECORATION, FeaturesPM.TREE_SUNWOOD_FULL_SPACED);
+		    event.getGeneration().withFeature(GenerationStage.Decoration.VEGETAL_DECORATION, FeaturesPM.TREE_MOONWOOD_FULL_SPACED);
+			event.getGeneration().getStructures().add(() -> ConfiguredFeaturesPM.CONFIGURED_MOON_SHRINE);
+		}
+	}
 
-    private static boolean isOverworldBiome(@Nonnull ResourceLocation biomeName, @Nonnull Biome.BiomeCategory biomeCategory) {
-        if (biomeName.equals(Biomes.STONY_SHORE.getRegistryName())) {
-            // Stony Shore has a category of None, but it still exists in the Overworld
+    private static boolean isOverworldBiome(@Nonnull ResourceLocation biomeName, @Nonnull Biome.Category biomeCategory) {
+        if (biomeName.equals(Biomes.STONE_SHORE.getRegistryName())) {
+            // Stone Shore has a category of None, but it still exists in the Overworld
             return true;
         } else {
-            return !Biome.BiomeCategory.NONE.equals(biomeCategory) && !Biome.BiomeCategory.NETHER.equals(biomeCategory) && !Biome.BiomeCategory.THEEND.equals(biomeCategory);
+            return !Biome.Category.NONE.equals(biomeCategory) && !Biome.Category.NETHER.equals(biomeCategory) && !Biome.Category.THEEND.equals(biomeCategory);
         }
     }
 }

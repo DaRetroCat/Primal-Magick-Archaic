@@ -2,10 +2,6 @@
   "key": "PIXIES",
   "name": "primalmagick.research.pixies.title",
   "discipline": "RITUAL",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:pixie_basic_earth"
-  },
   "parents": [
     "EXPERT_RITUAL",
     "MANA_SALTS",

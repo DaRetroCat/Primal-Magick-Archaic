@@ -8,11 +8,11 @@ import javax.annotation.Nullable;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.world.World;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -23,7 +23,7 @@ import net.minecraftforge.common.util.INBTSerializable;
  * 
  * @author Daedalus4096
  */
-public interface ISpellVehicle extends INBTSerializable<CompoundTag> {
+public interface ISpellVehicle extends INBTSerializable<CompoundNBT> {
     /**
      * Execute this spell vehicle to determine the target of the spell, then execute the spell package's
      * payload if one is found.
@@ -33,7 +33,7 @@ public interface ISpellVehicle extends INBTSerializable<CompoundTag> {
      * @param caster the entity that originally casted the spell
      * @param spellSource the wand or scroll that originally contained the spell
      */
-    public void execute(@Nonnull SpellPackage spell, @Nonnull Level world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource);
+    public void execute(@Nonnull SpellPackage spell, @Nonnull World world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource);
 
     /**
      * Determine whether this vehicle has an effect that should be executed.  Should be true for all but
@@ -49,16 +49,7 @@ public interface ISpellVehicle extends INBTSerializable<CompoundTag> {
      * @return the spell vehicle type name
      */
     @Nonnull
-    public Component getTypeName();
-    
-    /**
-     * Get a display text component to show in the details tooltip of the spell.
-     * 
-     * @return the spell vehicle details
-     */
-    public default Component getDetailTooltip() {
-        return this.getTypeName();
-    }
+    public ITextComponent getTypeName();
     
     /**
      * Get a display text component containing the human-friendly text to be used to identify the
@@ -67,7 +58,7 @@ public interface ISpellVehicle extends INBTSerializable<CompoundTag> {
      * @return the spell vehicle's default name
      */
     @Nonnull
-    public Component getDefaultNamePiece();
+    public ITextComponent getDefaultNamePiece();
     
     /**
      * Get the additive modifier to be applied to the spell vehicle's package's base cost.
@@ -75,13 +66,6 @@ public interface ISpellVehicle extends INBTSerializable<CompoundTag> {
      * @return the additive modifier for the spell package's cost
      */
     public int getBaseManaCostModifier();
-    
-    /**
-     * Get the multiplicative modifier to be applied to the spell mod's package's total cost.
-     * 
-     * @return the multiplicative modifier for the spell package's cost
-     */
-    public int getManaCostMultiplier();
     
     /**
      * Get a name-ordered list of properties used by this spell vehicle.
@@ -106,11 +90,4 @@ public interface ISpellVehicle extends INBTSerializable<CompoundTag> {
      * @return the named property's value, or zero if no such property is attached to this spell vehicle
      */
     public int getPropertyValue(String name);
-    
-    /**
-     * Determine whether the spell vehicle deals its effect indirectly (i.e. via a projectile).
-     * 
-     * @return whether the spell vehicle deals its effect indirectly
-     */
-    public boolean isIndirect();
 }

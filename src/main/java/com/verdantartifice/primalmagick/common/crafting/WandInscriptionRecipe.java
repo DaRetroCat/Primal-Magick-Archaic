@@ -3,73 +3,65 @@ package com.verdantartifice.primalmagick.common.crafting;
 import com.verdantartifice.primalmagick.common.items.wands.SpellScrollItem;
 import com.verdantartifice.primalmagick.common.wands.IWand;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CustomRecipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeSerializer;
+import net.minecraft.item.crafting.SpecialRecipe;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 
 /**
  * Special definition for a wand inscription recipe.
  * 
  * @author Daedalus4096
  */
-public class WandInscriptionRecipe extends CustomRecipe {
+public class WandInscriptionRecipe extends SpecialRecipe {
     public WandInscriptionRecipe(ResourceLocation idIn) {
         super(idIn);
     }
 
     @Override
-    public boolean matches(CraftingContainer inv, Level worldIn) {
-        ItemStack wandStack = inv.getItem(0);
-        ItemStack scrollStack = inv.getItem(1);
+    public boolean matches(CraftingInventory inv, World worldIn) {
+        ItemStack wandStack = inv.getStackInSlot(0);
+        ItemStack scrollStack = inv.getStackInSlot(1);
         
-        // Make sure a wand is present
-        if (!wandStack.isEmpty() && wandStack.getItem() instanceof IWand wand) {
-            if (!scrollStack.isEmpty() && scrollStack.getItem() instanceof SpellScrollItem scroll) {
-                // If a filled spell scroll is also present, check that the scroll's spell will fit into the wand
-                return wand.canAddSpell(wandStack, scroll.getSpell(scrollStack));
-            } else {
-                // If no item is present in the scroll slot, clear the wand; if it's something other than a filled spell scroll, don't allow combination
-                return scrollStack.isEmpty();
-            }
+        if (!wandStack.isEmpty() && !scrollStack.isEmpty() && wandStack.getItem() instanceof IWand && scrollStack.getItem() instanceof SpellScrollItem) {
+            // Make sure a wand and a filled spell scroll are present, and that the scroll's spell will fit into the wand
+            IWand wand = (IWand)wandStack.getItem();
+            SpellScrollItem scroll = (SpellScrollItem)scrollStack.getItem();
+            return wand.canAddSpell(wandStack, scroll.getSpell(scrollStack));
         } else {
             return false;
         }
     }
 
     @Override
-    public ItemStack assemble(CraftingContainer inv) {
-        ItemStack wandStack = inv.getItem(0);
-        ItemStack scrollStack = inv.getItem(1);
+    public ItemStack getCraftingResult(CraftingInventory inv) {
+        ItemStack wandStack = inv.getStackInSlot(0);
+        ItemStack scrollStack = inv.getStackInSlot(1);
         
-        if (!wandStack.isEmpty() && wandStack.getItem() instanceof IWand wand) {
-            if (!scrollStack.isEmpty() && scrollStack.getItem() instanceof SpellScrollItem scroll) {
-                // If a filled spell scroll is also present, create a copy of the given wand and add the scroll's spell to it
-                ItemStack retVal = wandStack.copy();
-                if (wand.addSpell(retVal, scroll.getSpell(scrollStack))) {
-                    return retVal;
-                } else {
-                    return ItemStack.EMPTY;
-                }
-            } else if (scrollStack.isEmpty()) {
-                // If no item is present in the scroll slot, clear the wand of spells
-                ItemStack retVal = wandStack.copy();
-                wand.clearSpells(retVal);
+        if (!wandStack.isEmpty() && !scrollStack.isEmpty() && wandStack.getItem() instanceof IWand && scrollStack.getItem() instanceof SpellScrollItem) {
+            // Create a copy of the given wand and add the scroll's spell to it
+            IWand wand = (IWand)wandStack.getItem();
+            SpellScrollItem scroll = (SpellScrollItem)scrollStack.getItem();
+            ItemStack retVal = wandStack.copy();
+            if (wand.addSpell(retVal, scroll.getSpell(scrollStack))) {
                 return retVal;
+            } else {
+                return ItemStack.EMPTY;
             }
+        } else {
+            return ItemStack.EMPTY;
         }
-        return ItemStack.EMPTY;
     }
 
     @Override
-    public boolean canCraftInDimensions(int width, int height) {
+    public boolean canFit(int width, int height) {
         return (width * height) >= 2;
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public IRecipeSerializer<?> getSerializer() {
         return RecipeSerializersPM.WAND_INSCRIPTION_SPECIAL.get();
     }
 }

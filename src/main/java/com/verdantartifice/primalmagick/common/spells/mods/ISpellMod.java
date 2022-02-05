@@ -5,12 +5,10 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -22,7 +20,7 @@ import net.minecraftforge.common.util.INBTSerializable;
  * 
  * @author Daedalus4096
  */
-public interface ISpellMod extends INBTSerializable<CompoundTag> {
+public interface ISpellMod extends INBTSerializable<CompoundNBT> {
     /**
      * Determine whether the spell mod has an effect that should be executed.  Should be true for all but
      * placeholder spell mods.
@@ -62,16 +60,7 @@ public interface ISpellMod extends INBTSerializable<CompoundTag> {
      * @return the spell mod type name
      */
     @Nonnull
-    public Component getTypeName();
-    
-    /**
-     * Get a display text component to show in the details tooltip of the spell.
-     * 
-     * @return the spell mod details
-     */
-    public default Component getDetailTooltip(SpellPackage spell, @Nullable ItemStack spellSource) {
-        return this.getTypeName();
-    }
+    public ITextComponent getTypeName();
     
     /**
      * Get a display text component containing the human-friendly text to be used to identify the
@@ -80,7 +69,7 @@ public interface ISpellMod extends INBTSerializable<CompoundTag> {
      * @return the spell mod's default name
      */
     @Nonnull
-    public Component getDefaultNamePiece();
+    public ITextComponent getDefaultNamePiece();
     
     /**
      * Get the additive modifier to be applied to the spell mod's package's base cost.

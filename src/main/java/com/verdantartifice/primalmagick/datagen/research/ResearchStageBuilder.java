@@ -15,11 +15,9 @@ import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.ItemUtils;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.Tag;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IItemProvider;
+import net.minecraft.util.ResourceLocation;
 
 public class ResearchStageBuilder {
     protected final String modId;
@@ -28,7 +26,6 @@ public class ResearchStageBuilder {
     protected final List<String> requiredKnowledge = new ArrayList<>();
     protected final List<SimpleResearchKey> requiredResearch = new ArrayList<>();
     protected final List<ResourceLocation> recipes = new ArrayList<>();
-    protected final List<SimpleResearchKey> siblings = new ArrayList<>();
     protected SourceList attunements;
     
     protected ResearchStageBuilder(@Nonnull String modId) {
@@ -43,11 +40,11 @@ public class ResearchStageBuilder {
         return new ResearchStageBuilder(PrimalMagick.MODID);
     }
     
-    public ResearchStageBuilder requiredItemStack(@Nonnull ItemLike item) {
+    public ResearchStageBuilder requiredItemStack(@Nonnull IItemProvider item) {
         return requiredItemStack(item, 1);
     }
     
-    public ResearchStageBuilder requiredItemStack(@Nonnull ItemLike item, int count) {
+    public ResearchStageBuilder requiredItemStack(@Nonnull IItemProvider item, int count) {
         return requiredItemStack(new ItemStack(item, count));
     }
     
@@ -56,16 +53,20 @@ public class ResearchStageBuilder {
         return this;
     }
     
-    public ResearchStageBuilder requiredItemTag(@Nonnull Tag.Named<Item> tag) {
-        this.requiredItems.add("tag:" + tag.getName().toString());
+    public ResearchStageBuilder requiredItemTag(@Nonnull String namespace, @Nonnull String path) {
+        return requiredItemTag(new ResourceLocation(namespace, path));
+    }
+    
+    public ResearchStageBuilder requiredItemTag(@Nonnull ResourceLocation tagLoc) {
+        this.requiredItems.add("tag:" + tagLoc.toString());
         return this;
     }
     
-    public ResearchStageBuilder requiredCraftStack(@Nonnull ItemLike item) {
+    public ResearchStageBuilder requiredCraftStack(@Nonnull IItemProvider item) {
         return requiredCraftStack(item, 1);
     }
     
-    public ResearchStageBuilder requiredCraftStack(@Nonnull ItemLike item, int count) {
+    public ResearchStageBuilder requiredCraftStack(@Nonnull IItemProvider item, int count) {
         return requiredCraftStack(new ItemStack(item, count));
     }
     
@@ -114,21 +115,12 @@ public class ResearchStageBuilder {
         return recipe(new ResourceLocation(modId, name));
     }
     
-    public ResearchStageBuilder recipe(@Nonnull ItemLike item) {
+    public ResearchStageBuilder recipe(@Nonnull IItemProvider item) {
         return recipe(item.asItem().getRegistryName());
     }
     
     public ResearchStageBuilder recipe(@Nonnull ResourceLocation loc) {
         this.recipes.add(loc);
-        return this;
-    }
-    
-    public ResearchStageBuilder sibling(@Nonnull String keyStr) {
-        return sibling(SimpleResearchKey.parse(keyStr));
-    }
-    
-    public ResearchStageBuilder sibling(@Nonnull SimpleResearchKey key) {
-        this.siblings.add(key);
         return this;
     }
     
@@ -140,7 +132,7 @@ public class ResearchStageBuilder {
     
     public IFinishedResearchStage build() {
         this.validate();
-        return new ResearchStageBuilder.Result(this.modId, this.requiredItems, this.requiredCrafts, this.requiredKnowledge, this.requiredResearch, this.recipes, this.siblings, this.attunements);
+        return new ResearchStageBuilder.Result(this.modId, this.requiredItems, this.requiredCrafts, this.requiredKnowledge, this.requiredResearch, this.recipes, this.attunements);
     }
     
     public static class Result implements IFinishedResearchStage {
@@ -150,19 +142,17 @@ public class ResearchStageBuilder {
         protected final List<String> requiredKnowledge;
         protected final List<SimpleResearchKey> requiredResearch;
         protected final List<ResourceLocation> recipes;
-        protected final List<SimpleResearchKey> siblings;
         protected final SourceList attunements;
         protected String entryKey;
         protected int stageIndex;
         
-        public Result(@Nonnull String modId, @Nonnull List<String> requiredItems, @Nonnull List<String> requiredCrafts, @Nonnull List<String> requiredKnowledge, @Nonnull List<SimpleResearchKey> requiredResearch, @Nonnull List<ResourceLocation> recipes, @Nonnull List<SimpleResearchKey> siblings, @Nullable SourceList attunements) {
+        public Result(@Nonnull String modId, @Nonnull List<String> requiredItems, @Nonnull List<String> requiredCrafts, @Nonnull List<String> requiredKnowledge, @Nonnull List<SimpleResearchKey> requiredResearch, @Nonnull List<ResourceLocation> recipes, @Nullable SourceList attunements) {
             this.modId = modId;
             this.requiredItems = requiredItems;
             this.requiredCrafts = requiredCrafts;
             this.requiredKnowledge = requiredKnowledge;
             this.requiredResearch = requiredResearch;
             this.recipes = recipes;
-            this.siblings = siblings;
             this.attunements = attunements;
         }
 
@@ -228,14 +218,6 @@ public class ResearchStageBuilder {
                     recipeArray.add(recipe.toString());
                 }
                 json.add("recipes", recipeArray);
-            }
-            
-            if (!this.siblings.isEmpty()) {
-                JsonArray siblingArray = new JsonArray();
-                for (SimpleResearchKey key : this.siblings) {
-                    siblingArray.add(key.toString());
-                }
-                json.add("siblings", siblingArray);
             }
         }
     }

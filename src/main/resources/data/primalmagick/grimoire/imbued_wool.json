@@ -2,12 +2,8 @@
   "key": "IMBUED_WOOL",
   "name": "primalmagick.research.imbued_wool.title",
   "discipline": "MANAWEAVING",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:imbued_wool_head"
-  },
   "parents": [
-    "MANA_ARROWS"
+    "BASIC_MANAWEAVING"
   ],
   "stages": [
     {

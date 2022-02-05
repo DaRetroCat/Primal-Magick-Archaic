@@ -10,7 +10,6 @@ import java.util.Set;
  * @author Daedalus4096
  */
 public class WandTransforms {
-    public static final int CHANNEL_DURATION = 40;
     protected static final Set<IWandTransform> REGISTRY = new HashSet<>();
     
     public static Set<IWandTransform> getAll() {

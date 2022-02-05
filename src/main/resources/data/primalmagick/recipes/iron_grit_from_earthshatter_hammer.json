@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "primalmagick:earthshatter_hammer"
+    },
+    {
+      "tag": "forge:ores/iron"
+    }
+  ],
+  "result": {
+    "item": "primalmagick:iron_grit",
+    "count": 2
+  }
+}

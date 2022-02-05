@@ -9,9 +9,9 @@ import com.verdantartifice.primalmagick.common.containers.SpellcraftingAltarCont
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
 import com.verdantartifice.primalmagick.common.spells.SpellComponent;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.network.PacketBuffer;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent to update the value of a spell component's type on the server in the spellcrafting altar GUI.
@@ -37,16 +37,16 @@ public class SetSpellComponentTypeIndexPacket implements IMessageToServer {
         this.index = index;
     }
     
-    public static void encode(SetSpellComponentTypeIndexPacket message, FriendlyByteBuf buf) {
+    public static void encode(SetSpellComponentTypeIndexPacket message, PacketBuffer buf) {
         buf.writeInt(message.windowId);
-        buf.writeUtf(message.attr.name());
+        buf.writeString(message.attr.name());
         buf.writeInt(message.index);
     }
     
-    public static SetSpellComponentTypeIndexPacket decode(FriendlyByteBuf buf) {
+    public static SetSpellComponentTypeIndexPacket decode(PacketBuffer buf) {
         SetSpellComponentTypeIndexPacket message = new SetSpellComponentTypeIndexPacket();
         message.windowId = buf.readInt();
-        String attrStr = buf.readUtf();
+        String attrStr = buf.readString();
         try {
             message.attr = SpellComponent.valueOf(attrStr);
         } catch (Exception e) {
@@ -61,10 +61,10 @@ public class SetSpellComponentTypeIndexPacket implements IMessageToServer {
         public static void onMessage(SetSpellComponentTypeIndexPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player.containerMenu != null && player.containerMenu.containerId == message.windowId && player.containerMenu instanceof SpellcraftingAltarContainer) {
+                ServerPlayerEntity player = ctx.get().getSender();
+                if (player.openContainer != null && player.openContainer.windowId == message.windowId && player.openContainer instanceof SpellcraftingAltarContainer) {
                     // Update the appropriate spell component type if the open container window matches the given one
-                    SpellcraftingAltarContainer container = (SpellcraftingAltarContainer)player.containerMenu;
+                    SpellcraftingAltarContainer container = (SpellcraftingAltarContainer)player.openContainer;
                     switch (message.attr) {
                     case VEHICLE:
                         container.setSpellVehicleTypeIndex(message.index);

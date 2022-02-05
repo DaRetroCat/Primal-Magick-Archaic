@@ -1,14 +1,11 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.util.ResourceLocation;
 
 public abstract class AbstractAffinity implements IAffinity {
     protected ResourceLocation targetId;
@@ -24,12 +21,12 @@ public abstract class AbstractAffinity implements IAffinity {
     }
 
     @Override
-    public SourceList getTotal(@Nullable RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    public SourceList getTotal(@Nonnull RecipeManager recipeManager) {
         if (this.totalCache == null) {
-            this.totalCache = this.calculateTotal(recipeManager, history);
+            this.totalCache = this.calculateTotal(recipeManager);
         }
-        return this.totalCache == null ? null : this.totalCache.copy();
+        return this.totalCache.copy();
     }
     
-    protected abstract SourceList calculateTotal(@Nullable RecipeManager recipeManager, @Nonnull List<ResourceLocation> history);
+    protected abstract SourceList calculateTotal(@Nonnull RecipeManager recipeManager);
 }

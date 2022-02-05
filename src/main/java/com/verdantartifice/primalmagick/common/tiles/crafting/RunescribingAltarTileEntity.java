@@ -9,27 +9,25 @@ import com.verdantartifice.primalmagick.common.misc.DeviceTier;
 import com.verdantartifice.primalmagick.common.tiles.TileEntityTypesPM;
 import com.verdantartifice.primalmagick.common.tiles.base.TilePM;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.INamedContainerProvider;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
 
 /**
  * Definition of a runescribing altar tile entity.
  * 
  * @author Daedalus4096
  */
-public class RunescribingAltarTileEntity extends TilePM implements MenuProvider {
-    public RunescribingAltarTileEntity(BlockPos pos, BlockState state) {
-        super(TileEntityTypesPM.RUNESCRIBING_ALTAR.get(), pos, state);
+public class RunescribingAltarTileEntity extends TilePM implements INamedContainerProvider {
+    public RunescribingAltarTileEntity() {
+        super(TileEntityTypesPM.RUNESCRIBING_ALTAR.get());
     }
 
     @Override
-    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv, Player player) {
+    public Container createMenu(int windowId, PlayerInventory playerInv, PlayerEntity player) {
         if (this.getBlockState().getBlock() instanceof RunescribingAltarBlock) {
             DeviceTier tier = ((RunescribingAltarBlock)this.getBlockState().getBlock()).getDeviceTier();
             switch (tier) {
@@ -50,7 +48,7 @@ public class RunescribingAltarTileEntity extends TilePM implements MenuProvider 
     }
 
     @Override
-    public Component getDisplayName() {
-        return new TranslatableComponent(this.getBlockState().getBlock().getDescriptionId());
+    public ITextComponent getDisplayName() {
+        return new TranslationTextComponent(this.getBlockState().getBlock().getTranslationKey());
     }
 }

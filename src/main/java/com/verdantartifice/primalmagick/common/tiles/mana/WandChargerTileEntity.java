@@ -10,20 +10,18 @@ import com.verdantartifice.primalmagick.common.tiles.TileEntityTypesPM;
 import com.verdantartifice.primalmagick.common.tiles.base.TileInventoryPM;
 import com.verdantartifice.primalmagick.common.wands.IWand;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.INamedContainerProvider;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.tileentity.ITickableTileEntity;
+import net.minecraft.util.IIntArray;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
 
 /**
  * Definition of a wand charger tile entity.  Provides the recharge and wand interaction functionality
@@ -32,16 +30,12 @@ import net.minecraft.world.level.block.state.BlockState;
  * @author Daedalus4096
  * @see {@link com.verdantartifice.primalmagick.common.blocks.mana.WandChargerBlock}
  */
-public class WandChargerTileEntity extends TileInventoryPM implements MenuProvider {
-    protected static final int[] SLOTS_FOR_UP = new int[] { 0 };
-    protected static final int[] SLOTS_FOR_DOWN = new int[0];
-    protected static final int[] SLOTS_FOR_SIDES = new int[] { 1 };
-    
+public class WandChargerTileEntity extends TileInventoryPM implements ITickableTileEntity, INamedContainerProvider {
     protected int chargeTime;
     protected int chargeTimeTotal;
     
     // Define a container-trackable representation of this tile's relevant data
-    protected final ContainerData chargerData = new ContainerData() {
+    protected final IIntArray chargerData = new IIntArray() {
         @Override
         public int get(int index) {
             switch (index) {
@@ -67,13 +61,13 @@ public class WandChargerTileEntity extends TileInventoryPM implements MenuProvid
         }
 
         @Override
-        public int getCount() {
+        public int size() {
             return 2;
         }
     };
     
-    public WandChargerTileEntity(BlockPos pos, BlockState state) {
-        super(TileEntityTypesPM.WAND_CHARGER.get(), pos, state, 2);
+    public WandChargerTileEntity() {
+        super(TileEntityTypesPM.WAND_CHARGER.get(), 2);
     }
     
     @Override
@@ -83,57 +77,58 @@ public class WandChargerTileEntity extends TileInventoryPM implements MenuProvid
     }
     
     @Override
-    public void load(CompoundTag compound) {
-        super.load(compound);
+    public void read(BlockState state, CompoundNBT compound) {
+        super.read(state, compound);
         this.chargeTime = compound.getInt("ChargeTime");
         this.chargeTimeTotal = compound.getInt("ChargeTimeTotal");
     }
     
     @Override
-    protected void saveAdditional(CompoundTag compound) {
-        super.saveAdditional(compound);
+    public CompoundNBT write(CompoundNBT compound) {
         compound.putInt("ChargeTime", this.chargeTime);
         compound.putInt("ChargeTimeTotal", this.chargeTimeTotal);
+        return super.write(compound);
     }
 
     @Override
-    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv, Player player) {
+    public Container createMenu(int windowId, PlayerInventory playerInv, PlayerEntity player) {
         return new WandChargerContainer(windowId, playerInv, this, this.chargerData);
     }
 
     @Override
-    public Component getDisplayName() {
-        return new TranslatableComponent(this.getBlockState().getBlock().getDescriptionId());
+    public ITextComponent getDisplayName() {
+        return new TranslationTextComponent(this.getBlockState().getBlock().getTranslationKey());
     }
 
-    public static void tick(Level level, BlockPos pos, BlockState state, WandChargerTileEntity entity) {
+    @Override
+    public void tick() {
         boolean shouldMarkDirty = false;
-        
-        if (!level.isClientSide) {
-            ItemStack inputStack = entity.items.get(0);
-            ItemStack wandStack = entity.items.get(1);
+
+        if (!this.world.isRemote) {
+            ItemStack inputStack = this.items.get(0);
+            ItemStack wandStack = this.items.get(1);
             if (!inputStack.isEmpty() && !wandStack.isEmpty()) {
-                if (entity.canCharge()) {
+                if (this.canCharge()) {
                     // If there's an essence in the input slot and the slotted wand isn't full, do the charge
-                    entity.chargeTime++;
-                    if (entity.chargeTime >= entity.chargeTimeTotal) {
-                        entity.chargeTime = 0;
-                        entity.chargeTimeTotal = entity.getChargeTimeTotal();
-                        entity.doCharge();
+                    this.chargeTime++;
+                    if (this.chargeTime >= this.chargeTimeTotal) {
+                        this.chargeTime = 0;
+                        this.chargeTimeTotal = this.getChargeTimeTotal();
+                        this.doCharge();
                         shouldMarkDirty = true;
                     }
                 } else {
-                    entity.chargeTime = 0;
+                    this.chargeTime = 0;
                 }
-            } else if (entity.chargeTime > 0) {
+            } else if (this.chargeTime > 0) {
                 // Decay any charging progress if the charger isn't populated
-                entity.chargeTime = Mth.clamp(entity.chargeTime - 2, 0, entity.chargeTimeTotal);
+                this.chargeTime = MathHelper.clamp(this.chargeTime - 2, 0, this.chargeTimeTotal);
             }
         }
         
         if (shouldMarkDirty) {
-            entity.setChanged();
-            entity.syncTile(true);
+            this.markDirty();
+            this.syncTile(true);
         }
     }
     
@@ -182,44 +177,14 @@ public class WandChargerTileEntity extends TileInventoryPM implements MenuProvid
     }
 
     @Override
-    public void setItem(int index, ItemStack stack) {
+    public void setInventorySlotContents(int index, ItemStack stack) {
         ItemStack slotStack = this.items.get(index);
-        super.setItem(index, stack);
-        boolean flag = !stack.isEmpty() && stack.sameItem(slotStack) && ItemStack.tagMatches(stack, slotStack);
+        super.setInventorySlotContents(index, stack);
+        boolean flag = !stack.isEmpty() && stack.isItemEqual(slotStack) && ItemStack.areItemStackTagsEqual(stack, slotStack);
         if (index == 0 && !flag) {
             this.chargeTimeTotal = this.getChargeTimeTotal();
             this.chargeTime = 0;
-            this.setChanged();
+            this.markDirty();
         }
-    }
-
-    @Override
-    public boolean canPlaceItem(int slotIndex, ItemStack stack) {
-        if (slotIndex == 0) {
-            return stack.getItem() instanceof EssenceItem;
-        } else {
-            return stack.getItem() instanceof IWand;
-        }
-    }
-
-    @Override
-    public int[] getSlotsForFace(Direction side) {
-        if (side == Direction.UP) {
-            return SLOTS_FOR_UP;
-        } else if (side == Direction.DOWN) {
-            return SLOTS_FOR_DOWN;
-        } else {
-            return SLOTS_FOR_SIDES;
-        }
-    }
-
-    @Override
-    public boolean canPlaceItemThroughFace(int index, ItemStack itemStackIn, Direction direction) {
-        return this.canPlaceItem(index, itemStackIn);
-    }
-
-    @Override
-    public boolean canTakeItemThroughFace(int index, ItemStack stack, Direction direction) {
-        return true;
     }
 }

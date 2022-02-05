@@ -12,14 +12,9 @@ import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -28,25 +23,10 @@ import net.minecraftforge.common.util.INBTSerializable;
  * 
  * @author Daedalus4096
  */
-public class SourceList implements INBTSerializable<CompoundTag> {
+public class SourceList implements INBTSerializable<CompoundNBT> {
     protected Map<Source, Integer> sources = new HashMap<>();
     
     public SourceList() {}
-    
-    @Nonnull
-    public static SourceList fromNetwork(@Nonnull FriendlyByteBuf buf) {
-        SourceList retVal = new SourceList();
-        for (Source source : Source.SORTED_SOURCES) {
-            retVal.add(source, buf.readVarInt());
-        }
-        return retVal;
-    }
-    
-    public static void toNetwork(@Nonnull FriendlyByteBuf buf, @Nonnull SourceList sources) {
-        for (Source source : Source.SORTED_SOURCES) {
-            buf.writeVarInt(sources.getAmount(source));
-        }
-    }
     
     public int getAmount(@Nullable Source source) {
         // Return zero if the given source is not present in this list
@@ -220,12 +200,12 @@ public class SourceList implements INBTSerializable<CompoundTag> {
     }
     
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag tag = new CompoundTag();
-        ListTag tagList = new ListTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT tag = new CompoundNBT();
+        ListNBT tagList = new ListNBT();
         for (Source source : this.getSources()) {
             if (source != null) {
-                CompoundTag singleTag = new CompoundTag();
+                CompoundNBT singleTag = new CompoundNBT();
                 singleTag.putString("key", source.getTag());
                 singleTag.putInt("amount", this.getAmount(source));
                 tagList.add(singleTag);
@@ -236,11 +216,11 @@ public class SourceList implements INBTSerializable<CompoundTag> {
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         this.sources.clear();
-        ListTag tagList = nbt.getList("Sources", Tag.TAG_COMPOUND);
+        ListNBT tagList = nbt.getList("Sources", Constants.NBT.TAG_COMPOUND);
         for (int index = 0; index < tagList.size(); index++) {
-            CompoundTag singleTag = tagList.getCompound(index);
+            CompoundNBT singleTag = tagList.getCompound(index);
             if (singleTag.contains("key")) {
                 this.add(Source.getSource(singleTag.getString("key")), singleTag.getInt("amount"));
             }
@@ -257,18 +237,5 @@ public class SourceList implements INBTSerializable<CompoundTag> {
             }
         }
         return json;
-    }
-    
-    public Component getText() {
-        List<Source> contents = this.getSourcesSorted();
-        MutableComponent output = new TextComponent("");
-        for (int index = 0; index < contents.size(); index++) {
-            Source source = contents.get(index);
-            if (index != 0) {
-                output = output.append(new TextComponent(", "));
-            }
-            output = output.append(new TranslatableComponent("primalmagick.spells.details.mana_cost.piece", this.getAmount(source), source.getNameText()));
-        }
-        return output;
     }
 }

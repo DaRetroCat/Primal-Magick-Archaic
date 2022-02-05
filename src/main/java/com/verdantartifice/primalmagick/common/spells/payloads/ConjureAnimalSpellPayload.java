@@ -8,22 +8,21 @@ import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.util.RayTraceUtils;
 import com.verdantartifice.primalmagick.common.util.WeightedRandomBag;
 
-import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.SpawnReason;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
 
 /**
  * Definition for an animal conjuration spell.  Spawns a random passive animal at the target location.
@@ -42,7 +41,6 @@ public class ConjureAnimalSpellPayload extends AbstractSpellPayload {
         bag.add(EntityType.COW, 10);
         bag.add(EntityType.DONKEY, 2);
         bag.add(EntityType.FOX, 5);
-        bag.add(EntityType.GOAT, 5);
         bag.add(EntityType.HORSE, 2);
         bag.add(EntityType.MOOSHROOM, 1);
         bag.add(EntityType.OCELOT, 5);
@@ -53,9 +51,7 @@ public class ConjureAnimalSpellPayload extends AbstractSpellPayload {
         bag.add(EntityType.TURTLE, 5);
     });
     protected static final WeightedRandomBag<EntityType<?>> WATER_ANIMALS = Util.make(new WeightedRandomBag<>(), bag -> {
-        bag.add(EntityType.AXOLOTL, 2);
         bag.add(EntityType.COD, 10);
-        bag.add(EntityType.GLOW_SQUID, 2);
         bag.add(EntityType.PUFFERFISH, 10);
         bag.add(EntityType.SALMON, 10);
         bag.add(EntityType.SQUID, 5);
@@ -72,27 +68,27 @@ public class ConjureAnimalSpellPayload extends AbstractSpellPayload {
     }
     
     @Override
-    public void execute(HitResult target, Vec3 burstPoint, SpellPackage spell, Level world, LivingEntity caster, ItemStack spellSource, Entity projectileEntity) {
+    public void execute(RayTraceResult target, Vector3d burstPoint, SpellPackage spell, World world, LivingEntity caster, ItemStack spellSource) {
         if (burstPoint != null) {
             // Do nothing if this is a burst spell
             return;
-        } else if (target.getType() == HitResult.Type.BLOCK) {
-            this.placeRandomAnimal(world, (BlockHitResult)target);
-        } else if (target.getType() == HitResult.Type.ENTITY) {
-            this.placeRandomAnimal(world, RayTraceUtils.getBlockResultFromEntityResult((EntityHitResult)target));
+        } else if (target.getType() == RayTraceResult.Type.BLOCK) {
+            this.placeRandomAnimal(world, (BlockRayTraceResult)target);
+        } else if (target.getType() == RayTraceResult.Type.ENTITY) {
+            this.placeRandomAnimal(world, RayTraceUtils.getBlockResultFromEntityResult((EntityRayTraceResult)target));
         }
     }
     
-    protected void placeRandomAnimal(Level world, BlockHitResult blockTarget) {
-        BlockPos pos = blockTarget.getBlockPos().relative(blockTarget.getDirection());
+    protected void placeRandomAnimal(World world, BlockRayTraceResult blockTarget) {
+        BlockPos pos = blockTarget.getPos().offset(blockTarget.getFace());
         FluidState state = world.getFluidState(pos);
         
         // Get a random entity type for either land or water, depending on the fluid state of the target location
-        EntityType<?> entityType = (state.is(FluidTags.WATER) && state.isSource()) ? 
-                WATER_ANIMALS.getRandom(world.random) : 
-                LAND_ANIMALS.getRandom(world.random);
-        if (entityType != null && world instanceof ServerLevel) {
-            entityType.spawn((ServerLevel)world, null, null, pos, MobSpawnType.MOB_SUMMONED, false, false);
+        EntityType<?> entityType = (state.isTagged(FluidTags.WATER) && state.isSource()) ? 
+                WATER_ANIMALS.getRandom(world.rand) : 
+                LAND_ANIMALS.getRandom(world.rand);
+        if (entityType != null && world instanceof ServerWorld) {
+            entityType.spawn((ServerWorld)world, null, null, pos, SpawnReason.MOB_SUMMONED, false, false);
         }
     }
 
@@ -107,8 +103,8 @@ public class ConjureAnimalSpellPayload extends AbstractSpellPayload {
     }
 
     @Override
-    public void playSounds(Level world, BlockPos origin) {
-        world.playSound(null, origin, SoundsPM.EGG_CRACK.get(), SoundSource.PLAYERS, 1.0F, 1.0F + (float)(world.random.nextGaussian() * 0.05D));
+    public void playSounds(World world, BlockPos origin) {
+        world.playSound(null, origin, SoundsPM.EGG_CRACK.get(), SoundCategory.PLAYERS, 1.0F, 1.0F + (float)(world.rand.nextGaussian() * 0.05D));
     }
 
     @Override

@@ -2,10 +2,6 @@
   "key": "RITUAL_LECTERN",
   "name": "primalmagick.research.ritual_lectern.title",
   "discipline": "RITUAL",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:ritual_lectern"
-  },
   "parents": [
     "EXPERT_RITUAL"
   ],

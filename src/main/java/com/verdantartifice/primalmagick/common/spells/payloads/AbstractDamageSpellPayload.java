@@ -5,19 +5,17 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.verdantartifice.primalmagick.common.misc.DamageSourcesPM;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
 
 /**
  * Base class for a damaging spell.  Deals projectile damage to the target entity, scaling with the
@@ -43,10 +41,6 @@ public abstract class AbstractDamageSpellPayload extends AbstractSpellPayload {
         return propMap;
     }
     
-    protected float getBaseDamage(SpellPackage spell, ItemStack spellSource) {
-        return 4.0F + (3.0F * this.getModdedPropertyValue("power", spell, spellSource));
-    }
-    
     /**
      * Compute the total amount of damage to be done by this payload.
      * 
@@ -55,40 +49,19 @@ public abstract class AbstractDamageSpellPayload extends AbstractSpellPayload {
      * @param spellSource the wand or scroll containing the spell package
      * @return the total amount of damage to be done
      */
-    protected float getTotalDamage(Entity target, SpellPackage spell, @Nullable ItemStack spellSource) {
-        float damage = this.getBaseDamage(spell, spellSource);
-        if (target instanceof Player) {
-            // Spells do half damage against other players
-            damage *= 0.5F;
-        }
-        return damage;
-    }
+    protected abstract float getTotalDamage(Entity target, SpellPackage spell, @Nullable ItemStack spellSource);
     
-    protected DamageSource getDamageSource(LivingEntity source, SpellPackage spell, Entity projectileEntity) {
-        if (projectileEntity != null) {
-            // If the spell was a projectile or a mine, then it's indirect now matter how it was deployed
-            return DamageSourcesPM.causeIndirectSorceryDamage(projectileEntity, source);
-        } else if (spell.getVehicle().isIndirect()) {
-            // If the spell vehicle is indirect but no projectile was given, then it's still indirect
-            return DamageSourcesPM.causeIndirectSorceryDamage(null, source);
-        } else {
-            // Otherwise, do direct damage
-            return DamageSourcesPM.causeDirectSorceryDamage(source);
-        }
+    protected DamageSource getDamageSource(Entity target, LivingEntity source) {
+        return DamageSource.causeThrownDamage(target, source);
     }
 
     @Override
-    public void execute(HitResult target, Vec3 burstPoint, SpellPackage spell, Level world, LivingEntity caster, ItemStack spellSource, Entity projectileEntity) {
-        if (target != null && target.getType() == HitResult.Type.ENTITY) {
-            EntityHitResult entityTarget = (EntityHitResult)target;
+    public void execute(RayTraceResult target, Vector3d burstPoint, SpellPackage spell, World world, LivingEntity caster, ItemStack spellSource) {
+        if (target != null && target.getType() == RayTraceResult.Type.ENTITY) {
+            EntityRayTraceResult entityTarget = (EntityRayTraceResult)target;
             if (entityTarget.getEntity() != null) {
                 // Damage the target entity
-                entityTarget.getEntity().hurt(this.getDamageSource(caster, spell, projectileEntity), this.getTotalDamage(entityTarget.getEntity(), spell, spellSource));
-                
-                // Update the caster's last hurt mob
-                if (caster != null) {
-                    caster.setLastHurtMob(entityTarget.getEntity());
-                }
+                entityTarget.getEntity().attackEntityFrom(this.getDamageSource(entityTarget.getEntity(), caster), this.getTotalDamage(entityTarget.getEntity(), spell, spellSource));
             }
         }
         
@@ -96,7 +69,7 @@ public abstract class AbstractDamageSpellPayload extends AbstractSpellPayload {
         this.applySecondaryEffects(target, burstPoint, spell, world, caster, spellSource);
     }
     
-    protected void applySecondaryEffects(@Nullable HitResult target, @Nullable Vec3 burstPoint, @Nonnull SpellPackage spell, @Nonnull Level world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource) {
+    protected void applySecondaryEffects(@Nullable RayTraceResult target, @Nullable Vector3d burstPoint, @Nonnull SpellPackage spell, @Nonnull World world, @Nonnull LivingEntity caster, @Nullable ItemStack spellSource) {
         // Do nothing by default
     }
 }

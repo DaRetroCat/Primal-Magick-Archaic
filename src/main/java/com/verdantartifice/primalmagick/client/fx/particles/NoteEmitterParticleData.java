@@ -7,9 +7,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.particles.IParticleData;
+import net.minecraft.particles.ParticleType;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
@@ -17,7 +17,7 @@ import net.minecraftforge.registries.ForgeRegistries;
  * 
  * @author Daedalus4096
  */
-public class NoteEmitterParticleData implements ParticleOptions {
+public class NoteEmitterParticleData implements IParticleData {
     public static final Codec<NoteEmitterParticleData> CODEC = RecordCodecBuilder.create((instance) -> {
         return instance.group(Codec.DOUBLE.fieldOf("hue").forGetter((data) -> {
             return data.hue;
@@ -27,9 +27,9 @@ public class NoteEmitterParticleData implements ParticleOptions {
     });
     
     @SuppressWarnings("deprecation")
-    public static final ParticleOptions.Deserializer<NoteEmitterParticleData> DESERIALIZER = new ParticleOptions.Deserializer<NoteEmitterParticleData>() {
+    public static final IParticleData.IDeserializer<NoteEmitterParticleData> DESERIALIZER = new IParticleData.IDeserializer<NoteEmitterParticleData>() {
         @Override
-        public NoteEmitterParticleData fromCommand(ParticleType<NoteEmitterParticleData> particleTypeIn, StringReader reader) throws CommandSyntaxException {
+        public NoteEmitterParticleData deserialize(ParticleType<NoteEmitterParticleData> particleTypeIn, StringReader reader) throws CommandSyntaxException {
             reader.expect(' ');
             double hue = reader.readDouble();
             reader.expect(' ');
@@ -38,7 +38,7 @@ public class NoteEmitterParticleData implements ParticleOptions {
         }
 
         @Override
-        public NoteEmitterParticleData fromNetwork(ParticleType<NoteEmitterParticleData> particleTypeIn, FriendlyByteBuf buffer) {
+        public NoteEmitterParticleData read(ParticleType<NoteEmitterParticleData> particleTypeIn, PacketBuffer buffer) {
             return new NoteEmitterParticleData(buffer.readDouble(), buffer.readInt());
         }
     };
@@ -57,13 +57,13 @@ public class NoteEmitterParticleData implements ParticleOptions {
     }
 
     @Override
-    public void writeToNetwork(FriendlyByteBuf buffer) {
+    public void write(PacketBuffer buffer) {
         buffer.writeDouble(this.hue);
         buffer.writeInt(this.duration);
     }
 
     @Override
-    public String writeToString() {
+    public String getParameters() {
         return String.format(Locale.ROOT, "%s %d %d", ForgeRegistries.PARTICLE_TYPES.getKey(this.getType()), this.hue, this.duration);
     }
 

@@ -12,20 +12,17 @@ import com.verdantartifice.primalmagick.common.spells.SpellManager;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
 
 /**
  * Definition of a polymorph spell.  Temporarily replaces the target living, non-player, non-boss
@@ -39,6 +36,7 @@ import net.minecraft.world.phys.Vec3;
 public class PolymorphSpellPayload extends AbstractSpellPayload {
     public static final String TYPE = "polymorph";
     protected static final CompoundResearchKey RESEARCH = CompoundResearchKey.from(SimpleResearchKey.parse("SPELL_PAYLOAD_POLYMORPH"));
+    protected static final int TICKS_PER_DURATION = 120;
 
     public PolymorphSpellPayload() {
         super();
@@ -61,14 +59,14 @@ public class PolymorphSpellPayload extends AbstractSpellPayload {
     }
     
     @Override
-    public void execute(HitResult target, Vec3 burstPoint, SpellPackage spell, Level world, LivingEntity caster, ItemStack spellSource, Entity projectileEntity) {
-        if (target != null && target.getType() == HitResult.Type.ENTITY) {
-            EntityHitResult entityTarget = (EntityHitResult)target;
+    public void execute(RayTraceResult target, Vector3d burstPoint, SpellPackage spell, World world, LivingEntity caster, ItemStack spellSource) {
+        if (target != null && target.getType() == RayTraceResult.Type.ENTITY) {
+            EntityRayTraceResult entityTarget = (EntityRayTraceResult)target;
             if (SpellManager.canPolymorph(entityTarget.getEntity().getType())) {
                 // Create and enqueue an entity swapper for the target entity
-                UUID entityId = entityTarget.getEntity().getUUID();
-                CompoundTag originalData = entityTarget.getEntity().saveWithoutId(new CompoundTag());
-                int ticks = 20 * this.getDurationSeconds(spell, spellSource);
+                UUID entityId = entityTarget.getEntity().getUniqueID();
+                CompoundNBT originalData = entityTarget.getEntity().writeWithoutTypeId(new CompoundNBT());
+                int ticks = this.getModdedPropertyValue("duration", spell, spellSource) * TICKS_PER_DURATION;
                 EntitySwapper.enqueue(world, new EntitySwapper(entityId, EntityType.WOLF, originalData, Optional.of(Integer.valueOf(ticks)), 0));
             }
         }
@@ -81,25 +79,16 @@ public class PolymorphSpellPayload extends AbstractSpellPayload {
 
     @Override
     public int getBaseManaCost() {
-        return 5 * this.getPropertyValue("duration");
+        return 10 * this.getPropertyValue("duration");
     }
 
     @Override
-    public void playSounds(Level world, BlockPos origin) {
-        world.playSound(null, origin, SoundEvents.WOLF_AMBIENT, SoundSource.PLAYERS, 1.0F, 1.0F + (float)(world.random.nextGaussian() * 0.05D));
+    public void playSounds(World world, BlockPos origin) {
+        world.playSound(null, origin, SoundEvents.ENTITY_WOLF_AMBIENT, SoundCategory.PLAYERS, 1.0F, 1.0F + (float)(world.rand.nextGaussian() * 0.05D));
     }
 
     @Override
     protected String getPayloadType() {
         return TYPE;
-    }
-    
-    protected int getDurationSeconds(SpellPackage spell, ItemStack spellSource) {
-        return 6 * this.getModdedPropertyValue("duration", spell, spellSource);
-    }
-
-    @Override
-    public Component getDetailTooltip(SpellPackage spell, ItemStack spellSource) {
-        return new TranslatableComponent("primalmagick.spell.payload.detail_tooltip." + this.getPayloadType(), DECIMAL_FORMATTER.format(this.getDurationSeconds(spell, spellSource)));
     }
 }

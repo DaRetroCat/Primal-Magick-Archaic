@@ -2,18 +2,15 @@ package com.verdantartifice.primalmagick.common.items.wands;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.client.renderers.itemstack.MundaneWandISTER;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 
-import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.client.IItemRenderProperties;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
 
 /**
  * Item definition for a mundane wand.  Unlike modular wands, mundane wands cannot be inscribed with
@@ -23,7 +20,7 @@ import net.minecraftforge.client.IItemRenderProperties;
  */
 public class MundaneWandItem extends AbstractWandItem {
     public MundaneWandItem() {
-        super(new Item.Properties().tab(PrimalMagick.ITEM_GROUP).stacksTo(1));
+        super(new Item.Properties().group(PrimalMagick.ITEM_GROUP).maxStackSize(1).setISTER(() -> MundaneWandISTER::new));
     }
 
     @Override
@@ -39,12 +36,6 @@ public class MundaneWandItem extends AbstractWandItem {
     }
 
     @Override
-    public int getSiphonAmount(ItemStack stack) {
-        // With no cap, a mundane wand siphons the minimum amount
-        return 1;
-    }
-
-    @Override
     public List<SpellPackage> getSpells(ItemStack stack) {
         // Mundane wands can't carry spells
         return Collections.emptyList();
@@ -57,9 +48,9 @@ public class MundaneWandItem extends AbstractWandItem {
     }
     
     @Override
-    public Component getSpellCapacityText(ItemStack stack) {
+    public ITextComponent getSpellCapacityText(ItemStack stack) {
         // Mundane wands can't carry spells
-        return new TextComponent("0");
+        return new StringTextComponent("0");
     }
 
     @Override
@@ -90,22 +81,5 @@ public class MundaneWandItem extends AbstractWandItem {
     public boolean addSpell(ItemStack stack, SpellPackage spell) {
         // Mundane wands can't carry spells
         return false;
-    }
-
-    @Override
-    public void clearSpells(ItemStack stack) {
-        // Mundane wands can't carry spells
-    }
-
-    @Override
-    public void initializeClient(Consumer<IItemRenderProperties> consumer) {
-        consumer.accept(new IItemRenderProperties() {
-            final BlockEntityWithoutLevelRenderer renderer = new MundaneWandISTER();
-
-            @Override
-            public BlockEntityWithoutLevelRenderer getItemStackRenderer() {
-                return renderer;
-            }
-        });
     }
 }

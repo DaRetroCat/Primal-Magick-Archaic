@@ -6,11 +6,11 @@ import com.verdantartifice.primalmagick.common.spells.SpellManager;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.mods.ForkSpellMod;
 
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.world.World;
 
 /**
  * Definition of a self-targetting spell vehicle.  No direction vectors or special targeting are
@@ -32,21 +32,16 @@ public class SelfSpellVehicle extends AbstractSpellVehicle {
     }
 
     @Override
-    public void execute(SpellPackage spell, Level world, LivingEntity caster, ItemStack spellSource) {
+    public void execute(SpellPackage spell, World world, LivingEntity caster, ItemStack spellSource) {
         if (spell.getPayload() != null) {
             ForkSpellMod forkMod = spell.getMod(ForkSpellMod.class, "forks");
-            HitResult result = new EntityHitResult(caster, caster.getEyePosition(1.0F));
+            RayTraceResult result = new EntityRayTraceResult(caster, caster.getEyePosition(1.0F));
             
             // Determine how many times the caster should be affected by the spell payload
             int forks = (forkMod == null) ? 1 : forkMod.getPropertyValue("forks");
             for (int index = 0; index < forks; index++) {
-                SpellManager.executeSpellPayload(spell, result, world, caster, spellSource, true, null);
+                SpellManager.executeSpellPayload(spell, result, world, caster, spellSource, true);
             }
         }
-    }
-
-    @Override
-    public boolean isIndirect() {
-        return false;
     }
 }

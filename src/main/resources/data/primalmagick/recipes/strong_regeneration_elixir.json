@@ -1,6 +1,5 @@
 {
   "type": "primalmagick:concocting",
-  "group": "strong_regeneration",
   "research": "CONCOCTING_ELIXIRS\u0026\u0026t_discover_blood",
   "mana": {
     "infernal": 9
@@ -10,7 +9,7 @@
       "type": "forge:nbt",
       "item": "primalmagick:concoction",
       "count": 1,
-      "nbt": "{ConcoctionDoses:1,ConcoctionType:\"water\",Potion:\"minecraft:water\"}"
+      "nbt": "{ConcoctionType:\"water\",Potion:\"minecraft:water\",ConcoctionDoses:1}"
     },
     {
       "item": "primalmagick:essence_crystal_sun"
@@ -31,6 +30,6 @@
   "result": {
     "item": "primalmagick:concoction",
     "count": 1,
-    "nbt": "{ConcoctionDoses:9,ConcoctionType:\"elixir\",Potion:\"minecraft:strong_regeneration\"}"
+    "nbt": "{ConcoctionType:\"elixir\",Potion:\"minecraft:strong_regeneration\",ConcoctionDoses:9}"
   }
 }

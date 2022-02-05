@@ -2,11 +2,10 @@ package com.verdantartifice.primalmagick.client.renderers.entity;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.client.renderers.entity.model.PixieModel;
-import com.verdantartifice.primalmagick.client.renderers.models.ModelLayersPM;
 import com.verdantartifice.primalmagick.common.entities.companions.pixies.AbstractPixieEntity;
 
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.entity.EntityRendererManager;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Entity renderer for a basic pixie.
@@ -16,12 +15,12 @@ import net.minecraft.resources.ResourceLocation;
 public class BasicPixieRenderer extends AbstractPixieRenderer {
     private static final ResourceLocation TEXTURE = new ResourceLocation(PrimalMagick.MODID, "textures/entity/pixie/basic_pixie.png");
     
-    public BasicPixieRenderer(EntityRendererProvider.Context context) {
-        super(context, new PixieModel(context.bakeLayer(ModelLayersPM.PIXIE_BASIC)));
+    public BasicPixieRenderer(EntityRendererManager renderManagerIn) {
+        super(renderManagerIn, new PixieModel(false));
     }
 
     @Override
-    public ResourceLocation getTextureLocation(AbstractPixieEntity entity) {
+    public ResourceLocation getEntityTexture(AbstractPixieEntity entity) {
         return TEXTURE;
     }
 }

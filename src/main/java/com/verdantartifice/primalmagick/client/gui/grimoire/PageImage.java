@@ -2,19 +2,23 @@ package com.verdantartifice.primalmagick.client.gui.grimoire;
 
 import javax.annotation.Nullable;
 
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 
-import net.minecraft.client.gui.GuiComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.AbstractGui;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * An image element to be rendered on a grimoire page.
  * 
  * @author Daedalus4096
  */
-public class PageImage extends GuiComponent implements IPageElement {
+@OnlyIn(Dist.CLIENT)
+public class PageImage extends AbstractGui implements IPageElement {
     public int x, y, width, height, adjustedWidth, adjustedHeight;
     public float scale;
     public ResourceLocation location;
@@ -47,16 +51,16 @@ public class PageImage extends GuiComponent implements IPageElement {
     }
 
     @Override
-    public void render(PoseStack matrixStack, int side, int x, int y) {
+    public void render(MatrixStack matrixStack, int side, int x, int y) {
         // Render the image at this element's resource location to the screen
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        matrixStack.pushPose();
-        RenderSystem.setShaderTexture(0, this.location);
+        matrixStack.push();
+        Minecraft.getInstance().getTextureManager().bindTexture(this.location);
         matrixStack.translate(x - 15 + (side * 152) + ((124 - this.adjustedWidth) / 2), y - 5, 0.0F);
         matrixStack.scale(this.scale, this.scale, this.scale);
         this.blit(matrixStack, 0, 0, this.x, this.y, this.width, this.height);
-        matrixStack.popPose();
+        matrixStack.pop();
     }
 
     @Override

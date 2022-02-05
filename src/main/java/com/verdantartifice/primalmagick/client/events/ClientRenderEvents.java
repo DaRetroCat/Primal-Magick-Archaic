@@ -1,25 +1,29 @@
 package com.verdantartifice.primalmagick.client.events;
 
-import com.mojang.datafixers.util.Either;
+import java.util.Collections;
+
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.client.util.GuiUtils;
 import com.verdantartifice.primalmagick.common.affinities.AffinityManager;
-import com.verdantartifice.primalmagick.common.affinities.AffinityTooltipComponent;
 import com.verdantartifice.primalmagick.common.config.Config;
 import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.items.armor.IManaDiscountGear;
 import com.verdantartifice.primalmagick.common.research.ResearchManager;
 import com.verdantartifice.primalmagick.common.runes.RuneManager;
+import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.inventory.ContainerScreen;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.DrawSelectionEvent;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.client.event.DrawHighlightEvent;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -30,56 +34,89 @@ import net.minecraftforge.fml.common.Mod;
  * 
  * @author Daedalus4096
  */
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID, value=Dist.CLIENT)
+@OnlyIn(Dist.CLIENT)
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID, value=Dist.CLIENT)
 public class ClientRenderEvents {
     @SubscribeEvent
     public static void renderTooltip(ItemTooltipEvent event) {
         Minecraft mc = Minecraft.getInstance();
+        Screen gui = mc.currentScreen;
         
         // Show a tooltip entry if the item stack grants a mana discount
         if (event.getItemStack().getItem() instanceof IManaDiscountGear) {
             int discount = ((IManaDiscountGear)event.getItemStack().getItem()).getManaDiscount(event.getItemStack(), mc.player);
-            event.getToolTip().add(new TranslatableComponent("tooltip.primalmagick.mana_discount", discount).withStyle(ChatFormatting.DARK_AQUA));
+            event.getToolTip().add(new TranslationTextComponent("tooltip.primalmagick.mana_discount", discount).mergeStyle(TextFormatting.DARK_AQUA));
         }
         
         // Show a tooltip entry if the item stack is runescribed
         if (RuneManager.hasRunes(event.getItemStack())) {
-            event.getToolTip().add(new TranslatableComponent("tooltip.primalmagick.runescribed").withStyle(ChatFormatting.DARK_AQUA));
+            event.getToolTip().add(new TranslationTextComponent("tooltip.primalmagick.runescribed").mergeStyle(TextFormatting.DARK_AQUA));
         }
-    }
-    
-    @SubscribeEvent
-    public static void onRenderTooltipGatherComponents(RenderTooltipEvent.GatherComponents event) {
-        Minecraft mc = Minecraft.getInstance();
-        Screen gui = mc.screen;
-
-        // Assemble the tooltip components for showing primal affinities on an item stack
-        if (gui instanceof AbstractContainerScreen && (Screen.hasShiftDown() != Config.SHOW_AFFINITIES.get().booleanValue()) && !mc.mouseHandler.isMouseGrabbed() && event.getItemStack() != null && !event.getItemStack().isEmpty()) {
-            SourceList sources = AffinityManager.getInstance().getAffinityValues(event.getItemStack(), mc.level);
+        
+        // Make the tooltip changes for showing primal affinities on an itemstack
+        if (gui instanceof ContainerScreen && (Screen.hasShiftDown() != Config.SHOW_AFFINITIES.get().booleanValue()) && !mc.mouseHelper.isMouseGrabbed() && event.getItemStack() != null) {
+            SourceList sources = AffinityManager.getInstance().getAffinityValues(event.getItemStack(), mc.world);
             if (sources == null || sources.isEmpty()) {
-                event.getTooltipElements().add(Either.left(new TranslatableComponent("primalmagick.affinities.none")));
+                event.getToolTip().add(new TranslationTextComponent("primalmagick.affinities.none"));
             } else if (!ResearchManager.isScanned(event.getItemStack(), mc.player) && !Config.SHOW_UNSCANNED_AFFINITIES.get()) {
-                event.getTooltipElements().add(Either.left(new TranslatableComponent("primalmagick.affinities.unknown")));
+                event.getToolTip().add(new TranslationTextComponent("primalmagick.affinities.unknown"));
             } else {
-                event.getTooltipElements().add(Either.left(new TranslatableComponent("primalmagick.affinities.label")));
-                event.getTooltipElements().add(Either.right(new AffinityTooltipComponent(sources)));
+                int width = 0;
+                for (Source source : sources.getSources()) {
+                    if (source != null && sources.getAmount(source) > 0) {
+                        width += 18;
+                    }
+                }
+                if (width > 0) {
+                    double spaceWidth = mc.fontRenderer.getStringWidth(" ");
+                    int charCount = Math.min(120, MathHelper.ceil((double)width / spaceWidth));
+                    int rowCount = MathHelper.ceil(18.0D / (double)mc.fontRenderer.FONT_HEIGHT);
+                    String str = String.join("", Collections.nCopies(charCount, " "));
+                    event.getToolTip().add(new TranslationTextComponent("primalmagick.affinities.label"));
+                    for (int index = 0; index < rowCount; index++) {
+                        event.getToolTip().add(new StringTextComponent(str));
+                    }
+                }
             }
         }
     }
     
     @SubscribeEvent
-    public static void onHighlightEntity(DrawSelectionEvent.HighlightEntity event) {
+    public static void renderTooltipPostBackground(RenderTooltipEvent.PostBackground event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player.getMainHandItem().getItem() == ItemsPM.ARCANOMETER.get() || mc.player.getOffhandItem().getItem() == ItemsPM.ARCANOMETER.get()) {
+        Screen gui = mc.currentScreen;
+        
+        // Show the source images for primal affinities for an itemstack
+        if (gui instanceof ContainerScreen && (Screen.hasShiftDown() != Config.SHOW_AFFINITIES.get().booleanValue()) && !mc.mouseHelper.isMouseGrabbed() && event.getStack() != null) {
+            int bottom = event.getHeight();
+            if (!event.getLines().isEmpty()) {
+                for (int index = event.getLines().size() - 1; index >= 0; index--) {
+                    // TODO scan for affinities label and use that as an anchor
+                    if (event.getLines().get(index) != null && !event.getLines().get(index).getString().contains("     ")) {
+                        bottom -= 10;
+                    } else if (index > 0 && event.getLines().get(index - 1) != null && event.getLines().get(index - 1).getString().contains("     ")) {
+                        SourceList sources = AffinityManager.getInstance().getAffinityValues(event.getStack(), mc.world);
+                        GuiUtils.renderSourcesForPlayer(event.getMatrixStack(), sources, mc.player, event.getX(), event.getY() + bottom - 16);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    @SubscribeEvent
+    public static void onHighlightEntity(DrawHighlightEvent.HighlightEntity event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player.getHeldItemMainhand().getItem() == ItemsPM.ARCANOMETER.get() || mc.player.getHeldItemOffhand().getItem() == ItemsPM.ARCANOMETER.get()) {
             Entity entity = event.getTarget().getEntity();
             SourceList affinities = AffinityManager.getInstance().getAffinityValues(entity.getType());
             boolean isScanned = ResearchManager.isScanned(entity.getType(), mc.player);
             if (isScanned && affinities != null && !affinities.isEmpty()) {
                 float partialTicks = event.getPartialTicks();
-                double interpolatedEntityX = entity.xo + (partialTicks * (entity.getX() - entity.xo));
-                double interpolatedEntityY = entity.yo + (partialTicks * (entity.getY() - entity.yo));
-                double interpolatedEntityZ = entity.zo + (partialTicks * (entity.getZ() - entity.zo));
-                GuiUtils.renderSourcesBillboard(event.getPoseStack(), event.getMultiBufferSource(), interpolatedEntityX, interpolatedEntityY + entity.getBbHeight(), interpolatedEntityZ, affinities, partialTicks);
+                double interpolatedEntityX = entity.prevPosX + (partialTicks * (entity.getPosX() - entity.prevPosX));
+                double interpolatedEntityY = entity.prevPosY + (partialTicks * (entity.getPosY() - entity.prevPosY));
+                double interpolatedEntityZ = entity.prevPosZ + (partialTicks * (entity.getPosZ() - entity.prevPosZ));
+                GuiUtils.renderSourcesBillboard(event.getMatrix(), event.getBuffers(), interpolatedEntityX, interpolatedEntityY + entity.getHeight(), interpolatedEntityZ, affinities, partialTicks);
             }
         }
     }

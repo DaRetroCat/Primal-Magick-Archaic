@@ -2,21 +2,23 @@ package com.verdantartifice.primalmagick.client.gui.widgets.grimoire;
 
 import com.verdantartifice.primalmagick.client.gui.GrimoireScreen;
 import com.verdantartifice.primalmagick.common.research.ResearchDiscipline;
-import com.verdantartifice.primalmagick.common.research.topics.DisciplineResearchTopic;
 
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.widget.button.Button;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * GUI button to view the grimoire page for a given research discipline.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class DisciplineButton extends AbstractTopicButton {
-    protected final ResearchDiscipline discipline;
+    protected ResearchDiscipline discipline;
 
-    public DisciplineButton(int widthIn, int heightIn, Component text, GrimoireScreen screen, ResearchDiscipline discipline, boolean showIcon, boolean enlarge) {
-        super(widthIn, heightIn, 123, enlarge ? 18 : 12, text, screen, showIcon ? GenericIndexIcon.of(discipline.getIconLocation(), true) : null, new Handler());
+    public DisciplineButton(int widthIn, int heightIn, ITextComponent text, GrimoireScreen screen, ResearchDiscipline discipline) {
+        super(widthIn, heightIn, 123, 12, text, screen, new Handler());
         this.discipline = discipline;
     }
     
@@ -24,17 +26,19 @@ public class DisciplineButton extends AbstractTopicButton {
         return this.discipline;
     }
     
-    private static class Handler implements OnPress {
+    private static class Handler implements IPressable {
         @Override
         public void onPress(Button button) {
-            if (button instanceof DisciplineButton gdb) {
+            if (button instanceof DisciplineButton) {
+                DisciplineButton gdb = (DisciplineButton)button;
+                
                 // Push the current grimoire topic onto the history stack
-                gdb.getScreen().pushCurrentHistoryTopic();
+                GrimoireScreen.HISTORY.add(gdb.getScreen().getContainer().getTopic());
                 
                 // Set the new grimoire topic and open a new screen for it
-                gdb.getScreen().getMenu().setTopic(new DisciplineResearchTopic(gdb.getDiscipline(), 0));
-                gdb.getScreen().getMinecraft().setScreen(new GrimoireScreen(
-                    gdb.getScreen().getMenu(),
+                gdb.getScreen().getContainer().setTopic(gdb.getDiscipline());
+                gdb.getScreen().getMinecraft().displayGuiScreen(new GrimoireScreen(
+                    gdb.getScreen().getContainer(),
                     gdb.getScreen().getPlayerInventory(),
                     gdb.getScreen().getTitle()
                 ));

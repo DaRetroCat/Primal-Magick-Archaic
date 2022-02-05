@@ -2,10 +2,6 @@
   "key": "SANGUINE_CRUCIBLE",
   "name": "primalmagick.research.sanguine_crucible.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:sanguine_crucible"
-  },
   "parents": [
     "MASTER_ALCHEMY",
     "HEXIUM",

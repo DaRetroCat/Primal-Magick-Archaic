@@ -3,8 +3,8 @@ package com.verdantartifice.primalmagick.common.entities.companions.pixies;
 import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.items.misc.PixieItem;
 
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.EntityType;
+import net.minecraft.world.World;
 
 /**
  * Definition of a basic void pixie.  Weakest of the void pixies.
@@ -12,7 +12,7 @@ import net.minecraft.world.level.Level;
  * @author Daedalus4096
  */
 public class BasicVoidPixieEntity extends AbstractVoidPixieEntity implements IBasicPixie {
-    public BasicVoidPixieEntity(EntityType<? extends AbstractPixieEntity> type, Level worldIn) {
+    public BasicVoidPixieEntity(EntityType<? extends AbstractPixieEntity> type, World worldIn) {
         super(type, worldIn);
     }
 

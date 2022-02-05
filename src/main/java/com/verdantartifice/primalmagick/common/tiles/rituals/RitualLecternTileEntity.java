@@ -4,12 +4,12 @@ import com.verdantartifice.primalmagick.common.rituals.IRitualPropTileEntity;
 import com.verdantartifice.primalmagick.common.tiles.TileEntityTypesPM;
 import com.verdantartifice.primalmagick.common.tiles.base.TileInventoryPM;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.util.Constants;
 
 /**
  * Definition of a ritual lectern tile entity.  Holds the lectern's inventory.
@@ -18,49 +18,36 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public class RitualLecternTileEntity extends TileInventoryPM implements IRitualPropTileEntity {
     protected BlockPos altarPos = null;
-    protected boolean isOpen = false;
     
-    public RitualLecternTileEntity(BlockPos pos, BlockState state) {
-        super(TileEntityTypesPM.RITUAL_LECTERN.get(), pos, state, 1);
+    public RitualLecternTileEntity() {
+        super(TileEntityTypesPM.RITUAL_LECTERN.get(), 1);
     }
     
     @Override
-    public void load(CompoundTag compound) {
-        super.load(compound);
-        this.altarPos = compound.contains("AltarPos", Tag.TAG_LONG) ? BlockPos.of(compound.getLong("AltarPos")) : null;
-        this.isOpen = compound.contains("PropOpen", Tag.TAG_BYTE) ? compound.getBoolean("PropOpen") : false;
+    public void read(BlockState state, CompoundNBT compound) {
+        super.read(state, compound);
+        this.altarPos = compound.contains("AltarPos", Constants.NBT.TAG_LONG) ? BlockPos.fromLong(compound.getLong("AltarPos")) : null;
     }
     
     @Override
-    protected void saveAdditional(CompoundTag compound) {
-        super.saveAdditional(compound);
+    public CompoundNBT write(CompoundNBT compound) {
         if (this.altarPos != null) {
-            compound.putLong("AltarPos", this.altarPos.asLong());
+            compound.putLong("AltarPos", this.altarPos.toLong());
         }
-        compound.putBoolean("PropOpen", this.isOpen);
+        return super.write(compound);
     }
     
     @Override
-    public boolean canPlaceItem(int index, ItemStack stack) {
+    public boolean isItemValidForSlot(int index, ItemStack stack) {
         // Don't allow automation to add items
         return false;
     }
     
     @Override
-    public int getMaxStackSize() {
+    public int getInventoryStackLimit() {
         return 1;
     }
     
-    @Override
-    public boolean isPropOpen() {
-        return this.isOpen;
-    }
-
-    @Override
-    public void setPropOpen(boolean open) {
-        this.isOpen = open;
-    }
-
     @Override
     public BlockPos getAltarPos() {
         return this.altarPos;
@@ -69,15 +56,15 @@ public class RitualLecternTileEntity extends TileInventoryPM implements IRitualP
     @Override
     public void setAltarPos(BlockPos pos) {
         this.altarPos = pos;
-        this.setChanged();
+        this.markDirty();
     }
 
     @Override
-    public void notifyAltarOfPropActivation(float stabilityBonus) {
+    public void notifyAltarOfPropActivation() {
         if (this.altarPos != null) {
-            BlockEntity tile = this.level.getBlockEntity(this.altarPos);
+            TileEntity tile = this.world.getTileEntity(this.altarPos);
             if (tile instanceof RitualAltarTileEntity) {
-                ((RitualAltarTileEntity)tile).onPropActivation(this.worldPosition, stabilityBonus);
+                ((RitualAltarTileEntity)tile).onPropActivation(this.pos);
             }
         }
     }

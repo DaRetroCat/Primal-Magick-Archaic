@@ -3,21 +3,21 @@ package com.verdantartifice.primalmagick.common.items.tools;
 import com.google.common.collect.ImmutableMap;
 import com.verdantartifice.primalmagick.common.enchantments.EnchantmentsPM;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Tier;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.item.FishingRodItem;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
 
 /**
  * Definition of a fishing rod that comes pre-enchanted with Bounty.
  * 
  * @author Daedalus4096
  */
-public class PrimalFishingRodItem extends TieredFishingRodItem {
-    public PrimalFishingRodItem(Tier tier, Item.Properties builder) {
-        super(tier, builder);
+public class PrimalFishingRodItem extends FishingRodItem {
+    public PrimalFishingRodItem(Item.Properties builder) {
+        super(builder);
     }
 
     @Override
@@ -28,9 +28,9 @@ public class PrimalFishingRodItem extends TieredFishingRodItem {
     }
 
     @Override
-    public void fillItemCategory(CreativeModeTab group, NonNullList<ItemStack> items) {
+    public void fillItemGroup(ItemGroup group, NonNullList<ItemStack> items) {
         // Populate the creative pane with a pre-enchanted axe
-        if (this.allowdedIn(group)) {
+        if (this.isInGroup(group)) {
             items.add(this.getDefaultInstance());
         }
     }

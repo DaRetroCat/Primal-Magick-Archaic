@@ -3,13 +3,13 @@ package com.verdantartifice.primalmagick.common.items.misc;
 import java.util.List;
 import java.util.function.Supplier;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.entity.EntityType;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
 
 /**
  * Definition of a non-blank sanguine core.  Slotted into a sanguine crucible to determine what
@@ -28,15 +28,15 @@ public class SanguineCoreItem extends Item {
     }
 
     @Override
-    public boolean isFoil(ItemStack stack) {
+    public boolean hasEffect(ItemStack stack) {
         return true;
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
-        super.appendHoverText(stack, worldIn, tooltip, flagIn);
-        tooltip.add(new TranslatableComponent("tooltip.primalmagick.sanguine_core.1", this.getMaxDamage(stack) - this.getDamage(stack) + 1));
-        tooltip.add(new TranslatableComponent("tooltip.primalmagick.sanguine_core.2", this.soulsPerSpawn));
+    public void addInformation(ItemStack stack, World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn) {
+        super.addInformation(stack, worldIn, tooltip, flagIn);
+        tooltip.add(new TranslationTextComponent("tooltip.primalmagick.sanguine_core.1", this.getMaxDamage(stack) - this.getDamage(stack) + 1));
+        tooltip.add(new TranslationTextComponent("tooltip.primalmagick.sanguine_core.2", this.soulsPerSpawn));
     }
 
     public EntityType<?> getEntityType() {

@@ -1,0 +1,14 @@
+{
+  "key": "TERRESTRIAL_MAGIC",
+  "name": "primalmagick.research.terrestrial_magic.title",
+  "discipline": "BASICS",
+  "parents": [
+    "ATTUNEMENTS"
+  ],
+  "stages": [
+    {
+      "text": "primalmagick.research.terrestrial_magic.text.stage.1"
+    }
+  ],
+  "addenda": []
+}

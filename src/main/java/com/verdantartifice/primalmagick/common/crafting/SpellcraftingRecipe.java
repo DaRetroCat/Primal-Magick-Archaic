@@ -2,40 +2,40 @@ package com.verdantartifice.primalmagick.common.crafting;
 
 import com.verdantartifice.primalmagick.common.items.ItemsPM;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CustomRecipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.level.Level;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipeSerializer;
+import net.minecraft.item.crafting.SpecialRecipe;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 
 /**
  * Special definition for a spellcrafting recipe.
  * 
  * @author Daedalus4096
  */
-public class SpellcraftingRecipe extends CustomRecipe {
+public class SpellcraftingRecipe extends SpecialRecipe {
     public SpellcraftingRecipe(ResourceLocation idIn) {
         super(idIn);
     }
 
     @Override
-    public boolean matches(CraftingContainer inv, Level worldIn) {
-        return inv.getItem(0).getItem().equals(ItemsPM.SPELL_SCROLL_BLANK.get());
+    public boolean matches(CraftingInventory inv, World worldIn) {
+        return inv.getStackInSlot(0).getItem().equals(ItemsPM.SPELL_SCROLL_BLANK.get());
     }
 
     @Override
-    public ItemStack assemble(CraftingContainer inv) {
+    public ItemStack getCraftingResult(CraftingInventory inv) {
         return new ItemStack(ItemsPM.SPELL_SCROLL_FILLED.get());
     }
 
     @Override
-    public boolean canCraftInDimensions(int width, int height) {
+    public boolean canFit(int width, int height) {
         return (width * height) >= 1;
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public IRecipeSerializer<?> getSerializer() {
         return RecipeSerializersPM.SPELLCRAFTING_SPECIAL.get();
     }
 }

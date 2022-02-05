@@ -3,8 +3,6 @@ package com.verdantartifice.primalmagick.common.network;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToClient;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
-import com.verdantartifice.primalmagick.common.network.packets.data.SetResearchTopicHistoryPacket;
-import com.verdantartifice.primalmagick.common.network.packets.data.SyncArcaneRecipeBookPacket;
 import com.verdantartifice.primalmagick.common.network.packets.data.SyncAttunementsPacket;
 import com.verdantartifice.primalmagick.common.network.packets.data.SyncCompanionsPacket;
 import com.verdantartifice.primalmagick.common.network.packets.data.SyncCooldownsPacket;
@@ -14,9 +12,6 @@ import com.verdantartifice.primalmagick.common.network.packets.data.SyncResearch
 import com.verdantartifice.primalmagick.common.network.packets.data.SyncStatsPacket;
 import com.verdantartifice.primalmagick.common.network.packets.data.TileToClientPacket;
 import com.verdantartifice.primalmagick.common.network.packets.data.TileToServerPacket;
-import com.verdantartifice.primalmagick.common.network.packets.data.UpdateAffinitiesPacket;
-import com.verdantartifice.primalmagick.common.network.packets.data.UpdateResearchPacket;
-import com.verdantartifice.primalmagick.common.network.packets.data.UpdateTheorycraftingPacket;
 import com.verdantartifice.primalmagick.common.network.packets.fx.ManaSparklePacket;
 import com.verdantartifice.primalmagick.common.network.packets.fx.OfferingChannelPacket;
 import com.verdantartifice.primalmagick.common.network.packets.fx.PlayClientSoundPacket;
@@ -34,10 +29,6 @@ import com.verdantartifice.primalmagick.common.network.packets.misc.ResetFallDis
 import com.verdantartifice.primalmagick.common.network.packets.misc.ScanEntityPacket;
 import com.verdantartifice.primalmagick.common.network.packets.misc.ScanItemPacket;
 import com.verdantartifice.primalmagick.common.network.packets.misc.ScanPositionPacket;
-import com.verdantartifice.primalmagick.common.network.packets.recipe_book.ChangeArcaneRecipeBookSettingsPacket;
-import com.verdantartifice.primalmagick.common.network.packets.recipe_book.PlaceArcaneRecipePacket;
-import com.verdantartifice.primalmagick.common.network.packets.recipe_book.PlaceGhostArcaneRecipePacket;
-import com.verdantartifice.primalmagick.common.network.packets.recipe_book.SeenArcaneRecipePacket;
 import com.verdantartifice.primalmagick.common.network.packets.spellcrafting.SetSpellComponentPropertyPacket;
 import com.verdantartifice.primalmagick.common.network.packets.spellcrafting.SetSpellComponentTypeIndexPacket;
 import com.verdantartifice.primalmagick.common.network.packets.spellcrafting.SetSpellNamePacket;
@@ -45,15 +36,15 @@ import com.verdantartifice.primalmagick.common.network.packets.theorycrafting.Co
 import com.verdantartifice.primalmagick.common.network.packets.theorycrafting.SetProjectMaterialSelectionPacket;
 import com.verdantartifice.primalmagick.common.network.packets.theorycrafting.StartProjectPacket;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.util.RegistryKey;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.network.NetworkDirection;
+import net.minecraftforge.fml.network.NetworkRegistry;
+import net.minecraftforge.fml.network.PacketDistributor;
+import net.minecraftforge.fml.network.simple.SimpleChannel;
 
 /**
  * Handler class for processing packets.  Responsible for all custom communication between the client and the server.
@@ -105,15 +96,6 @@ public class PacketHandler {
         INSTANCE.registerMessage(disc++, SyncCompanionsPacket.class, SyncCompanionsPacket::encode, SyncCompanionsPacket::decode, SyncCompanionsPacket.Handler::onMessage);
         INSTANCE.registerMessage(disc++, ScanEntityPacket.class, ScanEntityPacket::encode, ScanEntityPacket::decode, ScanEntityPacket.Handler::onMessage);
         INSTANCE.registerMessage(disc++, PotionExplosionPacket.class, PotionExplosionPacket::encode, PotionExplosionPacket::decode, PotionExplosionPacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, UpdateResearchPacket.class, UpdateResearchPacket::encode, UpdateResearchPacket::decode, UpdateResearchPacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, UpdateAffinitiesPacket.class, UpdateAffinitiesPacket::encode, UpdateAffinitiesPacket::decode, UpdateAffinitiesPacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, UpdateTheorycraftingPacket.class, UpdateTheorycraftingPacket::encode, UpdateTheorycraftingPacket::decode, UpdateTheorycraftingPacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, SyncArcaneRecipeBookPacket.class, SyncArcaneRecipeBookPacket::encode, SyncArcaneRecipeBookPacket::decode, SyncArcaneRecipeBookPacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, PlaceArcaneRecipePacket.class, PlaceArcaneRecipePacket::encode, PlaceArcaneRecipePacket::decode, PlaceArcaneRecipePacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, PlaceGhostArcaneRecipePacket.class, PlaceGhostArcaneRecipePacket::encode, PlaceGhostArcaneRecipePacket::decode, PlaceGhostArcaneRecipePacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, SeenArcaneRecipePacket.class, SeenArcaneRecipePacket::encode, SeenArcaneRecipePacket::decode, SeenArcaneRecipePacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, ChangeArcaneRecipeBookSettingsPacket.class, ChangeArcaneRecipeBookSettingsPacket::encode, ChangeArcaneRecipeBookSettingsPacket::decode, ChangeArcaneRecipeBookSettingsPacket.Handler::onMessage);
-        INSTANCE.registerMessage(disc++, SetResearchTopicHistoryPacket.class, SetResearchTopicHistoryPacket::encode, SetResearchTopicHistoryPacket::decode, SetResearchTopicHistoryPacket.Handler::onMessage);
     }
     
     public static void sendToServer(IMessageToServer message) {
@@ -121,12 +103,12 @@ public class PacketHandler {
         INSTANCE.sendToServer(message);
     }
     
-    public static void sendToPlayer(IMessageToClient message, ServerPlayer player) {
+    public static void sendToPlayer(IMessageToClient message, ServerPlayerEntity player) {
         // Send a message from the server to a specific player's client
-        INSTANCE.sendTo(message, player.connection.getConnection(), NetworkDirection.PLAY_TO_CLIENT);
+        INSTANCE.sendTo(message, player.connection.getNetworkManager(), NetworkDirection.PLAY_TO_CLIENT);
     }
     
-    public static void sendToAllAround(IMessageToClient message, ResourceKey<Level> dimension, BlockPos center, double radius) {
+    public static void sendToAllAround(IMessageToClient message, RegistryKey<World> dimension, BlockPos center, double radius) {
         // Send a message to the clients of all players within a given distance of the given world position
         INSTANCE.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(center.getX() + 0.5D, center.getY() + 0.5D, center.getZ() + 0.5D, radius, dimension)), message);
     }

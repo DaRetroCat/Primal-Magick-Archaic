@@ -2,12 +2,8 @@
   "key": "SOURCE_VOID",
   "name": "primalmagick.research.source_void.title",
   "discipline": "BASICS",
-  "icon": {
-    "isItem": false,
-    "location": "primalmagick:textures/sources/void.png"
-  },
   "parents": [
-    "FORBIDDEN_MAGICK",
+    "FORBIDDEN_MAGIC",
     "t_discover_void"
   ],
   "stages": [

@@ -1,15 +1,13 @@
 {
   "key": "primalmagick:trade",
   "reward_multiplier": 0.25,
-  "aid_blocks": [],
   "material_options": [
     {
       "type": "tag",
       "name": "forge:gems/emerald",
       "quantity": 1,
       "consumed": true,
-      "weight": 10.0,
-      "bonus_reward": 0.125
+      "weight": 10.0
     },
     {
       "type": "tag",
@@ -75,10 +73,10 @@
       "weight": 1.0
     },
     {
-      "type": "tag",
-      "name": "minecraft:wool",
-      "quantity": 1,
+      "type": "item",
+      "stack": "minecraft:white_wool",
       "consumed": true,
+      "match_nbt": false,
       "weight": 1.0
     },
     {

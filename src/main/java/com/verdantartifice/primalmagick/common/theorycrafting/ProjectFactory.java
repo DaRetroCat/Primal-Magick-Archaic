@@ -2,7 +2,7 @@ package com.verdantartifice.primalmagick.common.theorycrafting;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundNBT;
 
 /**
  * Collection of factory methods for creating research project related data structures.
@@ -11,7 +11,7 @@ import net.minecraft.nbt.CompoundTag;
  */
 public class ProjectFactory {
     @Nullable
-    public static Project getProjectFromNBT(@Nullable CompoundTag tag) {
+    public static Project getProjectFromNBT(@Nullable CompoundNBT tag) {
         // Deserialize a research project instance from the given NBT data
         Project retVal = new Project();
         retVal.deserializeNBT(tag);
@@ -19,7 +19,7 @@ public class ProjectFactory {
     }
     
     @Nullable
-    public static AbstractProjectMaterial getMaterialFromNBT(@Nullable CompoundTag tag) {
+    public static AbstractProjectMaterial getMaterialFromNBT(@Nullable CompoundNBT tag) {
         AbstractProjectMaterial retVal = null;
         String materialType = (tag == null) ? null : tag.getString("MaterialType");
         if (ItemProjectMaterial.TYPE.equals(materialType)) {

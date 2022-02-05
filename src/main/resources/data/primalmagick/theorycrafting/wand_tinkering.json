@@ -2,7 +2,6 @@
   "key": "primalmagick:wand_tinkering",
   "required_research": "BASIC_SORCERY",
   "reward_multiplier": 0.25,
-  "aid_blocks": [],
   "material_options": [
     {
       "type": "item",

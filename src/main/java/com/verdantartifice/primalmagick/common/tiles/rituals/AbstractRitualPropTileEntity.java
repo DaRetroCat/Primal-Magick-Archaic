@@ -5,12 +5,12 @@ import javax.annotation.Nullable;
 import com.verdantartifice.primalmagick.common.rituals.IRitualPropTileEntity;
 import com.verdantartifice.primalmagick.common.tiles.base.TilePM;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.tileentity.TileEntityType;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.util.Constants;
 
 /**
  * Base class for a ritual prop tile entity.  Holds information about the altar it interacts with.
@@ -19,23 +19,11 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public abstract class AbstractRitualPropTileEntity extends TilePM implements IRitualPropTileEntity {
     protected BlockPos altarPos = null;
-    protected boolean isOpen = false;
     
-    public AbstractRitualPropTileEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-        super(type, pos, state);
+    public AbstractRitualPropTileEntity(TileEntityType<?> type) {
+        super(type);
     }
     
-    @Override
-    public boolean isPropOpen() {
-        return this.isOpen;
-    }
-
-    @Override
-    public void setPropOpen(boolean open) {
-        this.isOpen = open;
-        this.setChanged();
-    }
-
     @Override
     @Nullable
     public BlockPos getAltarPos() {
@@ -45,31 +33,29 @@ public abstract class AbstractRitualPropTileEntity extends TilePM implements IRi
     @Override
     public void setAltarPos(@Nullable BlockPos pos) {
         this.altarPos = pos;
-        this.setChanged();
+        this.markDirty();
     }
     
     @Override
-    public void load(CompoundTag compound) {
-        super.load(compound);
-        this.altarPos = compound.contains("AltarPos", Tag.TAG_LONG) ? BlockPos.of(compound.getLong("AltarPos")) : null;
-        this.isOpen = compound.contains("PropOpen", Tag.TAG_BYTE) ? compound.getBoolean("PropOpen") : false;
+    public void read(BlockState state, CompoundNBT compound) {
+        super.read(state, compound);
+        this.altarPos = compound.contains("AltarPos", Constants.NBT.TAG_LONG) ? BlockPos.fromLong(compound.getLong("AltarPos")) : null;
     }
     
     @Override
-    protected void saveAdditional(CompoundTag compound) {
-        super.saveAdditional(compound);
+    public CompoundNBT write(CompoundNBT compound) {
         if (this.altarPos != null) {
-            compound.putLong("AltarPos", this.altarPos.asLong());
+            compound.putLong("AltarPos", this.altarPos.toLong());
         }
-        compound.putBoolean("PropOpen", this.isOpen);
+        return super.write(compound);
     }
-
+    
     @Override
-    public void notifyAltarOfPropActivation(float stabilityBonus) {
+    public void notifyAltarOfPropActivation() {
         if (this.altarPos != null) {
-            BlockEntity tile = this.level.getBlockEntity(this.altarPos);
-            if (tile instanceof RitualAltarTileEntity altarTile) {
-                altarTile.onPropActivation(this.worldPosition, stabilityBonus);
+            TileEntity tile = this.world.getTileEntity(this.altarPos);
+            if (tile instanceof RitualAltarTileEntity) {
+                ((RitualAltarTileEntity)tile).onPropActivation(this.pos);
             }
         }
     }

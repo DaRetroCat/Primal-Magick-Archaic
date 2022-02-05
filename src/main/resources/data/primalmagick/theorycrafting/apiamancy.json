@@ -3,9 +3,7 @@
   "required_material_count_override": 1,
   "base_success_chance_override": 0.5,
   "reward_multiplier": 0.5,
-  "aid_blocks": [
-    "minecraft:beehive"
-  ],
+  "aid_block": "minecraft:beehive",
   "material_options": [
     {
       "type": "tag",

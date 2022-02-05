@@ -5,9 +5,9 @@ import java.util.function.Supplier;
 import com.verdantartifice.primalmagick.client.fx.FxDispatcher;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToClient;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent from the server to trigger a spell trail particle effect on the client.
@@ -29,18 +29,18 @@ public class SpellTrailPacket implements IMessageToClient {
         this.color = color;
     }
     
-    public SpellTrailPacket(Vec3 pos, int color) {
+    public SpellTrailPacket(Vector3d pos, int color) {
         this(pos.x, pos.y, pos.z, color);
     }
     
-    public static void encode(SpellTrailPacket message, FriendlyByteBuf buf) {
+    public static void encode(SpellTrailPacket message, PacketBuffer buf) {
         buf.writeDouble(message.x);
         buf.writeDouble(message.y);
         buf.writeDouble(message.z);
         buf.writeInt(message.color);
     }
     
-    public static SpellTrailPacket decode(FriendlyByteBuf buf) {
+    public static SpellTrailPacket decode(PacketBuffer buf) {
         SpellTrailPacket message = new SpellTrailPacket();
         message.x = buf.readDouble();
         message.y = buf.readDouble();

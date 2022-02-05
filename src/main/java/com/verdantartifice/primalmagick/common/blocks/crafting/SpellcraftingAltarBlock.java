@@ -2,32 +2,25 @@ package com.verdantartifice.primalmagick.common.blocks.crafting;
 
 import com.verdantartifice.primalmagick.common.containers.SpellcraftingAltarContainer;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.level.material.MaterialColor;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.SoundType;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.material.MaterialColor;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.INamedContainerProvider;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Hand;
+import net.minecraft.util.IWorldPosCallable;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.network.NetworkHooks;
 
 /**
  * Block definition for the spellcrafting altar.  A spellcrafting altar allows a player to define a spell
@@ -37,51 +30,26 @@ import net.minecraftforge.network.NetworkHooks;
  * @author Daedalus4096
  */
 public class SpellcraftingAltarBlock extends Block {
-    protected static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
-
     public SpellcraftingAltarBlock() {
-        super(Block.Properties.of(Material.STONE, MaterialColor.QUARTZ).strength(1.5F, 6.0F).sound(SoundType.STONE));
-        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
-    }
-
-    @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
-        // Make the block face the player when placed
-        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+        super(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.5F, 6.0F).sound(SoundType.STONE));
     }
     
     @Override
-    public BlockState rotate(BlockState state, Rotation rot) {
-        return state.setValue(FACING, rot.rotate(state.getValue(FACING)));
-    }
-    
-    @SuppressWarnings("deprecation")
-    @Override
-    public BlockState mirror(BlockState state, Mirror mirrorIn) {
-        return state.rotate(mirrorIn.getRotation(state.getValue(FACING)));
-    }
-    
-    @Override
-    protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
-        builder.add(FACING);
-    }
-    
-    @Override
-    public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn, BlockHitResult hit) {
-        if (!worldIn.isClientSide && player instanceof ServerPlayer) {
+    public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit) {
+        if (!worldIn.isRemote && player instanceof ServerPlayerEntity) {
             // Open the GUI for the spellcrafting altar
-            NetworkHooks.openGui((ServerPlayer)player, new MenuProvider() {
+            NetworkHooks.openGui((ServerPlayerEntity)player, new INamedContainerProvider() {
                 @Override
-                public AbstractContainerMenu createMenu(int windowId, Inventory inv, Player player) {
-                    return new SpellcraftingAltarContainer(windowId, inv, ContainerLevelAccess.create(worldIn, pos));
+                public Container createMenu(int windowId, PlayerInventory inv, PlayerEntity player) {
+                    return new SpellcraftingAltarContainer(windowId, inv, IWorldPosCallable.of(worldIn, pos));
                 }
 
                 @Override
-                public Component getDisplayName() {
-                    return new TranslatableComponent(SpellcraftingAltarBlock.this.getDescriptionId());
+                public ITextComponent getDisplayName() {
+                    return new TranslationTextComponent(SpellcraftingAltarBlock.this.getTranslationKey());
                 }
             });
         }
-        return InteractionResult.SUCCESS;
+        return ActionResultType.SUCCESS;
     }
 }

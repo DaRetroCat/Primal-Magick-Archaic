@@ -5,36 +5,38 @@ import com.verdantartifice.primalmagick.common.containers.slots.GenericResultSlo
 import com.verdantartifice.primalmagick.common.containers.slots.HoneycombSlot;
 import com.verdantartifice.primalmagick.common.containers.slots.WandSlot;
 
-import net.minecraft.world.Container;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.inventory.SimpleContainerData;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IIntArray;
+import net.minecraft.util.IntArray;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Server data container for the honey extractor GUI.
  * 
  * @author Daedalus4096
  */
-public class HoneyExtractorContainer extends AbstractContainerMenu {
-    protected final Container extractorInv;
-    protected final ContainerData extractorData;
+public class HoneyExtractorContainer extends Container {
+    protected final IInventory extractorInv;
+    protected final IIntArray extractorData;
     protected final Slot honeycombSlot;
     protected final Slot bottleSlot;
     protected final Slot wandSlot;
 
-    public HoneyExtractorContainer(int id, Inventory playerInv) {
-        this(id, playerInv, new SimpleContainer(5), new SimpleContainerData(4));
+    public HoneyExtractorContainer(int id, PlayerInventory playerInv) {
+        this(id, playerInv, new Inventory(5), new IntArray(4));
     }
     
-    public HoneyExtractorContainer(int id, Inventory playerInv, Container extractorInv, ContainerData extractorData) {
+    public HoneyExtractorContainer(int id, PlayerInventory playerInv, IInventory extractorInv, IIntArray extractorData) {
         super(ContainersPM.HONEY_EXTRACTOR.get(), id);
-        checkContainerSize(extractorInv, 5);
-        checkContainerDataCount(extractorData, 4);
+        assertInventorySize(extractorInv, 5);
+        assertIntArraySize(extractorData, 4);
         this.extractorInv = extractorInv;
         this.extractorData = extractorData;
         
@@ -65,75 +67,76 @@ public class HoneyExtractorContainer extends AbstractContainerMenu {
             this.addSlot(new Slot(playerInv, k, 8 + k * 18, 142));
         }
 
-        this.addDataSlots(this.extractorData);
+        this.trackIntArray(this.extractorData);
     }
 
     @Override
-    public boolean stillValid(Player playerIn) {
-        return this.extractorInv.stillValid(playerIn);
+    public boolean canInteractWith(PlayerEntity playerIn) {
+        return this.extractorInv.isUsableByPlayer(playerIn);
     }
     
     @Override
-    public ItemStack quickMoveStack(Player playerIn, int index) {
+    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index) {
         ItemStack stack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasItem()) {
-            ItemStack slotStack = slot.getItem();
+        Slot slot = this.inventorySlots.get(index);
+        if (slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
             stack = slotStack.copy();
             if (index == 2 || index == 3) {
                 // If transferring an output item, move it into the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 5, 41, true)) {
+                if (!this.mergeItemStack(slotStack, 5, 41, true)) {
                     return ItemStack.EMPTY;
                 }
-                slot.onQuickCraft(slotStack, stack);
+                slot.onSlotChange(slotStack, stack);
             } else if (index == 0 || index == 1 || index == 4) {
                 // If transferring one of the input items, move it into the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 5, 41, false)) {
+                if (!this.mergeItemStack(slotStack, 5, 41, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (this.honeycombSlot.mayPlace(slotStack)) {
+            } else if (this.honeycombSlot.isItemValid(slotStack)) {
                 // If transferring a valid ingredient, move it into the appropriate slot
-                if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (this.bottleSlot.mayPlace(slotStack)) {
+            } else if (this.bottleSlot.isItemValid(slotStack)) {
                 // If transferring a valid ingredient, move it into the appropriate slot
-                if (!this.moveItemStackTo(slotStack, 1, 2, false)) {
+                if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (this.wandSlot.mayPlace(slotStack)) {
+            } else if (this.wandSlot.isItemValid(slotStack)) {
                 // If transferring a valid wand, move it into the appropriate slot
-                if (!this.moveItemStackTo(slotStack, 4, 5, false)) {
+                if (!this.mergeItemStack(slotStack, 4, 5, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index >= 5 && index < 32) {
                 // If transferring from the backpack and not a valid fit, move to the hotbar
-                if (!this.moveItemStackTo(slotStack, 32, 41, false)) {
+                if (!this.mergeItemStack(slotStack, 32, 41, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index >= 32 && index < 41) {
                 // If transferring from the hotbar and not a valid fit, move to the backpack
-                if (!this.moveItemStackTo(slotStack, 5, 32, false)) {
+                if (!this.mergeItemStack(slotStack, 5, 32, false)) {
                     return ItemStack.EMPTY;
                 }
             }
             
             if (slotStack.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.putStack(ItemStack.EMPTY);
             }
             
-            slot.setChanged();
+            slot.onSlotChanged();
             if (slotStack.getCount() == stack.getCount()) {
                 return ItemStack.EMPTY;
             }
             
             slot.onTake(playerIn, slotStack);
-            this.broadcastChanges();
+            this.detectAndSendChanges();
         }
         
         return stack;
     }
 
+    @OnlyIn(Dist.CLIENT)
     public int getSpinProgressionScaled() {
         // Determine how much of the progress arrow to show
         int i = this.extractorData.get(0);
@@ -141,10 +144,12 @@ public class HoneyExtractorContainer extends AbstractContainerMenu {
         return j != 0 && i != 0 ? i * 24 / j : 0;
     }
     
+    @OnlyIn(Dist.CLIENT)
     public int getCurrentMana() {
         return this.extractorData.get(2);
     }
     
+    @OnlyIn(Dist.CLIENT)
     public int getMaxMana() {
         return this.extractorData.get(3);
     }

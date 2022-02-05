@@ -2,10 +2,6 @@
   "key": "STONEMELDING",
   "name": "primalmagick.research.stonemelding.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "minecraft:stone"
-  },
   "parents": [
     "BASIC_ALCHEMY"
   ],

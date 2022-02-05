@@ -9,9 +9,9 @@ import com.verdantartifice.primalmagick.common.containers.SpellcraftingAltarCont
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToServer;
 import com.verdantartifice.primalmagick.common.spells.SpellComponent;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.network.PacketBuffer;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent to update the value of a spell component's property on the server in the spellcrafting altar GUI.
@@ -40,24 +40,24 @@ public class SetSpellComponentPropertyPacket implements IMessageToServer {
         this.value = value;
     }
 
-    public static void encode(SetSpellComponentPropertyPacket message, FriendlyByteBuf buf) {
+    public static void encode(SetSpellComponentPropertyPacket message, PacketBuffer buf) {
         buf.writeInt(message.windowId);
-        buf.writeUtf(message.attr.name());
-        buf.writeUtf(message.name);
+        buf.writeString(message.attr.name());
+        buf.writeString(message.name);
         buf.writeInt(message.value);
     }
     
-    public static SetSpellComponentPropertyPacket decode(FriendlyByteBuf buf) {
+    public static SetSpellComponentPropertyPacket decode(PacketBuffer buf) {
         SetSpellComponentPropertyPacket message = new SetSpellComponentPropertyPacket();
         message.windowId = buf.readInt();
-        String attrStr = buf.readUtf();
+        String attrStr = buf.readString();
         try {
             message.attr = SpellComponent.valueOf(attrStr);
         } catch (Exception e) {
             LOGGER.warn("Received SetSpellComponentPropertyPacket with unexpected attr value {}", attrStr);
             message.attr = null;
         }
-        message.name = buf.readUtf();
+        message.name = buf.readString();
         message.value = buf.readInt();
         return message;
     }
@@ -66,10 +66,10 @@ public class SetSpellComponentPropertyPacket implements IMessageToServer {
         public static void onMessage(SetSpellComponentPropertyPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                ServerPlayer player = ctx.get().getSender();
-                if (player.containerMenu != null && player.containerMenu.containerId == message.windowId && player.containerMenu instanceof SpellcraftingAltarContainer) {
+                ServerPlayerEntity player = ctx.get().getSender();
+                if (player.openContainer != null && player.openContainer.windowId == message.windowId && player.openContainer instanceof SpellcraftingAltarContainer) {
                     // Update the property value if the open container window matches the given one
-                    SpellcraftingAltarContainer container = (SpellcraftingAltarContainer)player.containerMenu;
+                    SpellcraftingAltarContainer container = (SpellcraftingAltarContainer)player.openContainer;
                     container.setSpellPropertyValue(message.attr, message.name, message.value);
                 }
             });

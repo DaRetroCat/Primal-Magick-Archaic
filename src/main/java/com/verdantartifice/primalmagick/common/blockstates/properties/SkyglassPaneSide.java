@@ -1,13 +1,13 @@
 package com.verdantartifice.primalmagick.common.blockstates.properties;
 
-import net.minecraft.util.StringRepresentable;
+import net.minecraft.util.IStringSerializable;
 
 /**
  * Representation of a connection, or lack thereof, to a skyglass pane.
  * 
  * @author Daedalus4096
  */
-public enum SkyglassPaneSide implements StringRepresentable {
+public enum SkyglassPaneSide implements IStringSerializable {
     NONE("none"),
     GLASS("glass"),
     OTHER("other");
@@ -19,12 +19,12 @@ public enum SkyglassPaneSide implements StringRepresentable {
     }
     
     @Override
-    public String getSerializedName() {
+    public String getString() {
         return this.name;
     }
     
     @Override
     public String toString() {
-        return this.getSerializedName();
+        return this.getString();
     }
 }

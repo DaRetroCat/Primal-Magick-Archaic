@@ -1,7 +1,6 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +10,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.verdantartifice.primalmagick.PrimalMagick;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,37 +21,36 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
-import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.containers.FakeContainer;
 import com.verdantartifice.primalmagick.common.crafting.IHasManaCost;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.resources.JsonReloadListener;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.EntityType;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.ICraftingRecipe;
+import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.item.crafting.Ingredient;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionUtils;
+import net.minecraft.potion.Potions;
+import net.minecraft.profiler.IProfiler;
+import net.minecraft.resources.IResourceManager;
+import net.minecraft.util.JSONUtils;
+import net.minecraft.util.NonNullList;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.World;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID)
-public class AffinityManager extends SimpleJsonResourceReloadListener {
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID)
+public class AffinityManager extends JsonReloadListener {
     protected static final int MAX_AFFINITY = 100;
     protected static final int HISTORY_LIMIT = 100;
     protected static final Gson GSON = (new GsonBuilder()).setPrettyPrinting().disableHtmlEscaping().create();
@@ -75,14 +74,8 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
 
     @SubscribeEvent
     public static void onResourceReload(AddReloadListenerEvent event) {
-        event.addListener(createInstance());
-    }
-    
-    public static AffinityManager createInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new AffinityManager();
-        }
-        return INSTANCE;
+        INSTANCE = new AffinityManager();
+        event.addListener(INSTANCE);
     }
     
     public static AffinityManager getInstance() {
@@ -93,12 +86,8 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
         }
     }
     
-    public static IAffinitySerializer<?> getSerializer(AffinityType type) {
-        return SERIALIZERS.get(type);
-    }
-    
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> objectIn, ResourceManager resourceManagerIn, ProfilerFiller profilerIn) {
+    protected void apply(Map<ResourceLocation, JsonElement> objectIn, IResourceManager resourceManagerIn, IProfiler profilerIn) {
         this.affinities.clear();
         for (Map.Entry<ResourceLocation, JsonElement> entry : objectIn.entrySet()) {
             ResourceLocation location = entry.getKey();
@@ -108,7 +97,7 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
             }
 
             try {
-                IAffinity aff = this.deserializeAffinity(location, GsonHelper.convertToJsonObject(entry.getValue(), "top member"));
+                IAffinity aff = this.deserializeAffinity(location, JSONUtils.getJsonObject(entry.getValue(), "top member"));
                 if (aff == null) {
                     LOGGER.info("Skipping loading affinity {} as its serializer returned null", location);
                     continue;
@@ -119,22 +108,12 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
             }
         }
         for (Map.Entry<AffinityType, Map<ResourceLocation, IAffinity>> entry : this.affinities.entrySet()) {
-            LOGGER.info("Loaded {} {} affinity definitions", entry.getValue().size(), entry.getKey().getSerializedName());
-        }
-    }
-    
-    public void replaceAffinities(List<IAffinity> affinities) {
-        this.affinities.clear();
-        for (IAffinity affinity : affinities) {
-            this.registerAffinity(affinity);
-        }
-        for (Map.Entry<AffinityType, Map<ResourceLocation, IAffinity>> entry : this.affinities.entrySet()) {
-            LOGGER.info("Updated {} {} affinity definitions", entry.getValue().size(), entry.getKey().getSerializedName());
+            LOGGER.info("Loaded {} {} affinity definitions", entry.getValue().size(), entry.getKey().getString());
         }
     }
     
     protected IAffinity deserializeAffinity(ResourceLocation id, JsonObject json) {
-        String s = GsonHelper.getAsString(json, "type");
+        String s = JSONUtils.getString(json, "type");
         AffinityType type = AffinityType.parse(s);
         IAffinitySerializer<?> serializer = SERIALIZERS.get(type);
         if (serializer == null) {
@@ -150,22 +129,15 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
     }
     
     @Nullable
-    public IAffinity getOrGenerateItemAffinity(@Nonnull ResourceLocation id, @Nonnull RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    public IAffinity getOrGenerateItemAffinity(@Nonnull ResourceLocation id, @Nonnull RecipeManager recipeManager) {
         Map<ResourceLocation, IAffinity> map = this.affinities.computeIfAbsent(AffinityType.ITEM, (affinityType) -> {
             return new HashMap<>();
         });
         if (map.containsKey(id)) {
             return map.get(id);
         } else {
-            return this.generateItemAffinity(id, recipeManager, history);
+            return this.generateItemAffinity(id, recipeManager, new ArrayList<>());
         }
-    }
-    
-    @Nonnull
-    public Collection<IAffinity> getAllAffinities() {
-        return this.affinities.values().stream().flatMap((typeMap) -> {
-            return typeMap.values().stream();
-        }).collect(Collectors.toSet());
     }
     
     protected void registerAffinity(@Nullable IAffinity affinity) {
@@ -188,12 +160,12 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
         if (entityAffinity == null) {
             return null;
         } else {
-            return this.capAffinities(entityAffinity.getTotal(null, new ArrayList<>()), MAX_AFFINITY);
+            return this.capAffinities(entityAffinity.getTotal(null), MAX_AFFINITY);
         }
     }
     
     @Nullable
-    public SourceList getAffinityValues(@Nullable ItemStack stack, @Nonnull Level world) {
+    public SourceList getAffinityValues(@Nullable ItemStack stack, @Nonnull World world) {
         return this.getAffinityValues(stack, world.getRecipeManager(), new ArrayList<>());
     }
     
@@ -215,7 +187,7 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
         }
         
         // Extract source values from the affinity data
-        SourceList retVal = itemAffinity.getTotal(recipeManager, history);
+        SourceList retVal = itemAffinity.getTotal(recipeManager);
         
         // Append any needed bonus affinities for NBT data, then cap the result to a reasonable value
         return this.capAffinities(this.addBonusAffinities(stack, retVal, recipeManager), MAX_AFFINITY);
@@ -255,16 +227,16 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
         int maxValue = Integer.MAX_VALUE;
         
         // Look up all recipes with the given item as an output
-        for (Recipe<?> recipe : recipeManager.getRecipes().stream().filter(r -> r.getResultItem() != null && r.getResultItem().getItem().getRegistryName().equals(id)).collect(Collectors.toList())) {
+        for (IRecipe<?> recipe : recipeManager.getRecipes().stream().filter(r -> r.getRecipeOutput() != null && r.getRecipeOutput().getItem().getRegistryName().equals(id)).collect(Collectors.toList())) {
             // Compute the affinities from the recipe's ingredients
-            SourceList ingSources = this.generateItemAffinityValuesFromIngredients(recipe, recipeManager, history);
+            SourceList ingSources = generateItemAffinityValuesFromIngredients(recipe, recipeManager, history);
             if (recipe instanceof IHasManaCost) {
                 // Add affinities from mana costs
                 IHasManaCost manaRecipe = (IHasManaCost)recipe;
                 SourceList manaCosts = manaRecipe.getManaCosts();
                 for (Source source : manaCosts.getSources()) {
                     if (manaCosts.getAmount(source) > 0) {
-                        int manaAmount = (int)(Math.sqrt(1 + manaCosts.getAmount(source) / 2) / recipe.getResultItem().getCount());
+                        int manaAmount = (int)(Math.sqrt(1 + manaCosts.getAmount(source) / 2) / recipe.getRecipeOutput().getCount());
                         if (manaAmount > 0) {
                             ingSources.add(source, manaAmount);
                         }
@@ -282,21 +254,21 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
     }
     
     @Nonnull
-    protected SourceList generateItemAffinityValuesFromIngredients(@Nonnull Recipe<?> recipe, @Nonnull RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    protected SourceList generateItemAffinityValuesFromIngredients(@Nonnull IRecipe<?> recipe, @Nonnull RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
         NonNullList<Ingredient> ingredients = recipe.getIngredients();
-        ItemStack output = recipe.getResultItem();
+        ItemStack output = recipe.getRecipeOutput();
         SourceList intermediate = new SourceList();
         
         // Populate a fake crafting inventory with ingredients to see what container items would be left behind
         NonNullList<ItemStack> containerList = NonNullList.create();
-        if (recipe instanceof CraftingRecipe) {
-            CraftingRecipe craftingRecipe = (CraftingRecipe)recipe;
-            CraftingContainer inv = new CraftingContainer(new FakeContainer(), ingredients.size(), 1);
+        if (recipe instanceof ICraftingRecipe) {
+            ICraftingRecipe craftingRecipe = (ICraftingRecipe)recipe;
+            CraftingInventory inv = new CraftingInventory(new FakeContainer(), 3, 3);
             int index = 0;
             for (Ingredient ingredient : ingredients) {
                 ItemStack ingStack = this.getMatchingItemStack(ingredient, recipeManager, history);
                 if (!ingStack.isEmpty()) {
-                    inv.setItem(index, ingStack);
+                    inv.setInventorySlotContents(index, ingStack);
                 }
                 index++;
             }
@@ -345,7 +317,7 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
     
     @Nonnull
     protected ItemStack getMatchingItemStack(@Nullable Ingredient ingredient, @Nonnull RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
-        if (ingredient == null || ingredient.getItems() == null || ingredient.getItems().length <= 0) {
+        if (ingredient == null || ingredient.getMatchingStacks() == null || ingredient.getMatchingStacks().length <= 0) {
             return ItemStack.EMPTY;
         }
         
@@ -353,7 +325,7 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
         ItemStack retVal = ItemStack.EMPTY;
         
         // Scan through all of the ingredient's possible matches to determine which one to use for affinity computation
-        for (ItemStack stack : ingredient.getItems()) {
+        for (ItemStack stack : ingredient.getMatchingStacks()) {
             SourceList stackSources = this.getAffinityValues(stack, recipeManager, history);
             if (stackSources != null) {
                 int manaSize = stackSources.getManaSize();
@@ -388,11 +360,11 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
         SourceList retVal = inputSources.copy();
         
         // Determine bonus affinities from NBT-attached potion data
-        Potion potion = PotionUtils.getPotion(stack);
+        Potion potion = PotionUtils.getPotionFromItem(stack);
         if (potion != null && potion != Potions.EMPTY) {
             IAffinity bonus = this.getAffinity(AffinityType.POTION_BONUS, potion.getRegistryName());
             if (bonus != null) {
-                retVal.add(bonus.getTotal(recipeManager, new ArrayList<>()));
+                retVal.add(bonus.getTotal(recipeManager));
             }
         }
         
@@ -402,7 +374,7 @@ public class AffinityManager extends SimpleJsonResourceReloadListener {
             for (Enchantment enchant : enchants.keySet()) {
                 IAffinity bonus = this.getAffinity(AffinityType.ENCHANTMENT_BONUS, enchant.getRegistryName());
                 if (bonus != null) {
-                    retVal.add(bonus.getTotal(recipeManager, new ArrayList<>()).multiply(enchants.get(enchant)));
+                    retVal.add(bonus.getTotal(recipeManager).multiply(enchants.get(enchant)));
                 }
             }
         }

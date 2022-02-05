@@ -2,91 +2,94 @@ package com.verdantartifice.primalmagick.common.entities.projectiles;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.LightningBoltEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.entity.projectile.AbstractArrowEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.IPacket;
+import net.minecraft.network.datasync.DataParameter;
+import net.minecraft.network.datasync.DataSerializers;
+import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.SoundEvent;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
+import net.minecraft.world.server.ServerWorld;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fml.network.NetworkHooks;
 
 /**
- * Base class definition for a thrown magickal metal trident entity.
+ * Base class definition for a thrown magical metal trident entity.
  * 
  * @author Daedalus4096
  */
-public abstract class AbstractTridentEntity extends AbstractArrow {
-    protected static final EntityDataAccessor<Byte> LOYALTY_LEVEL = SynchedEntityData.defineId(AbstractTridentEntity.class, EntityDataSerializers.BYTE);
-    protected static final EntityDataAccessor<Boolean> HAS_GLINT = SynchedEntityData.defineId(AbstractTridentEntity.class, EntityDataSerializers.BOOLEAN);
+public abstract class AbstractTridentEntity extends AbstractArrowEntity {
+    protected static final DataParameter<Byte> LOYALTY_LEVEL = EntityDataManager.createKey(AbstractTridentEntity.class, DataSerializers.BYTE);
+    protected static final DataParameter<Boolean> HAS_GLINT = EntityDataManager.createKey(AbstractTridentEntity.class, DataSerializers.BOOLEAN);
     protected ItemStack thrownStack;
     protected boolean dealtDamage;
     public int returningTicks;
     
-    public AbstractTridentEntity(EntityType<? extends AbstractTridentEntity> type, Level worldIn) {
+    public AbstractTridentEntity(EntityType<? extends AbstractTridentEntity> type, World worldIn) {
         super(type, worldIn);
     }
     
-    public AbstractTridentEntity(EntityType<? extends AbstractTridentEntity> type, Level worldIn, LivingEntity thrower, ItemStack thrownStackIn) {
+    public AbstractTridentEntity(EntityType<? extends AbstractTridentEntity> type, World worldIn, LivingEntity thrower, ItemStack thrownStackIn) {
         super(type, thrower, worldIn);
         this.thrownStack = thrownStackIn.copy();
-        this.entityData.set(LOYALTY_LEVEL, (byte)EnchantmentHelper.getLoyalty(this.thrownStack));
-        this.entityData.set(HAS_GLINT, this.thrownStack.hasFoil());
+        this.dataManager.set(LOYALTY_LEVEL, (byte)EnchantmentHelper.getLoyaltyModifier(this.thrownStack));
+        this.dataManager.set(HAS_GLINT, this.thrownStack.hasEffect());
     }
     
-    public AbstractTridentEntity(EntityType<? extends AbstractTridentEntity> type, Level worldIn, double x, double y, double z) {
+    @OnlyIn(Dist.CLIENT)
+    public AbstractTridentEntity(EntityType<? extends AbstractTridentEntity> type, World worldIn, double x, double y, double z) {
         super(type, x, y, z, worldIn);
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(LOYALTY_LEVEL, (byte)0);
-        this.entityData.define(HAS_GLINT, false);
+    protected void registerData() {
+        super.registerData();
+        this.dataManager.register(LOYALTY_LEVEL, (byte)0);
+        this.dataManager.register(HAS_GLINT, false);
     }
 
     @Override
     public void tick() {
-        if (this.inGroundTime > 4) {
+        if (this.timeInGround > 4) {
             this.dealtDamage = true;
         }
         
-        Entity shooter = this.getOwner();
-        if ((this.dealtDamage || this.isNoPhysics()) && shooter != null) {
-            int loyalty = this.entityData.get(LOYALTY_LEVEL);
+        Entity shooter = this.getShooter();
+        if ((this.dealtDamage || this.getNoClip()) && shooter != null) {
+            int loyalty = this.dataManager.get(LOYALTY_LEVEL);
             if (loyalty > 0 && !this.shouldReturnToThrower()) {
-                if (!this.level.isClientSide && this.pickup == AbstractArrow.Pickup.ALLOWED) {
-                    this.spawnAtLocation(this.getPickupItem(), 0.1F);
+                if (!this.world.isRemote && this.pickupStatus == AbstractArrowEntity.PickupStatus.ALLOWED) {
+                    this.entityDropItem(this.getArrowStack(), 0.1F);
                 }
-                this.discard();
+                this.remove();
             } else if (loyalty > 0) {
-                this.setNoPhysics(true);
-                Vec3 vector3d = new Vec3(shooter.getX() - this.getX(), shooter.getEyeY() - this.getY(), shooter.getZ() - this.getZ());
-                this.setPosRaw(this.getX(), this.getY() + vector3d.y * 0.015D * (double)loyalty, this.getZ());
-                if (this.level.isClientSide) {
-                    this.yOld = this.getY();
+                this.setNoClip(true);
+                Vector3d vector3d = new Vector3d(shooter.getPosX() - this.getPosX(), shooter.getPosYEye() - this.getPosY(), shooter.getPosZ() - this.getPosZ());
+                this.setRawPosition(this.getPosX(), this.getPosY() + vector3d.y * 0.015D * (double)loyalty, this.getPosZ());
+                if (this.world.isRemote) {
+                    this.lastTickPosY = this.getPosY();
                 }
                 
                 double d0 = 0.05D * (double)loyalty;
-                this.setDeltaMovement(this.getDeltaMovement().scale(0.95D).add(vector3d.normalize().scale(d0)));
+                this.setMotion(this.getMotion().scale(0.95D).add(vector3d.normalize().scale(d0)));
                 if (this.returningTicks == 0) {
-                    this.playSound(SoundEvents.TRIDENT_RETURN, 10.0F, 1.0F);
+                    this.playSound(SoundEvents.ITEM_TRIDENT_RETURN, 10.0F, 1.0F);
                 }
                 
                 this.returningTicks++;
@@ -97,67 +100,68 @@ public abstract class AbstractTridentEntity extends AbstractArrow {
     }
 
     private boolean shouldReturnToThrower() {
-        Entity shooter = this.getOwner();
+        Entity shooter = this.getShooter();
         if (shooter != null && shooter.isAlive()) {
-            return !(shooter instanceof ServerPlayer) || !shooter.isSpectator();
+            return !(shooter instanceof ServerPlayerEntity) || !shooter.isSpectator();
         } else {
             return false;
         }
     }
 
     @Override
-    protected ItemStack getPickupItem() {
+    protected ItemStack getArrowStack() {
         return this.thrownStack.copy();
     }
 
+    @OnlyIn(Dist.CLIENT)
     public boolean hasGlint() {
-        return this.entityData.get(HAS_GLINT);
+        return this.dataManager.get(HAS_GLINT);
     }
 
     @Override
     @Nullable
-    protected EntityHitResult findHitEntity(Vec3 startVec, Vec3 endVec) {
-        return this.dealtDamage ? null : super.findHitEntity(startVec, endVec);
+    protected EntityRayTraceResult rayTraceEntities(Vector3d startVec, Vector3d endVec) {
+        return this.dealtDamage ? null : super.rayTraceEntities(startVec, endVec);
     }
     
-    public abstract double getBaseDamage();
+    protected abstract float getBaseDamage();
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onEntityHit(EntityRayTraceResult result) {
         Entity entity = result.getEntity();
-        float damage = (float)this.getBaseDamage();
+        float damage = this.getBaseDamage();
         if (entity instanceof LivingEntity) {
-            damage += EnchantmentHelper.getDamageBonus(this.thrownStack, ((LivingEntity)entity).getMobType());
+            damage += EnchantmentHelper.getModifierForCreature(this.thrownStack, ((LivingEntity)entity).getCreatureAttribute());
         }
         
-        Entity shooter = this.getOwner();
-        DamageSource damageSource = DamageSource.trident(this, (Entity)(shooter == null ? this : shooter));
+        Entity shooter = this.getShooter();
+        DamageSource damageSource = DamageSource.causeTridentDamage(this, (Entity)(shooter == null ? this : shooter));
         this.dealtDamage = true;
-        SoundEvent soundEvent = SoundEvents.TRIDENT_HIT;
-        if (entity.hurt(damageSource, damage)) {
+        SoundEvent soundEvent = SoundEvents.ITEM_TRIDENT_HIT;
+        if (entity.attackEntityFrom(damageSource, damage)) {
             if (entity.getType() == EntityType.ENDERMAN) {
                 return;
             }
             if (entity instanceof LivingEntity) {
                 LivingEntity livingEntity = (LivingEntity)entity;
                 if (shooter instanceof LivingEntity) {
-                    EnchantmentHelper.doPostHurtEffects(livingEntity, shooter);
-                    EnchantmentHelper.doPostDamageEffects((LivingEntity)shooter, livingEntity);
+                    EnchantmentHelper.applyThornEnchantments(livingEntity, shooter);
+                    EnchantmentHelper.applyArthropodEnchantments((LivingEntity)shooter, livingEntity);
                 }
-                this.doPostHurtEffects(livingEntity);
+                this.arrowHit(livingEntity);
             }
         }
         
-        this.setDeltaMovement(this.getDeltaMovement().multiply(-0.01D, -0.1D, -0.01D));
+        this.setMotion(this.getMotion().mul(-0.01D, -0.1D, -0.01D));
         float volume = 1.0F;
-        if (this.level instanceof ServerLevel && this.level.isThundering() && EnchantmentHelper.hasChanneling(this.thrownStack)) {
-            BlockPos pos = entity.blockPosition();
-            if (this.level.canSeeSky(pos)) {
-                LightningBolt lightningBoltEntity = EntityType.LIGHTNING_BOLT.create(this.level);
-                lightningBoltEntity.moveTo(Vec3.atBottomCenterOf(pos));
-                lightningBoltEntity.setCause(shooter instanceof ServerPlayer ? (ServerPlayer)shooter : null);
-                this.level.addFreshEntity(lightningBoltEntity);
-                soundEvent = SoundEvents.TRIDENT_THUNDER;
+        if (this.world instanceof ServerWorld && this.world.isThundering() && EnchantmentHelper.hasChanneling(this.thrownStack)) {
+            BlockPos pos = entity.getPosition();
+            if (this.world.canSeeSky(pos)) {
+                LightningBoltEntity lightningBoltEntity = EntityType.LIGHTNING_BOLT.create(this.world);
+                lightningBoltEntity.moveForced(Vector3d.copyCenteredHorizontally(pos));
+                lightningBoltEntity.setCaster(shooter instanceof ServerPlayerEntity ? (ServerPlayerEntity)shooter : null);
+                this.world.addEntity(lightningBoltEntity);
+                soundEvent = SoundEvents.ITEM_TRIDENT_THUNDER;
                 volume = 5.0F;
             }
         }
@@ -166,54 +170,55 @@ public abstract class AbstractTridentEntity extends AbstractArrow {
     }
 
     @Override
-    protected SoundEvent getDefaultHitGroundSoundEvent() {
-        return SoundEvents.TRIDENT_HIT_GROUND;
+    protected SoundEvent getHitEntitySound() {
+        return SoundEvents.ITEM_TRIDENT_HIT_GROUND;
     }
 
     @Override
-    public void playerTouch(Player entityIn) {
-        Entity shooter = this.getOwner();
-        if (shooter == null || shooter.getUUID() == entityIn.getUUID()) {
-            super.playerTouch(entityIn);
+    public void onCollideWithPlayer(PlayerEntity entityIn) {
+        Entity shooter = this.getShooter();
+        if (shooter == null || shooter.getUniqueID() == entityIn.getUniqueID()) {
+            super.onCollideWithPlayer(entityIn);
         }
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag compound) {
-        super.readAdditionalSaveData(compound);
-        if (compound.contains("Trident", Tag.TAG_COMPOUND)) {
-            this.thrownStack = ItemStack.of(compound.getCompound("Trident"));
+    public void readAdditional(CompoundNBT compound) {
+        super.readAdditional(compound);
+        if (compound.contains("Trident", Constants.NBT.TAG_COMPOUND)) {
+            this.thrownStack = ItemStack.read(compound.getCompound("Trident"));
         }
         this.dealtDamage = compound.getBoolean("DealtDamage");
-        this.entityData.set(LOYALTY_LEVEL, (byte)EnchantmentHelper.getLoyalty(this.thrownStack));
+        this.dataManager.set(LOYALTY_LEVEL, (byte)EnchantmentHelper.getLoyaltyModifier(this.thrownStack));
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
-        compound.put("Trident", this.thrownStack.save(new CompoundTag()));
+    public void writeAdditional(CompoundNBT compound) {
+        super.writeAdditional(compound);
+        compound.put("Trident", this.thrownStack.write(new CompoundNBT()));
         compound.putBoolean("DealtDamage", this.dealtDamage);
     }
 
     @Override
-    protected void tickDespawn() {
-        if (this.pickup != AbstractArrow.Pickup.ALLOWED || this.entityData.get(LOYALTY_LEVEL) <= 0) {
-            super.tickDespawn();
+    protected void func_225516_i_() {
+        if (this.pickupStatus != AbstractArrowEntity.PickupStatus.ALLOWED || this.dataManager.get(LOYALTY_LEVEL) <= 0) {
+            super.func_225516_i_();
         }
     }
 
     @Override
-    protected float getWaterInertia() {
+    protected float getWaterDrag() {
         return 0.99F;
     }
 
+    @OnlyIn(Dist.CLIENT)
     @Override
-    public boolean shouldRender(double x, double y, double z) {
+    public boolean isInRangeToRender3d(double x, double y, double z) {
         return true;
     }
 
     @Override
-    public Packet<?> getAddEntityPacket() {
+    public IPacket<?> createSpawnPacket() {
         return NetworkHooks.getEntitySpawningPacket(this);
     }
 }

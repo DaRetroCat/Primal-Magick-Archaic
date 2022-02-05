@@ -3,14 +3,14 @@ package com.verdantartifice.primalmagick.common.items.tools;
 import com.google.common.collect.ImmutableMap;
 import com.verdantartifice.primalmagick.common.enchantments.EnchantmentsPM;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
 
 /**
- * Definition for a bow made of the magickal metal hexium which comes pre-enchanted with Soulpiercing.
+ * Definition for a bow made of the magical metal hexium which comes pre-enchanted with Soulpiercing.
  * 
  * @author Daedalus4096
  */
@@ -27,9 +27,9 @@ public class ForbiddenBowItem extends TieredBowItem {
     }
 
     @Override
-    public void fillItemCategory(CreativeModeTab group, NonNullList<ItemStack> items) {
+    public void fillItemGroup(ItemGroup group, NonNullList<ItemStack> items) {
         // Populate the creative pane with a pre-enchanted bow
-        if (this.allowdedIn(group)) {
+        if (this.isInGroup(group)) {
             items.add(this.getDefaultInstance());
         }
     }

@@ -1,20 +1,22 @@
 package com.verdantartifice.primalmagick.common.capabilities;
 
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.data.SyncCooldownsPacket;
 
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.INBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.LazyOptional;
 
 /**
@@ -26,14 +28,14 @@ public class PlayerCooldowns implements IPlayerCooldowns {
     private final Map<CooldownType, Long> cooldowns = new ConcurrentHashMap<>();    // Map of cooldown types to recovery times, in system milliseconds
 
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag rootTag = new CompoundTag();
-        ListTag cooldownList = new ListTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT rootTag = new CompoundNBT();
+        ListNBT cooldownList = new ListNBT();
         for (CooldownType type : this.cooldowns.keySet()) {
             if (type != null) {
                 Long time = this.cooldowns.get(type);
                 if (time != null && time.longValue() > 0) {
-                    CompoundTag tag = new CompoundTag();
+                    CompoundNBT tag = new CompoundNBT();
                     tag.putString("Type", type.name());
                     tag.putLong("Value", time.longValue());
                     cooldownList.add(tag);
@@ -45,16 +47,16 @@ public class PlayerCooldowns implements IPlayerCooldowns {
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         if (nbt == null) {
             return;
         }
         
         this.clearCooldowns();
         
-        ListTag cooldownList = nbt.getList("Cooldowns", Tag.TAG_COMPOUND);
+        ListNBT cooldownList = nbt.getList("Cooldowns", Constants.NBT.TAG_COMPOUND);
         for (int index = 0; index < cooldownList.size(); index++) {
-            CompoundTag tag = cooldownList.getCompound(index);
+            CompoundNBT tag = cooldownList.getCompound(index);
             CooldownType type = null;
             try {
                 type = CooldownType.valueOf(tag.getString("Type"));
@@ -93,7 +95,7 @@ public class PlayerCooldowns implements IPlayerCooldowns {
     }
 
     @Override
-    public void sync(ServerPlayer player) {
+    public void sync(ServerPlayerEntity player) {
         if (player != null) {
             PacketHandler.sendToPlayer(new SyncCooldownsPacket(player), player);
         }
@@ -105,15 +107,15 @@ public class PlayerCooldowns implements IPlayerCooldowns {
      * @author Daedalus4096
      * @see {@link com.verdantartifice.primalmagick.common.events.CapabilityEvents}
      */
-    public static class Provider implements ICapabilitySerializable<CompoundTag> {
+    public static class Provider implements ICapabilitySerializable<CompoundNBT> {
         public static final ResourceLocation NAME = new ResourceLocation(PrimalMagick.MODID, "capability_cooldowns");
         
-        private final IPlayerCooldowns instance = new PlayerCooldowns();
+        private final IPlayerCooldowns instance = PrimalMagicCapabilities.COOLDOWNS.getDefaultInstance();
         private final LazyOptional<IPlayerCooldowns> holder = LazyOptional.of(() -> instance);  // Cache a lazy optional of the capability instance
 
         @Override
         public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-            if (cap == PrimalMagickCapabilities.COOLDOWNS) {
+            if (cap == PrimalMagicCapabilities.COOLDOWNS) {
                 return holder.cast();
             } else {
                 return LazyOptional.empty();
@@ -121,13 +123,46 @@ public class PlayerCooldowns implements IPlayerCooldowns {
         }
 
         @Override
-        public CompoundTag serializeNBT() {
+        public CompoundNBT serializeNBT() {
             return instance.serializeNBT();
         }
 
         @Override
-        public void deserializeNBT(CompoundTag nbt) {
+        public void deserializeNBT(CompoundNBT nbt) {
             instance.deserializeNBT(nbt);
+        }
+    }
+    
+    /**
+     * Storage manager for the player cooldowns capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Storage implements Capability.IStorage<IPlayerCooldowns> {
+        @Override
+        public INBT writeNBT(Capability<IPlayerCooldowns> capability, IPlayerCooldowns instance, Direction side) {
+            // Use the instance's pre-defined serialization
+            return instance.serializeNBT();
+        }
+
+        @Override
+        public void readNBT(Capability<IPlayerCooldowns> capability, IPlayerCooldowns instance, Direction side, INBT nbt) {
+            // Use the instance's pre-defined deserialization
+            instance.deserializeNBT((CompoundNBT)nbt);
+        }
+    }
+    
+    /**
+     * Factory for the player cooldowns capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Factory implements Callable<IPlayerCooldowns> {
+        @Override
+        public IPlayerCooldowns call() throws Exception {
+            return new PlayerCooldowns();
         }
     }
 }

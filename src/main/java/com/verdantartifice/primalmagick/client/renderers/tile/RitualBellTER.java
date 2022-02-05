@@ -1,21 +1,22 @@
 package com.verdantartifice.primalmagick.client.renderers.tile;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.vertex.IVertexBuilder;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.tiles.rituals.RitualBellTileEntity;
 
-import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.IRenderTypeBuffer;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
-import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.texture.TextureAtlas;
-import net.minecraft.client.resources.model.Material;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
+import net.minecraft.client.renderer.model.ModelRenderer;
+import net.minecraft.client.renderer.model.RenderMaterial;
+import net.minecraft.client.renderer.texture.AtlasTexture;
+import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
+import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.MathHelper;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Custom tile entity renderer for ritual bell blocks.
@@ -24,34 +25,41 @@ import net.minecraft.util.Mth;
  * @see {@link com.verdantartifice.primalmagick.common.blocks.rituals.RitualBellBlock}
  */
 @SuppressWarnings("deprecation")
-public class RitualBellTER implements BlockEntityRenderer<RitualBellTileEntity> {
+@OnlyIn(Dist.CLIENT)
+public class RitualBellTER extends TileEntityRenderer<RitualBellTileEntity> {
     public static final ResourceLocation TEXTURE = new ResourceLocation(PrimalMagick.MODID, "entity/ritual_bell_body");
-    public static final Material BODY_MATERIAL = new Material(TextureAtlas.LOCATION_BLOCKS, TEXTURE);
-    protected final ModelPart modelRenderer;
+    public static final RenderMaterial BODY_MATERIAL = new RenderMaterial(AtlasTexture.LOCATION_BLOCKS_TEXTURE, TEXTURE);
+    protected final ModelRenderer modelRenderer = new ModelRenderer(32, 32, 0, 0);
 
-    public RitualBellTER(BlockEntityRendererProvider.Context context) {
-        this.modelRenderer = context.bakeLayer(ModelLayers.BELL).getChild("bell_body");
+    public RitualBellTER(TileEntityRendererDispatcher rendererDispatcherIn) {
+        super(rendererDispatcherIn);
+        this.modelRenderer.addBox(-3.0F, -6.0F, -3.0F, 6.0F, 7.0F, 6.0F);
+        this.modelRenderer.setRotationPoint(8.0F, 12.0F, 8.0F);
+        ModelRenderer modelrenderer = new ModelRenderer(32, 32, 0, 13);
+        modelrenderer.addBox(4.0F, 4.0F, 4.0F, 8.0F, 2.0F, 8.0F);
+        modelrenderer.setRotationPoint(-8.0F, -12.0F, -8.0F);
+        this.modelRenderer.addChild(modelrenderer);
     }
 
     @Override
-    public void render(RitualBellTileEntity tileEntityIn, float partialTicks, PoseStack matrixStackIn, MultiBufferSource bufferIn, int combinedLightIn, int combinedOverlayIn) {
+    public void render(RitualBellTileEntity tileEntityIn, float partialTicks, MatrixStack matrixStackIn, IRenderTypeBuffer bufferIn, int combinedLightIn, int combinedOverlayIn) {
         float ticks = (float)tileEntityIn.getRingingTicks() + partialTicks;
-        this.modelRenderer.xRot = 0.0F;
-        this.modelRenderer.zRot = 0.0F;
+        this.modelRenderer.rotateAngleX = 0.0F;
+        this.modelRenderer.rotateAngleZ = 0.0F;
         
         if (tileEntityIn.isRinging()) {
-            float delta = Mth.sin(ticks / (float)Math.PI) / (4.0F + ticks / 3.0F);
+            float delta = MathHelper.sin(ticks / (float)Math.PI) / (4.0F + ticks / 3.0F);
             if (tileEntityIn.getRingDirection() == Direction.NORTH) {
-                this.modelRenderer.xRot = -delta;
+                this.modelRenderer.rotateAngleX = -delta;
             } else if (tileEntityIn.getRingDirection() == Direction.SOUTH) {
-                this.modelRenderer.xRot = delta;
+                this.modelRenderer.rotateAngleX = delta;
             } else if (tileEntityIn.getRingDirection() == Direction.EAST) {
-                this.modelRenderer.zRot = -delta;
+                this.modelRenderer.rotateAngleZ = -delta;
             } else if (tileEntityIn.getRingDirection() == Direction.WEST) {
-                this.modelRenderer.zRot = delta;
+                this.modelRenderer.rotateAngleZ = delta;
             }
         }
-        VertexConsumer ivertexbuilder = BODY_MATERIAL.buffer(bufferIn, RenderType::entitySolid);
+        IVertexBuilder ivertexbuilder = BODY_MATERIAL.getBuffer(bufferIn, RenderType::getEntitySolid);
         this.modelRenderer.render(matrixStackIn, ivertexbuilder, combinedLightIn, combinedOverlayIn);
     }
 }

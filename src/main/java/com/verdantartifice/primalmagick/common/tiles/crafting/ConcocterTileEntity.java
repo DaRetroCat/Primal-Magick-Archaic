@@ -1,26 +1,18 @@
 package com.verdantartifice.primalmagick.common.tiles.crafting;
 
-import java.util.Collections;
-import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.blocks.crafting.ConcocterBlock;
 import com.verdantartifice.primalmagick.common.capabilities.IManaStorage;
-import com.verdantartifice.primalmagick.common.capabilities.ITileResearchCache;
 import com.verdantartifice.primalmagick.common.capabilities.ManaStorage;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
-import com.verdantartifice.primalmagick.common.capabilities.TileResearchCache;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.concoctions.ConcoctionUtils;
 import com.verdantartifice.primalmagick.common.concoctions.FuseType;
 import com.verdantartifice.primalmagick.common.containers.ConcocterContainer;
 import com.verdantartifice.primalmagick.common.crafting.IConcoctingRecipe;
 import com.verdantartifice.primalmagick.common.crafting.RecipeTypesPM;
-import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
-import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.sources.IManaContainer;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
@@ -29,51 +21,42 @@ import com.verdantartifice.primalmagick.common.tiles.base.IOwnedTileEntity;
 import com.verdantartifice.primalmagick.common.tiles.base.TileInventoryPM;
 import com.verdantartifice.primalmagick.common.wands.IWand;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
-import net.minecraft.world.Container;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.StackedContents;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.inventory.StackedContentsCompatible;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.INamedContainerProvider;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.tileentity.ITickableTileEntity;
+import net.minecraft.util.Direction;
+import net.minecraft.util.IIntArray;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.LazyOptional;
 
-public class ConcocterTileEntity extends TileInventoryPM implements  MenuProvider, IOwnedTileEntity, IManaContainer, StackedContentsCompatible {
+public class ConcocterTileEntity extends TileInventoryPM implements ITickableTileEntity, INamedContainerProvider, IOwnedTileEntity, IManaContainer {
     protected static final int MAX_INPUT_ITEMS = 9;
     protected static final int WAND_SLOT_INDEX = 9;
     protected static final int OUTPUT_SLOT_INDEX = 10;
-    protected static final int[] SLOTS_FOR_UP = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-    protected static final int[] SLOTS_FOR_DOWN = new int[] { 10 };
-    protected static final int[] SLOTS_FOR_SIDES = new int[] { 9 };
     
     protected int cookTime;
     protected int cookTimeTotal;
     protected ManaStorage manaStorage;
-    protected ITileResearchCache researchCache;
+    protected PlayerEntity owner;
     protected UUID ownerUUID;
 
     protected LazyOptional<IManaStorage> manaStorageOpt = LazyOptional.of(() -> this.manaStorage);
-    protected LazyOptional<ITileResearchCache> researchCacheOpt = LazyOptional.of(() -> this.researchCache);
-    
-    protected Set<SimpleResearchKey> relevantResearch = Collections.emptySet();
-    protected final Predicate<SimpleResearchKey> relevantFilter = k -> this.getRelevantResearch().contains(k);
     
     // Define a container-trackable representation of this tile's relevant data
-    protected final ContainerData concocterData = new ContainerData() {
+    protected final IIntArray concocterData = new IIntArray() {
         @Override
         public int get(int index) {
             switch (index) {
@@ -104,169 +87,135 @@ public class ConcocterTileEntity extends TileInventoryPM implements  MenuProvide
         }
 
         @Override
-        public int getCount() {
+        public int size() {
             return 4;
         }
     };
     
-    public ConcocterTileEntity(BlockPos pos, BlockState state) {
-        super(TileEntityTypesPM.CONCOCTER.get(), pos, state, MAX_INPUT_ITEMS + 2);
+    public ConcocterTileEntity() {
+        super(TileEntityTypesPM.CONCOCTER.get(), MAX_INPUT_ITEMS + 2);
         this.manaStorage = new ManaStorage(10000, 1000, 1000, Source.INFERNAL);
-        this.researchCache = new TileResearchCache();
     }
     
     @Override
-    public void load(CompoundTag compound) {
-        super.load(compound);
+    public void read(BlockState state, CompoundNBT compound) {
+        super.read(state, compound);
         
         this.cookTime = compound.getInt("CookTime");
         this.cookTimeTotal = compound.getInt("CookTimeTotal");
         this.manaStorage.deserializeNBT(compound.getCompound("ManaStorage"));
-        this.researchCache.deserializeNBT(compound.getCompound("ResearchCache"));
         
+        this.owner = null;
         this.ownerUUID = null;
         if (compound.contains("OwnerUUID")) {
-            this.ownerUUID = compound.getUUID("OwnerUUID");
+            this.ownerUUID = compound.getUniqueId("OwnerUUID");
         }
     }
 
     @Override
-    protected void saveAdditional(CompoundTag compound) {
-        super.saveAdditional(compound);
+    public CompoundNBT write(CompoundNBT compound) {
         compound.putInt("CookTime", this.cookTime);
         compound.putInt("CookTimeTotal", this.cookTimeTotal);
         compound.put("ManaStorage", this.manaStorage.serializeNBT());
-        compound.put("ResearchCache", this.researchCache.serializeNBT());
         if (this.ownerUUID != null) {
-            compound.putUUID("OwnerUUID", this.ownerUUID);
+            compound.putUniqueId("OwnerUUID", this.ownerUUID);
         }
+        return super.write(compound);
     }
 
     @Override
-    public AbstractContainerMenu createMenu(int windowId, Inventory playerInv, Player player) {
+    public Container createMenu(int windowId, PlayerInventory playerInv, PlayerEntity player) {
         return new ConcocterContainer(windowId, playerInv, this, this.concocterData);
     }
 
     @Override
-    public void setTileOwner(Player owner) {
-        // Set the owner and update the local research cache with their relevant research
-        this.ownerUUID = owner.getUUID();
-        this.researchCache.update(owner, this.relevantFilter);
+    public void setTileOwner(PlayerEntity owner) {
+        this.owner = owner;
+        this.ownerUUID = owner.getUniqueID();
     }
 
     @Override
-    public Player getTileOwner() {
-        if (this.ownerUUID != null && this.hasLevel() && this.level instanceof ServerLevel serverLevel) {
-            Player livePlayer = serverLevel.getServer().getPlayerList().getPlayer(this.ownerUUID);
-            if (livePlayer != null && livePlayer.tickCount % 20 == 0) {
-                // Update research cache with current player research
-                this.researchCache.update(livePlayer, this.relevantFilter);
-            }
-            return livePlayer;
-        }
-        return null;
-    }
-
-    protected boolean isResearchKnown(@Nullable CompoundResearchKey key) {
-        if (key == null) {
-            return true;
-        } else {
-            Player owner = this.getTileOwner();
-            if (owner != null) {
-                // Check the live research list if possible
-                return key.isKnownByStrict(owner);
+    public PlayerEntity getTileOwner() {
+        if (this.owner == null && this.ownerUUID != null && this.hasWorld() && this.world instanceof ServerWorld) {
+            // If the owner cache is empty, find the entity matching the owner's unique ID
+            ServerPlayerEntity player = ((ServerWorld)this.world).getServer().getPlayerList().getPlayerByUUID(this.ownerUUID);
+            if (player != null) {
+                this.owner = player;
             } else {
-                // Check the research cache if the owner is unavailable
-                return this.researchCache.isResearchComplete(key);
+                this.ownerUUID = null;
             }
         }
-    }
-    
-    protected Set<SimpleResearchKey> getRelevantResearch() {
-        return this.relevantResearch;
-    }
-    
-    protected static Set<SimpleResearchKey> assembleRelevantResearch(Level level) {
-        // Get a set of all the research keys used in any concocting recipe
-        return level.getRecipeManager().getAllRecipesFor(RecipeTypesPM.CONCOCTING).stream().map(r -> r.getRequiredResearch().getKeys())
-                .flatMap(l -> l.stream()).distinct().collect(Collectors.toUnmodifiableSet());
-    }
-    
-    @Override
-    public Component getDisplayName() {
-        return new TranslatableComponent(this.getBlockState().getBlock().getDescriptionId());
+        return this.owner;
     }
 
     @Override
-    public void onLoad() {
-        super.onLoad();
-        if (!this.level.isClientSide) {
-            this.relevantResearch = assembleRelevantResearch(this.level);
-        }
+    public ITextComponent getDisplayName() {
+        return new TranslationTextComponent(this.getBlockState().getBlock().getTranslationKey());
     }
 
-    public static void tick(Level level, BlockPos pos, BlockState state, ConcocterTileEntity entity) {
+    @Override
+    public void tick() {
         boolean shouldMarkDirty = false;
         
-        if (!level.isClientSide) {
+        if (!this.world.isRemote) {
             // Fill up internal mana storage with that from any inserted wands
-            ItemStack wandStack = entity.items.get(WAND_SLOT_INDEX);
+            ItemStack wandStack = this.items.get(WAND_SLOT_INDEX);
             if (!wandStack.isEmpty() && wandStack.getItem() instanceof IWand) {
                 IWand wand = (IWand)wandStack.getItem();
-                int centimanaMissing = entity.manaStorage.getMaxManaStored(Source.INFERNAL) - entity.manaStorage.getManaStored(Source.INFERNAL);
-                int centimanaToTransfer = Mth.clamp(centimanaMissing, 0, 100);
+                int centimanaMissing = this.manaStorage.getMaxManaStored(Source.INFERNAL) - this.manaStorage.getManaStored(Source.INFERNAL);
+                int centimanaToTransfer = MathHelper.clamp(centimanaMissing, 0, 100);
                 if (wand.consumeMana(wandStack, null, Source.INFERNAL, centimanaToTransfer)) {
-                    entity.manaStorage.receiveMana(Source.INFERNAL, centimanaToTransfer, false);
+                    this.manaStorage.receiveMana(Source.INFERNAL, centimanaToTransfer, false);
                     shouldMarkDirty = true;
                 }
             }
 
-            SimpleContainer realInv = new SimpleContainer(MAX_INPUT_ITEMS);
-            SimpleContainer testInv = new SimpleContainer(MAX_INPUT_ITEMS);
+            Inventory realInv = new Inventory(MAX_INPUT_ITEMS);
+            Inventory testInv = new Inventory(MAX_INPUT_ITEMS);
             for (int index = 0; index < MAX_INPUT_ITEMS; index++) {
-                ItemStack invStack = entity.items.get(index);
-                realInv.setItem(index, invStack);
+                ItemStack invStack = this.items.get(index);
+                realInv.setInventorySlotContents(index, invStack);
                 // Don't consider fuse length when testing item inputs for recipe determination
-                testInv.setItem(index, ConcoctionUtils.isBomb(invStack) ? ConcoctionUtils.setFuseType(invStack.copy(), FuseType.MEDIUM) : invStack);
+                testInv.setInventorySlotContents(index, ConcoctionUtils.isBomb(invStack) ? ConcoctionUtils.setFuseType(invStack.copy(), FuseType.MEDIUM) : invStack);
             }
-            IConcoctingRecipe recipe = level.getServer().getRecipeManager().getRecipeFor(RecipeTypesPM.CONCOCTING, testInv, level).orElse(null);
-            if (entity.canConcoct(realInv, recipe)) {
-                entity.cookTime++;
-                if (entity.cookTime >= entity.cookTimeTotal) {
-                    entity.cookTime = 0;
-                    entity.cookTimeTotal = entity.getCookTimeTotal();
-                    entity.doConcoction(realInv, recipe);
+            IConcoctingRecipe recipe = this.world.getServer().getRecipeManager().getRecipe(RecipeTypesPM.CONCOCTING, testInv, this.world).orElse(null);
+            if (this.canConcoct(realInv, recipe)) {
+                this.cookTime++;
+                if (this.cookTime >= this.cookTimeTotal) {
+                    this.cookTime = 0;
+                    this.cookTimeTotal = this.getCookTimeTotal();
+                    this.doConcoction(realInv, recipe);
                     shouldMarkDirty = true;
                 }
             } else {
-                entity.cookTime = Mth.clamp(entity.cookTime - 2, 0, entity.cookTimeTotal);
+                this.cookTime = MathHelper.clamp(this.cookTime - 2, 0, this.cookTimeTotal);
             }
             
-            level.setBlock(pos, state.setValue(ConcocterBlock.HAS_BOTTLE, entity.showBottle()), Block.UPDATE_CLIENTS);
+            this.world.setBlockState(this.getPos(), this.world.getBlockState(this.getPos()).with(ConcocterBlock.HAS_BOTTLE, this.showBottle()), Constants.BlockFlags.BLOCK_UPDATE);
         }
 
         if (shouldMarkDirty) {
-            entity.setChanged();
-            entity.syncTile(true);
+            this.markDirty();
+            this.syncTile(true);
         }
     }
     
-    protected boolean canConcoct(Container inputInv, @Nullable IConcoctingRecipe recipe) {
+    protected boolean canConcoct(IInventory inputInv, @Nullable IConcoctingRecipe recipe) {
         if (!inputInv.isEmpty() && recipe != null) {
-            ItemStack output = recipe.getResultItem();
+            ItemStack output = recipe.getRecipeOutput();
             if (output.isEmpty()) {
                 return false;
             } else if (this.getMana(Source.INFERNAL) < (100 * recipe.getManaCosts().getAmount(Source.INFERNAL))) {
                 return false;
-            } else if (!this.isResearchKnown(recipe.getRequiredResearch())) {
+            } else if (!recipe.getRequiredResearch().isKnownByStrict(this.getTileOwner())) {
                 return false;
             } else {
                 ItemStack currentOutput = this.items.get(OUTPUT_SLOT_INDEX);
                 if (currentOutput.isEmpty()) {
                     return true;
-                } else if (!currentOutput.sameItem(output)) {
+                } else if (!currentOutput.isItemEqual(output)) {
                     return false;
-                } else if (currentOutput.getCount() + output.getCount() <= this.getMaxStackSize() && currentOutput.getCount() + output.getCount() <= currentOutput.getMaxStackSize()) {
+                } else if (currentOutput.getCount() + output.getCount() <= this.getInventoryStackLimit() && currentOutput.getCount() + output.getCount() <= currentOutput.getMaxStackSize()) {
                     return true;
                 } else {
                     return currentOutput.getCount() + output.getCount() <= output.getMaxStackSize();
@@ -277,18 +226,18 @@ public class ConcocterTileEntity extends TileInventoryPM implements  MenuProvide
         }
     }
     
-    protected void doConcoction(Container inputInv, @Nullable IConcoctingRecipe recipe) {
+    protected void doConcoction(IInventory inputInv, @Nullable IConcoctingRecipe recipe) {
         if (recipe != null && this.canConcoct(inputInv, recipe)) {
-            ItemStack recipeOutput = recipe.assemble(inputInv);
+            ItemStack recipeOutput = recipe.getCraftingResult(inputInv);
             ItemStack currentOutput = this.items.get(OUTPUT_SLOT_INDEX);
             if (currentOutput.isEmpty()) {
                 this.items.set(OUTPUT_SLOT_INDEX, recipeOutput);
-            } else if (recipeOutput.getItem() == currentOutput.getItem() && ItemStack.tagMatches(recipeOutput, currentOutput)) {
+            } else if (recipeOutput.getItem() == currentOutput.getItem() && ItemStack.areItemStackTagsEqual(recipeOutput, currentOutput)) {
                 currentOutput.grow(recipeOutput.getCount());
             }
             
-            for (int index = 0; index < inputInv.getContainerSize(); index++) {
-                ItemStack stack = inputInv.getItem(index);
+            for (int index = 0; index < inputInv.getSizeInventory(); index++) {
+                ItemStack stack = inputInv.getStackInSlot(index);
                 if (!stack.isEmpty()) {
                     stack.shrink(1);
                 }
@@ -306,21 +255,17 @@ public class ConcocterTileEntity extends TileInventoryPM implements  MenuProvide
     }
 
     @Override
-    public void invalidateCaps() {
+    protected void invalidateCaps() {
         super.invalidateCaps();
         this.manaStorageOpt.invalidate();
-        this.researchCacheOpt.invalidate();
     }
 
     @Override
     public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-        if (!this.remove && cap == PrimalMagickCapabilities.MANA_STORAGE) {
+        if (!this.removed && cap == PrimalMagicCapabilities.MANA_STORAGE) {
             return this.manaStorageOpt.cast();
-        } else if (!this.remove && cap == PrimalMagickCapabilities.RESEARCH_CACHE) {
-            return this.researchCacheOpt.cast();
-        } else {
-            return super.getCapability(cap, side);
         }
+        return super.getCapability(cap, side);
     }
 
     @Override
@@ -349,65 +294,26 @@ public class ConcocterTileEntity extends TileInventoryPM implements  MenuProvide
     @Override
     public void setMana(Source source, int amount) {
         this.manaStorage.setMana(source, amount);
-        this.setChanged();
+        this.markDirty();
         this.syncTile(true);
     }
 
     @Override
     public void setMana(SourceList mana) {
         this.manaStorage.setMana(mana);
-        this.setChanged();
+        this.markDirty();
         this.syncTile(true);
     }
 
     @Override
-    public void setItem(int index, ItemStack stack) {
+    public void setInventorySlotContents(int index, ItemStack stack) {
         ItemStack slotStack = this.items.get(index);
-        super.setItem(index, stack);
-        boolean flag = !stack.isEmpty() && stack.sameItem(slotStack) && ItemStack.tagMatches(stack, slotStack);
+        super.setInventorySlotContents(index, stack);
+        boolean flag = !stack.isEmpty() && stack.isItemEqual(slotStack) && ItemStack.areItemStackTagsEqual(stack, slotStack);
         if (index >= 0 && index < MAX_INPUT_ITEMS && !flag) {
             this.cookTimeTotal = this.getCookTimeTotal();
             this.cookTime = 0;
-            this.setChanged();
-        }
-    }
-
-    @Override
-    public boolean canPlaceItem(int slotIndex, ItemStack stack) {
-        if (slotIndex == 10) {
-            return false;
-        } else if (slotIndex == 9) {
-            return stack.getItem() instanceof IWand;
-        } else {
-            return true;
-        }
-    }
-
-    @Override
-    public int[] getSlotsForFace(Direction side) {
-        if (side == Direction.UP) {
-            return SLOTS_FOR_UP;
-        } else if (side == Direction.DOWN) {
-            return SLOTS_FOR_DOWN;
-        } else {
-            return SLOTS_FOR_SIDES;
-        }
-    }
-
-    @Override
-    public boolean canPlaceItemThroughFace(int index, ItemStack itemStackIn, Direction direction) {
-        return this.canPlaceItem(index, itemStackIn);
-    }
-
-    @Override
-    public boolean canTakeItemThroughFace(int index, ItemStack stack, Direction direction) {
-        return true;
-    }
-
-    @Override
-    public void fillStackedContents(StackedContents stackedContents) {
-        for (ItemStack stack : this.items) {
-            stackedContents.accountStack(stack);
+            this.markDirty();
         }
     }
 }

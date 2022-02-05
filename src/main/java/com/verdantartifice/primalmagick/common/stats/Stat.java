@@ -4,8 +4,8 @@ import javax.annotation.Nonnull;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.stats.StatFormatter;
+import net.minecraft.stats.IStatFormatter;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Definition of a statistic tracked by the mod, such as how many times the grimoire is opened.  Does
@@ -16,11 +16,11 @@ import net.minecraft.stats.StatFormatter;
  */
 public class Stat {
     protected ResourceLocation location;
-    protected StatFormatter formatter;
+    protected IStatFormatter formatter;
     protected boolean hidden;
     protected boolean internal;
     
-    protected Stat(@Nonnull ResourceLocation location, @Nonnull StatFormatter formatter, boolean hidden, boolean internal) {
+    protected Stat(@Nonnull ResourceLocation location, @Nonnull IStatFormatter formatter, boolean hidden, boolean internal) {
         this.location = location;
         this.formatter = formatter;
         this.hidden = hidden;
@@ -28,12 +28,12 @@ public class Stat {
     }
     
     @Nonnull
-    public static Stat create(@Nonnull String name, @Nonnull StatFormatter formatter, boolean hidden) {
+    public static Stat create(@Nonnull String name, @Nonnull IStatFormatter formatter, boolean hidden) {
         return create(name, formatter, hidden, false);
     }
     
     @Nonnull
-    public static Stat create(@Nonnull String name, @Nonnull StatFormatter formatter, boolean hidden, boolean internal) {
+    public static Stat create(@Nonnull String name, @Nonnull IStatFormatter formatter, boolean hidden, boolean internal) {
         // Create the new stat and register it with the stats manager
         Stat retVal = new Stat(new ResourceLocation(PrimalMagick.MODID, name), formatter, hidden, internal);
         StatsManager.registerStat(retVal);
@@ -46,7 +46,7 @@ public class Stat {
     }
     
     @Nonnull
-    public StatFormatter getFormatter() {
+    public IStatFormatter getFormatter() {
         return this.formatter;
     }
     

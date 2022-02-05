@@ -3,12 +3,16 @@ package com.verdantartifice.primalmagick.common.capabilities;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Mth;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.INBT;
+import net.minecraft.util.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraftforge.common.capabilities.Capability;
 
 /**
  * Default implementation of the mana storage capability.
@@ -44,14 +48,14 @@ public class ManaStorage implements IManaStorage {
     }
 
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag tag = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT tag = new CompoundNBT();
         tag.put("Mana", this.mana.serializeNBT());
         return tag;
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         SourceList nbtMana = new SourceList();
         nbtMana.deserializeNBT(nbt.getCompound("Mana"));
         this.setMana(nbtMana);
@@ -66,7 +70,7 @@ public class ManaStorage implements IManaStorage {
     
     public void setMana(Source source, int amount) {
         if (this.allowedSources.contains(source)) {
-            this.mana.set(source, Mth.clamp(amount, 0, this.capacity));
+            this.mana.set(source, MathHelper.clamp(amount, 0, this.capacity));
         }
     }
 
@@ -118,5 +122,39 @@ public class ManaStorage implements IManaStorage {
     
     protected void onManaChanged() {
         // Do nothing by default
+    }
+    
+    /**
+     * Storage manager for the tile mana storage capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Storage implements Capability.IStorage<IManaStorage> {
+        @Override
+        public INBT writeNBT(Capability<IManaStorage> capability, IManaStorage instance, Direction side) {
+            // Use the instance's pre-defined serialization
+            return instance.serializeNBT();
+        }
+
+        @Override
+        public void readNBT(Capability<IManaStorage> capability, IManaStorage instance, Direction side, INBT nbt) {
+            // Use the instance's pre-defined deserialization
+            instance.deserializeNBT((CompoundNBT)nbt);
+        }
+    }
+    
+    /**
+     * Factory for the tile mana storage capability.  Returns a stub default implementation.  Used
+     * to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Factory implements Callable<IManaStorage> {
+        @Override
+        public IManaStorage call() throws Exception {
+            return new ManaStorage(0, new Source[0]);
+        }
     }
 }

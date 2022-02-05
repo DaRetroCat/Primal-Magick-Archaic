@@ -1,18 +1,14 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class EnchantmentBonusAffinity extends AbstractAffinity {
@@ -35,7 +31,7 @@ public class EnchantmentBonusAffinity extends AbstractAffinity {
     }
 
     @Override
-    protected SourceList calculateTotal(@Nullable RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    protected SourceList calculateTotal(@Nonnull RecipeManager recipeManager) {
         if (this.multiplierValues != null) {
             return this.multiplierValues;
         } else {
@@ -64,19 +60,6 @@ public class EnchantmentBonusAffinity extends AbstractAffinity {
             }
             
             return entry;
-        }
-
-        @Override
-        public EnchantmentBonusAffinity fromNetwork(FriendlyByteBuf buf) {
-            EnchantmentBonusAffinity affinity = new EnchantmentBonusAffinity(buf.readResourceLocation());
-            affinity.multiplierValues = SourceList.fromNetwork(buf);
-            return affinity;
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, EnchantmentBonusAffinity affinity) {
-            buf.writeResourceLocation(affinity.targetId);
-            SourceList.toNetwork(buf, affinity.multiplierValues);
         }
     }
 }

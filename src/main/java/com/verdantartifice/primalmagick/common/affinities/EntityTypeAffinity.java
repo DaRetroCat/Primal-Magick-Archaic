@@ -1,18 +1,14 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class EntityTypeAffinity extends AbstractAffinity {
@@ -35,7 +31,7 @@ public class EntityTypeAffinity extends AbstractAffinity {
     }
 
     @Override
-    protected SourceList calculateTotal(@Nullable RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    protected SourceList calculateTotal(RecipeManager recipeManager) {
         if (this.values != null) {
             return this.values;
         } else {
@@ -64,19 +60,6 @@ public class EntityTypeAffinity extends AbstractAffinity {
             }
             
             return entry;
-        }
-
-        @Override
-        public EntityTypeAffinity fromNetwork(FriendlyByteBuf buf) {
-            EntityTypeAffinity affinity = new EntityTypeAffinity(buf.readResourceLocation());
-            affinity.values = SourceList.fromNetwork(buf);
-            return affinity;
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, EntityTypeAffinity affinity) {
-            buf.writeResourceLocation(affinity.targetId);
-            SourceList.toNetwork(buf, affinity.values);
         }
     }
 }

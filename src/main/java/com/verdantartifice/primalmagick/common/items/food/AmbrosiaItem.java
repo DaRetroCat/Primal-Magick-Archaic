@@ -10,16 +10,18 @@ import com.verdantartifice.primalmagick.common.research.ResearchManager;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.sources.Source;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.world.World;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
- * Item definition for ambrosia.  Magickal food that induces attunement to a primal source in the eater, to a limit.
+ * Item definition for ambrosia.  Magical food that induces attunement to a primal source in the eater, to a limit.
  * 
  * @author Daedalus4096
  */
@@ -39,9 +41,9 @@ public class AmbrosiaItem extends Item {
     }
 
     @Override
-    public ItemStack finishUsingItem(ItemStack stack, Level worldIn, LivingEntity entityLiving) {
-        if (!worldIn.isClientSide && (entityLiving instanceof Player)) {
-            Player player = (Player)entityLiving;
+    public ItemStack onItemUseFinish(ItemStack stack, World worldIn, LivingEntity entityLiving) {
+        if (!worldIn.isRemote && (entityLiving instanceof PlayerEntity)) {
+            PlayerEntity player = (PlayerEntity)entityLiving;
 
             // Only modify attunements if the player has started mod progression
             if (ResearchManager.isResearchComplete(player, SimpleResearchKey.FIRST_STEPS)) {
@@ -56,17 +58,18 @@ public class AmbrosiaItem extends Item {
                             AttunementManager.incrementAttunement(player, source, AttunementType.INDUCED, PENALTY);
                         }
                     }
-                    player.displayClientMessage(new TranslatableComponent("event.primalmagick.ambrosia.success").withStyle(ChatFormatting.GREEN), true);
+                    player.sendStatusMessage(new TranslationTextComponent("event.primalmagick.ambrosia.success").mergeStyle(TextFormatting.GREEN), true);
                 } else {
-                    player.displayClientMessage(new TranslatableComponent("event.primalmagick.ambrosia.failure").withStyle(ChatFormatting.RED), true);
+                    player.sendStatusMessage(new TranslationTextComponent("event.primalmagick.ambrosia.failure").mergeStyle(TextFormatting.RED), true);
                 }
             } else {
-                player.displayClientMessage(new TranslatableComponent("event.primalmagick.ambrosia.not_wizard").withStyle(ChatFormatting.RED), true);
+                player.sendStatusMessage(new TranslationTextComponent("event.primalmagick.ambrosia.not_wizard").mergeStyle(TextFormatting.RED), true);
             }
         }
-        return super.finishUsingItem(stack, worldIn, entityLiving);
+        return super.onItemUseFinish(stack, worldIn, entityLiving);
     }
     
+    @OnlyIn(Dist.CLIENT)
     public int getColor(int tintIndex) {
         return tintIndex == 0 ? 0xFFFFFF : this.source.getColor();
     }

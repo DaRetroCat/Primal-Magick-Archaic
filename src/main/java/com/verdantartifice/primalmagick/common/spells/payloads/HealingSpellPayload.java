@@ -2,7 +2,6 @@ package com.verdantartifice.primalmagick.common.spells.payloads;
 
 import java.util.Map;
 
-import com.verdantartifice.primalmagick.common.misc.DamageSourcesPM;
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 import com.verdantartifice.primalmagick.common.sounds.SoundsPM;
@@ -10,20 +9,15 @@ import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 import com.verdantartifice.primalmagick.common.spells.SpellProperty;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.World;
 
 /**
  * Definition of a healing spell.  Restores health to the target entity based on the power property of
@@ -56,42 +50,18 @@ public class HealingSpellPayload extends AbstractSpellPayload {
         return propMap;
     }
     
-    protected DamageSource getDamageSource(LivingEntity source, SpellPackage spell, Entity projectileEntity) {
-        if (projectileEntity != null) {
-            // If the spell was a projectile or a mine, then it's indirect now matter how it was deployed
-            return DamageSourcesPM.causeIndirectSorceryDamage(projectileEntity, source);
-        } else if (spell.getVehicle().isIndirect()) {
-            // If the spell vehicle is indirect but no projectile was given, then it's still indirect
-            return DamageSourcesPM.causeIndirectSorceryDamage(null, source);
-        } else {
-            // Otherwise, do direct damage
-            return DamageSourcesPM.causeDirectSorceryDamage(source);
-        }
-    }
-
     @Override
-    public void execute(HitResult target, Vec3 burstPoint, SpellPackage spell, Level world, LivingEntity caster, ItemStack spellSource, Entity projectileEntity) {
-        if (target != null && target.getType() == HitResult.Type.ENTITY) {
-            EntityHitResult entityTarget = (EntityHitResult)target;
+    public void execute(RayTraceResult target, Vector3d burstPoint, SpellPackage spell, World world, LivingEntity caster, ItemStack spellSource) {
+        if (target != null && target.getType() == RayTraceResult.Type.ENTITY) {
+            EntityRayTraceResult entityTarget = (EntityRayTraceResult)target;
             if (entityTarget.getEntity() instanceof LivingEntity) {
                 LivingEntity entity = (LivingEntity)entityTarget.getEntity();
-                if (entity.isInvertedHealAndHarm()) {
+                if (entity.isEntityUndead()) {
                     // Undead entities get dealt damage
-                    entity.hurt(this.getDamageSource(caster, spell, projectileEntity), 1.5F * this.getBaseAmount(spell, spellSource));
+                    entity.attackEntityFrom(DamageSource.causeIndirectMagicDamage(caster, caster), 1.5F * this.getModdedPropertyValue("power", spell, spellSource));
                 } else {
                     // All other entities are healed
-                    float curHealth = entity.getHealth();
-                    float maxHealth = entity.getMaxHealth();
-                    float healAmount = (float)this.getBaseAmount(spell, spellSource);
-                    float overhealing = (curHealth + healAmount) - maxHealth;
-                    entity.heal(healAmount);
-                    if (overhealing > 0F) {
-                        // Grant a level of absorption for each four points of overhealing done
-                        int level = (int)Math.floor(overhealing / 4.0F);
-                        if (level > 0) {
-                            entity.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 200, level - 1));
-                        }
-                    }
+                    entity.heal((float)this.getModdedPropertyValue("power", spell, spellSource));
                 }
             }
         }
@@ -104,26 +74,16 @@ public class HealingSpellPayload extends AbstractSpellPayload {
 
     @Override
     public int getBaseManaCost() {
-        int power = this.getPropertyValue("power");
-        return (1 << Math.max(0, power - 1)) + ((1 << Math.max(0, power - 1)) >> 1);
+        return 2 * this.getPropertyValue("power");
     }
 
     @Override
-    public void playSounds(Level world, BlockPos origin) {
-        world.playSound(null, origin, SoundsPM.HEAL.get(), SoundSource.PLAYERS, 1.0F, 1.0F + (float)(world.random.nextGaussian() * 0.05D));
+    public void playSounds(World world, BlockPos origin) {
+        world.playSound(null, origin, SoundsPM.HEAL.get(), SoundCategory.PLAYERS, 1.0F, 1.0F + (float)(world.rand.nextGaussian() * 0.05D));
     }
 
     @Override
     protected String getPayloadType() {
         return TYPE;
-    }
-
-    protected int getBaseAmount(SpellPackage spell, ItemStack spellSource) {
-        return 2 * this.getModdedPropertyValue("power", spell, spellSource);
-    }
-
-    @Override
-    public Component getDetailTooltip(SpellPackage spell, ItemStack spellSource) {
-        return new TranslatableComponent("primalmagick.spell.payload.detail_tooltip." + this.getPayloadType(), DECIMAL_FORMATTER.format(this.getBaseAmount(spell, spellSource)));
     }
 }

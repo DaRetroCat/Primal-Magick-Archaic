@@ -6,12 +6,12 @@ import javax.annotation.Nullable;
 import com.verdantartifice.primalmagick.common.misc.BlockSwapper;
 import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraft.block.BlockState;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.hooks.BasicEventHooks;
 
 /**
  * Base wand transformation that triggers a block swapper.
@@ -28,14 +28,14 @@ public abstract class AbstractWandTransform implements IWandTransform {
     }
 
     @Override
-    public boolean isValid(Level world, Player player, BlockPos pos) {
+    public boolean isValid(World world, PlayerEntity player, BlockPos pos) {
         return this.research == null || this.research.isKnownBy(player);
     }
 
     @Override
-    public void execute(Level world, Player player, BlockPos pos) {
+    public void execute(World world, PlayerEntity player, BlockPos pos) {
         // Enqueue a block swapper to be executed on the world next tick
-        ForgeEventFactory.firePlayerCraftingEvent(player, this.result, new FakeInventory(1));
+        BasicEventHooks.firePlayerCraftingEvent(player, this.result, new FakeInventory(1));
         BlockState state = world.getBlockState(pos);
         BlockSwapper.enqueue(world, new BlockSwapper(pos, state, this.result, player));
     }

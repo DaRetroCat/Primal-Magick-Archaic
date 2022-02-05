@@ -3,19 +3,19 @@ package com.verdantartifice.primalmagick.common.blocks.misc;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.util.VoxelShapeUtils;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.StringRepresentable;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition.Builder;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.BlockItemUseContext;
+import net.minecraft.state.EnumProperty;
+import net.minecraft.state.StateContainer.Builder;
+import net.minecraft.util.Direction;
+import net.minecraft.util.IStringSerializable;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.shapes.ISelectionContext;
+import net.minecraft.util.math.shapes.VoxelShape;
+import net.minecraft.world.IBlockReader;
+import net.minecraft.world.IWorld;
 
 /**
  * Block definition for a pillar of any type (e.g. marble).  Pillars are decorative blocks that change
@@ -32,13 +32,13 @@ public class PillarBlock extends Block {
     
     public PillarBlock(Block.Properties properties) {
         super(properties);
-        this.registerDefaultState(this.defaultBlockState().setValue(PROPERTY_TYPE, Type.BASE));
+        this.setDefaultState(this.getDefaultState().with(PROPERTY_TYPE, Type.BASE));
     }
     
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
         // Determine the block's shape based on its "type" blockstate property
-        switch (state.getValue(PROPERTY_TYPE)) {
+        switch (state.get(PROPERTY_TYPE)) {
         case BOTTOM:
             return SHAPE_BOTTOM;
         case TOP:
@@ -50,42 +50,42 @@ public class PillarBlock extends Block {
     }
     
     @Override
-    protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+    protected void fillStateContainer(Builder<Block, BlockState> builder) {
         builder.add(PROPERTY_TYPE);
     }
     
     @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
+    public BlockState getStateForPlacement(BlockItemUseContext context) {
         // Determine the appropriate pillar state when this block is placed in the world
-        return this.getCurrentState(context.getLevel(), context.getClickedPos());
+        return this.getCurrentState(context.getWorld(), context.getPos());
     }
     
     @Override
-    public BlockState updateShape(BlockState stateIn, Direction facing, BlockState facingState, LevelAccessor worldIn, BlockPos currentPos, BlockPos facingPos) {
+    public BlockState updatePostPlacement(BlockState stateIn, Direction facing, BlockState facingState, IWorld worldIn, BlockPos currentPos, BlockPos facingPos) {
         // Determine the appropriate pillar state when one of this block's neighbors is updated
         return this.getCurrentState(worldIn, currentPos);
     }
     
-    protected BlockState getCurrentState(LevelAccessor world, BlockPos pos) {
-        boolean up = (world.getBlockState(pos.above()).getBlock() instanceof PillarBlock);
-        boolean down = (world.getBlockState(pos.below()).getBlock() instanceof PillarBlock);
+    protected BlockState getCurrentState(IWorld world, BlockPos pos) {
+        boolean up = (world.getBlockState(pos.up()).getBlock() instanceof PillarBlock);
+        boolean down = (world.getBlockState(pos.down()).getBlock() instanceof PillarBlock);
         
         if (up && down) {
             // If there are pillar blocks both above and below this block, use the base pillar type
-            return this.defaultBlockState().setValue(PROPERTY_TYPE, Type.BASE);
+            return this.getDefaultState().with(PROPERTY_TYPE, Type.BASE);
         } else if (up) {
             // If there is a pillar block above this block but not below, use the bottom pillar type
-            return this.defaultBlockState().setValue(PROPERTY_TYPE, Type.BOTTOM);
+            return this.getDefaultState().with(PROPERTY_TYPE, Type.BOTTOM);
         } else if (down) {
             // If there is a pillar block below this block but not above, use the top pillar type
-            return this.defaultBlockState().setValue(PROPERTY_TYPE, Type.TOP);
+            return this.getDefaultState().with(PROPERTY_TYPE, Type.TOP);
         } else {
             // If there are no pillar blocks immediately above or below this block, use the base pillar type
-            return this.defaultBlockState().setValue(PROPERTY_TYPE, Type.BASE);
+            return this.getDefaultState().with(PROPERTY_TYPE, Type.BASE);
         }
     }
     
-    public static enum Type implements StringRepresentable {
+    public static enum Type implements IStringSerializable {
         BASE("base"),
         BOTTOM("bottom"),
         TOP("top");
@@ -97,13 +97,13 @@ public class PillarBlock extends Block {
         }
 
         @Override
-        public String getSerializedName() {
+        public String getString() {
             return this.name;
         }
         
         @Override
         public String toString() {
-            return this.getSerializedName();
+            return this.getString();
         }
     }
 }

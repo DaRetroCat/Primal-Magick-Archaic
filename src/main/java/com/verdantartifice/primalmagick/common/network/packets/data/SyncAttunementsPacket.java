@@ -2,17 +2,15 @@ package com.verdantartifice.primalmagick.common.network.packets.data;
 
 import java.util.function.Supplier;
 
-import com.verdantartifice.primalmagick.client.util.ClientUtils;
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerAttunements;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToClient;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.PacketBuffer;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet to sync attunements capability data from the server to the client.
@@ -20,24 +18,24 @@ import net.minecraftforge.network.NetworkEvent;
  * @author Daedalus4096
  */
 public class SyncAttunementsPacket implements IMessageToClient {
-    protected CompoundTag data;
+    protected CompoundNBT data;
 
     public SyncAttunementsPacket() {
         this.data = null;
     }
     
-    public SyncAttunementsPacket(Player player) {
-        IPlayerAttunements attunements = PrimalMagickCapabilities.getAttunements(player);
+    public SyncAttunementsPacket(PlayerEntity player) {
+        IPlayerAttunements attunements = PrimalMagicCapabilities.getAttunements(player);
         this.data = (attunements != null) ? attunements.serializeNBT() : null;
     }
     
-    public static void encode(SyncAttunementsPacket message, FriendlyByteBuf buf) {
-        buf.writeNbt(message.data);
+    public static void encode(SyncAttunementsPacket message, PacketBuffer buf) {
+        buf.writeCompoundTag(message.data);
     }
     
-    public static SyncAttunementsPacket decode(FriendlyByteBuf buf) {
+    public static SyncAttunementsPacket decode(PacketBuffer buf) {
         SyncAttunementsPacket message = new SyncAttunementsPacket();
-        message.data = buf.readNbt();
+        message.data = buf.readCompoundTag();
         return message;
     }
     
@@ -45,8 +43,9 @@ public class SyncAttunementsPacket implements IMessageToClient {
         public static void onMessage(SyncAttunementsPacket message, Supplier<NetworkEvent.Context> ctx) {
             // Enqueue the handler work on the main game thread
             ctx.get().enqueueWork(() -> {
-                Player player = (FMLEnvironment.dist == Dist.CLIENT) ? ClientUtils.getCurrentPlayer() : null;
-                IPlayerAttunements attunements = PrimalMagickCapabilities.getAttunements(player);
+            	Minecraft mc = Minecraft.getInstance();
+                PlayerEntity player = mc.player;
+                IPlayerAttunements attunements = PrimalMagicCapabilities.getAttunements(player);
                 if (attunements != null) {
                     attunements.deserializeNBT(message.data);
                 }

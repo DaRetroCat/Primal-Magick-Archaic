@@ -6,23 +6,24 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.verdantartifice.primalmagick.client.gui.GrimoireScreen;
 import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.EntryButton;
 import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.SectionHeaderWidget;
-import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.UpcomingEntryWidget;
 import com.verdantartifice.primalmagick.common.research.ResearchDiscipline;
 import com.verdantartifice.primalmagick.common.research.ResearchEntry;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Grimoire page showing the list of available research entries in a discipline.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class DisciplinePage extends AbstractPage {
     protected ResearchDiscipline discipline;
     protected List<Object> contents = new ArrayList<>();
@@ -56,7 +57,7 @@ public class DisciplinePage extends AbstractPage {
     }
 
     @Override
-    public void render(PoseStack matrixStack, int side, int x, int y, int mouseX, int mouseY) {
+    public void render(MatrixStack matrixStack, int side, int x, int y, int mouseX, int mouseY) {
         // Just render the title; buttons have already been added
         if (this.isFirstPage() && side == 0) {
             this.renderTitle(matrixStack, side, x, y, mouseX, mouseY, this.discipline.getIconLocation());
@@ -65,19 +66,15 @@ public class DisciplinePage extends AbstractPage {
     
     @Override
     public void initWidgets(GrimoireScreen screen, int side, int x, int y) {
-        Minecraft mc = screen.getMinecraft();
         for (Object obj : this.getContents()) {
-            if (obj instanceof ResearchEntry entry) {
+            if (obj instanceof ResearchEntry) {
                 // If the current content object is a research entry, add a button for it to the screen
-                Component text = new TranslatableComponent(entry.getNameTranslationKey());
-                if (entry.isAvailable(mc.player)) {
-                    screen.addWidgetToScreen(new EntryButton(x + 12 + (side * 140), y, text, screen, entry, true));
-                } else {
-                    screen.addWidgetToScreen(new UpcomingEntryWidget(x + 12 + (side * 140), y, text, entry, true));
-                }
-            } else if (obj instanceof Component comp) {
+                ResearchEntry entry = (ResearchEntry)obj;
+                ITextComponent text = new TranslationTextComponent(entry.getNameTranslationKey());
+                screen.addWidgetToScreen(new EntryButton(x + 12 + (side * 140), y, text, screen, entry));
+            } else if (obj instanceof ITextComponent) {
                 // If the current content object is a text component, add a section header with that text to the screen
-                screen.addWidgetToScreen(new SectionHeaderWidget(x + 12 + (side * 140), y, comp));
+                screen.addWidgetToScreen(new SectionHeaderWidget(x + 12 + (side * 140), y, (ITextComponent)obj));
             }
             y += 12;
         }

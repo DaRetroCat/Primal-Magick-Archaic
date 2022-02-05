@@ -1,23 +1,24 @@
 package com.verdantartifice.primalmagick.client.gui.widgets.grimoire;
 
 import com.verdantartifice.primalmagick.client.gui.GrimoireScreen;
-import com.verdantartifice.primalmagick.common.research.ResearchDisciplines;
-import com.verdantartifice.primalmagick.common.research.topics.EnchantmentResearchTopic;
 
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.client.gui.widget.button.Button;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * GUI button to view the grimoire page for a given rune enchantment.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class RuneEnchantmentButton extends AbstractTopicButton {
     protected Enchantment enchant;
     
-    public RuneEnchantmentButton(int widthIn, int heightIn, Component text, GrimoireScreen screen, Enchantment enchant) {
-        super(widthIn, heightIn, 123, 12, text, screen, GenericIndexIcon.of(ResearchDisciplines.getDiscipline("RUNEWORKING").getIconLocation(), false), new Handler());
+    public RuneEnchantmentButton(int widthIn, int heightIn, ITextComponent text, GrimoireScreen screen, Enchantment enchant) {
+        super(widthIn, heightIn, 123, 12, text, screen, new Handler());
         this.enchant = enchant;
     }
     
@@ -25,17 +26,19 @@ public class RuneEnchantmentButton extends AbstractTopicButton {
         return this.enchant;
     }
     
-    private static class Handler implements OnPress {
+    private static class Handler implements IPressable {
         @Override
         public void onPress(Button button) {
-            if (button instanceof RuneEnchantmentButton greb) {
+            if (button instanceof RuneEnchantmentButton) {
+                RuneEnchantmentButton greb = (RuneEnchantmentButton)button;
+                
                 // Push the current grimoire topic onto the history stack
-                greb.getScreen().pushCurrentHistoryTopic();
+                GrimoireScreen.HISTORY.add(greb.getScreen().getContainer().getTopic());
                 
                 // Set the new grimoire topic and open a new screen for it
-                greb.getScreen().getMenu().setTopic(new EnchantmentResearchTopic(greb.getEnchantment(), 0));
-                greb.getScreen().getMinecraft().setScreen(new GrimoireScreen(
-                    greb.getScreen().getMenu(),
+                greb.getScreen().getContainer().setTopic(greb.getEnchantment());
+                greb.getScreen().getMinecraft().displayGuiScreen(new GrimoireScreen(
+                    greb.getScreen().getContainer(),
                     greb.getScreen().getPlayerInventory(),
                     greb.getScreen().getTitle()
                 ));

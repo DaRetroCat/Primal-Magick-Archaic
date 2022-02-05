@@ -10,44 +10,42 @@ import com.verdantartifice.primalmagick.common.containers.slots.WandSlot;
 import com.verdantartifice.primalmagick.common.crafting.IArcaneRecipe;
 import com.verdantartifice.primalmagick.common.crafting.RecipeTypesPM;
 import com.verdantartifice.primalmagick.common.crafting.WandInventory;
-import com.verdantartifice.primalmagick.common.crafting.recipe_book.ArcaneRecipeBookType;
 import com.verdantartifice.primalmagick.common.wands.IWand;
 
-import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.StackedContents;
-import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.inventory.CraftingContainer;
-import net.minecraft.world.inventory.ResultContainer;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.CraftResultInventory;
+import net.minecraft.inventory.CraftingInventory;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.ICraftingRecipe;
+import net.minecraft.item.crafting.IRecipeType;
+import net.minecraft.network.play.server.SSetSlotPacket;
+import net.minecraft.util.IWorldPosCallable;
+import net.minecraft.world.World;
 
 /**
  * Server data container for the arcane workbench GUI.
  * 
  * @author Daedalus4096
  */
-public class ArcaneWorkbenchContainer extends AbstractArcaneRecipeBookMenu<CraftingContainer> {
-    protected final CraftingContainer craftingInv = new CraftingContainer(this, 3, 3);
+public class ArcaneWorkbenchContainer extends Container {
+    protected final CraftingInventory craftingInv = new CraftingInventory(this, 3, 3);
     protected final WandInventory wandInv = new WandInventory(this);
-    protected final ResultContainer resultInv = new ResultContainer();
-    protected final ContainerLevelAccess worldPosCallable;
-    protected final Player player;
+    protected final CraftResultInventory resultInv = new CraftResultInventory();
+    protected final IWorldPosCallable worldPosCallable;
+    protected final PlayerEntity player;
     protected final Slot wandSlot;
     protected IArcaneRecipe activeArcaneRecipe = null;
     
-    public ArcaneWorkbenchContainer(int windowId, Inventory inv) {
-        this(windowId, inv, ContainerLevelAccess.NULL);
+    public ArcaneWorkbenchContainer(int windowId, PlayerInventory inv) {
+        this(windowId, inv, IWorldPosCallable.DUMMY);
     }
     
-    public ArcaneWorkbenchContainer(int windowId, Inventory inv, ContainerLevelAccess callable) {
+    public ArcaneWorkbenchContainer(int windowId, PlayerInventory inv, IWorldPosCallable callable) {
         super(ContainersPM.ARCANE_WORKBENCH.get(), windowId);
         this.worldPosCallable = callable;
         this.player = inv.player;
@@ -55,16 +53,16 @@ public class ArcaneWorkbenchContainer extends AbstractArcaneRecipeBookMenu<Craft
         // Slot 0: Workbench output
         this.addSlot(new ArcaneCraftingResultSlot(this.player, this.craftingInv, this.wandInv, this.resultInv, 0, 138, 52));
         
-        // Slots 1-9: Crafting inputs
+        // Slot 1: Crafting wand
+        this.wandSlot = this.addSlot(new WandSlot(this.wandInv, 0, 19, 52, false));
+        
+        // Slots 2-10: Crafting inputs
         int i, j;
         for (i = 0; i < 3; i++) {
             for (j = 0; j < 3; j++) {
                 this.addSlot(new Slot(this.craftingInv, j + i * 3, 44 + j * 18, 34 + i * 18));
             }
         }
-        
-        // Slot 10: Crafting wand
-        this.wandSlot = this.addSlot(new WandSlot(this.wandInv, 0, 19, 52, false));
         
         // Slots 11-37: Player backpack
         for (i = 0; i < 3; i++) {
@@ -85,85 +83,94 @@ public class ArcaneWorkbenchContainer extends AbstractArcaneRecipeBookMenu<Craft
     }
     
     @Override
-    public boolean stillValid(Player playerIn) {
-        return stillValid(this.worldPosCallable, playerIn, BlocksPM.ARCANE_WORKBENCH.get());
+    public boolean canInteractWith(PlayerEntity playerIn) {
+        return isWithinUsableDistance(this.worldPosCallable, playerIn, BlocksPM.ARCANE_WORKBENCH.get());
     }
     
     @Override
-    public void removed(Player playerIn) {
+    public void onContainerClosed(PlayerEntity playerIn) {
         // Return crafting inputs and wand to the player's inventory when GUI is closed
-        super.removed(playerIn);
-        this.clearContainer(playerIn, this.wandInv);
-        this.clearContainer(playerIn, this.craftingInv);
+        super.onContainerClosed(playerIn);
+        this.worldPosCallable.consume((world, blockPos) -> {
+            this.clearContainer(playerIn, world, this.wandInv);
+            this.clearContainer(playerIn, world, this.craftingInv);
+        });
     }
     
     @Override
-    public ItemStack quickMoveStack(Player playerIn, int index) {
+    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index) {
         ItemStack stack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasItem()) {
-            ItemStack slotStack = slot.getItem();
+        Slot slot = this.inventorySlots.get(index);
+        if (slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
             stack = slotStack.copy();
             if (index == 0) {
                 // If transferring the output item, move it into the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 11, 47, true)) {
+                if (!this.mergeItemStack(slotStack, 11, 47, true)) {
                     return ItemStack.EMPTY;
                 }
-                slot.onQuickCraft(slotStack, stack);
+                slot.onSlotChange(slotStack, stack);
             } else if (index >= 11 && index < 38) {
-                // If transferring from the player's backpack, put wands in the wand slot and everything else into the inputs or hotbar, in that order
-                if (this.wandSlot.mayPlace(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 10, 11, false)) {
+                // If transferring from the player's backpack, put wands in the wand slot and everything else into the hotbar
+                if (this.wandSlot.isItemValid(slotStack)) {
+                    if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                         return ItemStack.EMPTY;
                     }
-                } else if (!this.moveItemStackTo(slotStack, 1, 10, false) && !this.moveItemStackTo(slotStack, 38, 47, false)) {
-                    return ItemStack.EMPTY;
+                } else {
+                    if (!this.mergeItemStack(slotStack, 38, 47, false)) {
+                        return ItemStack.EMPTY;
+                    }
                 }
             } else if (index >= 38 && index < 47) {
-                // If transferring from the player's hotbar, put wands in the wand slot and everything else into the inputs or backpack, in that order
-                if (this.wandSlot.mayPlace(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 10, 11, false)) {
+                // If transferring from the player's hotbar, put wands in the wand slot and everything else into the backpack
+                if (this.wandSlot.isItemValid(slotStack)) {
+                    if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                         return ItemStack.EMPTY;
                     }
-                } else if (!this.moveItemStackTo(slotStack, 1, 10, false) && !this.moveItemStackTo(slotStack, 11, 38, false)) {
-                    return ItemStack.EMPTY;
+                } else {
+                    if (!this.mergeItemStack(slotStack, 11, 38, false)) {
+                        return ItemStack.EMPTY;
+                    }
                 }
-            } else if (!this.moveItemStackTo(slotStack, 11, 47, false)) {
+            } else if (!this.mergeItemStack(slotStack, 11, 47, false)) {
                 // Move all other transfers into the backpack or hotbar
                 return ItemStack.EMPTY;
             }
             
             if (slotStack.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.putStack(ItemStack.EMPTY);
             } else {
-                slot.setChanged();
+                slot.onSlotChanged();
             }
             
             if (slotStack.getCount() == stack.getCount()) {
                 return ItemStack.EMPTY;
             }
             
-            slot.onTake(playerIn, slotStack);
+            ItemStack taken = slot.onTake(playerIn, slotStack);
+            if (index == 0) {
+                playerIn.dropItem(taken, false);
+            }
         }
         return stack;
     }
     
     @Override
-    public boolean canTakeItemForPickAll(ItemStack stack, Slot slotIn) {
-        return slotIn.container != this.resultInv && super.canTakeItemForPickAll(stack, slotIn);
+    public boolean canMergeSlot(ItemStack stack, Slot slotIn) {
+        return slotIn.inventory != this.resultInv && super.canMergeSlot(stack, slotIn);
     }
     
     @Override
-    public void slotsChanged(Container inventoryIn) {
-        super.slotsChanged(inventoryIn);
-        this.slotChangedCraftingGrid(this.player.level);
+    public void onCraftMatrixChanged(IInventory inventoryIn) {
+        super.onCraftMatrixChanged(inventoryIn);
+        this.slotChangedCraftingGrid(this.player.world);
     }
     
-    protected void slotChangedCraftingGrid(Level world) {
-        if (world.isClientSide) {
+    protected void slotChangedCraftingGrid(World world) {
+        if (world.isRemote) {
             // Get the active recipe, if any, for client display of mana costs
             this.activeArcaneRecipe = null;
-            Optional<IArcaneRecipe> arcaneOptional = world.getRecipeManager().getRecipeFor(RecipeTypesPM.ARCANE_CRAFTING, this.craftingInv, world);
+            Optional<IArcaneRecipe> arcaneOptional = world.getRecipeManager().getRecipe(RecipeTypesPM.ARCANE_CRAFTING, this.craftingInv, world);
             if (arcaneOptional.isPresent()) {
                 IArcaneRecipe recipe = arcaneOptional.get();
                 if (recipe.getRequiredResearch() == null || recipe.getRequiredResearch().isKnownByStrict(player)) {
@@ -171,92 +178,46 @@ public class ArcaneWorkbenchContainer extends AbstractArcaneRecipeBookMenu<Craft
                 }
             }
         }
-        if (!world.isClientSide && this.player instanceof ServerPlayer) {
-            ServerPlayer spe = (ServerPlayer)this.player;
+        if (!world.isRemote && this.player instanceof ServerPlayerEntity) {
+            ServerPlayerEntity spe = (ServerPlayerEntity)this.player;
             ItemStack stack = ItemStack.EMPTY;
-            Optional<IArcaneRecipe> arcaneOptional = world.getServer().getRecipeManager().getRecipeFor(RecipeTypesPM.ARCANE_CRAFTING, this.craftingInv, world);
+            Optional<IArcaneRecipe> arcaneOptional = world.getServer().getRecipeManager().getRecipe(RecipeTypesPM.ARCANE_CRAFTING, this.craftingInv, world);
             if (arcaneOptional.isPresent()) {
                 // If the inputs match a defined arcane recipe, show the output if the player can use it
                 IArcaneRecipe recipe = arcaneOptional.get();
                 if (this.canUseArcaneRecipe(world, spe, recipe)) {
-                    stack = recipe.assemble(this.craftingInv);
+                    stack = recipe.getCraftingResult(this.craftingInv);
                 }
             } else {
-                Optional<CraftingRecipe> vanillaOptional = world.getServer().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this.craftingInv, world);
+                Optional<ICraftingRecipe> vanillaOptional = world.getServer().getRecipeManager().getRecipe(IRecipeType.CRAFTING, this.craftingInv, world);
                 if (vanillaOptional.isPresent()) {
                     // If the inputs match a defined vanilla recipe, show the output if the player can use it
-                    CraftingRecipe recipe = vanillaOptional.get();
-                    if (this.resultInv.setRecipeUsed(world, spe, recipe)) {
-                        stack = recipe.assemble(this.craftingInv);
+                    ICraftingRecipe recipe = vanillaOptional.get();
+                    if (this.resultInv.canUseRecipe(world, spe, recipe)) {
+                        stack = recipe.getCraftingResult(this.craftingInv);
                     }
                 }
             }
             
             // Send a packet to the client to update its GUI with the shown output
-            this.resultInv.setItem(0, stack);
-            spe.connection.send(new ClientboundContainerSetSlotPacket(this.containerId, this.incrementStateId(), 0, stack));
+            this.resultInv.setInventorySlotContents(0, stack);
+            spe.connection.sendPacket(new SSetSlotPacket(this.windowId, 0, stack));
         }
     }
     
-    protected boolean canUseArcaneRecipe(Level world, ServerPlayer player, IArcaneRecipe recipe) {
+    protected boolean canUseArcaneRecipe(World world, ServerPlayerEntity player, IArcaneRecipe recipe) {
         // Players must know the correct research and the wand must have enough mana in order to use the recipe
-        return this.resultInv.setRecipeUsed(world, player, recipe) &&
+        return this.resultInv.canUseRecipe(world, player, recipe) &&
                 (recipe.getRequiredResearch() == null || recipe.getRequiredResearch().isKnownByStrict(player)) &&
                 (recipe.getManaCosts().isEmpty() || this.wandContainsEnoughMana(player, recipe));
     }
     
-    protected boolean wandContainsEnoughMana(Player player, IArcaneRecipe recipe) {
-        ItemStack stack = this.wandInv.getItem(0);
+    protected boolean wandContainsEnoughMana(PlayerEntity player, IArcaneRecipe recipe) {
+        ItemStack stack = this.wandInv.getStackInSlot(0);
         if (stack == null || stack.isEmpty() || !(stack.getItem() instanceof IWand)) {
             return false;
         }
         IWand wand = (IWand)stack.getItem();
         return wand.containsRealMana(stack, player, recipe.getManaCosts());
-    }
-
-    @Override
-    public void fillCraftSlotsStackedContents(StackedContents contents) {
-        this.craftingInv.fillStackedContents(contents);
-    }
-
-    @Override
-    public void clearCraftingContent() {
-        this.craftingInv.clearContent();
-        this.resultInv.clearContent();
-    }
-
-    @Override
-    public boolean recipeMatches(Recipe<? super CraftingContainer> recipe) {
-        return recipe.matches(this.craftingInv, this.player.level);
-    }
-
-    @Override
-    public int getResultSlotIndex() {
-        return 0;
-    }
-
-    @Override
-    public int getGridWidth() {
-        return this.craftingInv.getWidth();
-    }
-
-    @Override
-    public int getGridHeight() {
-        return this.craftingInv.getHeight();
-    }
-
-    @Override
-    public int getSize() {
-        return 10;
-    }
-
-    @Override
-    public ArcaneRecipeBookType getRecipeBookType() {
-        return ArcaneRecipeBookType.CRAFTING;
-    }
-
-    @Override
-    public boolean shouldMoveToInventory(int index) {
-        return index != this.getResultSlotIndex();
     }
 }

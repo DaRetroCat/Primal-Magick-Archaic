@@ -2,10 +2,6 @@
   "key": "CONCOCTING_BOMBS",
   "name": "primalmagick.research.concocting_bombs.title",
   "discipline": "MAGITECH",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:concocter"
-  },
   "parents": [
     "MASTER_MAGITECH",
     "CONCOCTING_TINCTURES",

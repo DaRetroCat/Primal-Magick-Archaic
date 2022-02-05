@@ -1,18 +1,20 @@
 package com.verdantartifice.primalmagick.common.capabilities;
 
 import java.util.Queue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.misc.EntitySwapper;
 
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.INBT;
+import net.minecraft.nbt.ListNBT;
+import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.LazyOptional;
 
 /**
@@ -24,9 +26,9 @@ public class WorldEntitySwappers implements IWorldEntitySwappers {
     private final Queue<EntitySwapper> swappers = new LinkedBlockingQueue<>();  // Queue of active entity swappers for the world
 
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag rootTag = new CompoundTag();
-        ListTag swapperList = new ListTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT rootTag = new CompoundNBT();
+        ListNBT swapperList = new ListNBT();
         for (EntitySwapper swapper : this.swappers) {
             if (swapper != null) {
                 swapperList.add(swapper.serializeNBT());
@@ -37,14 +39,14 @@ public class WorldEntitySwappers implements IWorldEntitySwappers {
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         if (nbt == null) {
             return;
         }
         this.swappers.clear();
-        ListTag swapperList = nbt.getList("Swappers", Tag.TAG_COMPOUND);
+        ListNBT swapperList = nbt.getList("Swappers", Constants.NBT.TAG_COMPOUND);
         for (int index = 0; index < swapperList.size(); index++) {
-            CompoundTag swapperTag = swapperList.getCompound(index);
+            CompoundNBT swapperTag = swapperList.getCompound(index);
             EntitySwapper swapper = new EntitySwapper(swapperTag);
             if (swapper.isValid()) {
                 // Only accept valid swappers
@@ -87,15 +89,15 @@ public class WorldEntitySwappers implements IWorldEntitySwappers {
      * @author Daedalus4096
      * @see {@link com.verdantartifice.primalmagick.common.events.CapabilityEvents}
      */
-    public static class Provider implements ICapabilitySerializable<CompoundTag> {
+    public static class Provider implements ICapabilitySerializable<CompoundNBT> {
         public static final ResourceLocation NAME = new ResourceLocation(PrimalMagick.MODID, "capability_world_entity_swappers");
 
-        private final IWorldEntitySwappers instance = new WorldEntitySwappers();
+        private final IWorldEntitySwappers instance = PrimalMagicCapabilities.ENTITY_SWAPPERS.getDefaultInstance();
         private final LazyOptional<IWorldEntitySwappers> holder = LazyOptional.of(() -> instance);  // Cache a lazy optional of the capability instance
         
         @Override
         public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-            if (cap == PrimalMagickCapabilities.ENTITY_SWAPPERS) {
+            if (cap == PrimalMagicCapabilities.ENTITY_SWAPPERS) {
                 return holder.cast();
             } else {
                 return LazyOptional.empty();
@@ -103,13 +105,46 @@ public class WorldEntitySwappers implements IWorldEntitySwappers {
         }
 
         @Override
-        public CompoundTag serializeNBT() {
+        public CompoundNBT serializeNBT() {
             return instance.serializeNBT();
         }
 
         @Override
-        public void deserializeNBT(CompoundTag nbt) {
+        public void deserializeNBT(CompoundNBT nbt) {
             instance.deserializeNBT(nbt);
+        }
+    }
+    
+    /**
+     * Storage manager for the world entity swapper capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Storage implements Capability.IStorage<IWorldEntitySwappers> {
+        @Override
+        public INBT writeNBT(Capability<IWorldEntitySwappers> capability, IWorldEntitySwappers instance, Direction side) {
+            // Use the instance's pre-defined serialization
+            return instance.serializeNBT();
+        }
+
+        @Override
+        public void readNBT(Capability<IWorldEntitySwappers> capability, IWorldEntitySwappers instance, Direction side, INBT nbt) {
+            // Use the instance's pre-defined deserialization
+            instance.deserializeNBT((CompoundNBT)nbt);
+        }
+    }
+    
+    /**
+     * Factory for the world entity swapper capability.  Used to register the capability.
+     * 
+     * @author Daedalus4096
+     * @see {@link com.verdantartifice.primalmagick.common.init.InitCapabilities}
+     */
+    public static class Factory implements Callable<IWorldEntitySwappers> {
+        @Override
+        public IWorldEntitySwappers call() throws Exception {
+            return new WorldEntitySwappers();
         }
     }
 }

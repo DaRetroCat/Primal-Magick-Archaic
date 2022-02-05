@@ -12,15 +12,15 @@ import com.verdantartifice.primalmagick.common.spells.vehicles.ISpellVehicle;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 import com.verdantartifice.primalmagick.common.stats.StatsPM;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Rarity;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Rarity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.world.World;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -33,7 +33,7 @@ import net.minecraftforge.common.util.INBTSerializable;
  * @see {@link com.verdantartifice.primalmagick.common.spells.payloads.ISpellPayload}
  * @see {@link com.verdantartifice.primalmagick.common.spells.mods.ISpellMod}
  */
-public class SpellPackage implements INBTSerializable<CompoundTag> {
+public class SpellPackage implements INBTSerializable<CompoundNBT> {
     protected String name = "";
     protected ISpellVehicle vehicle = null;
     protected ISpellPayload payload = null;
@@ -46,14 +46,14 @@ public class SpellPackage implements INBTSerializable<CompoundTag> {
         this.setName(name);
     }
     
-    public SpellPackage(CompoundTag tag) {
+    public SpellPackage(CompoundNBT tag) {
         this.deserializeNBT(tag);
     }
     
     @Nonnull
-    public Component getName() {
+    public ITextComponent getName() {
         // Color spell names according to their rarity, like with items
-        return new TextComponent(this.name).withStyle(this.getRarity().color);
+        return new StringTextComponent(this.name).mergeStyle(this.getRarity().color);
     }
     
     public void setName(@Nullable String name) {
@@ -106,8 +106,8 @@ public class SpellPackage implements INBTSerializable<CompoundTag> {
     }
 
     @Override
-    public CompoundTag serializeNBT() {
-        CompoundTag nbt = new CompoundTag();
+    public CompoundNBT serializeNBT() {
+        CompoundNBT nbt = new CompoundNBT();
         if (this.name != null) {
             nbt.putString("SpellName", this.name);
         }
@@ -127,7 +127,7 @@ public class SpellPackage implements INBTSerializable<CompoundTag> {
     }
 
     @Override
-    public void deserializeNBT(CompoundTag nbt) {
+    public void deserializeNBT(CompoundNBT nbt) {
         this.name = nbt.getString("SpellName");
         this.vehicle = nbt.contains("SpellVehicle") ? SpellFactory.getVehicleFromNBT(nbt.getCompound("SpellVehicle")) : null;
         this.payload = nbt.contains("SpellPayload") ? SpellFactory.getPayloadFromNBT(nbt.getCompound("SpellPayload")) : null;
@@ -137,12 +137,12 @@ public class SpellPackage implements INBTSerializable<CompoundTag> {
 
     public int getCooldownTicks() {
         // Determine the length of the cooldown triggered by this spell; reduced by the Quicken mod
-        int retVal = 30;
+        int retVal = 60;
         QuickenSpellMod quickenMod = this.getMod(QuickenSpellMod.class, "haste");
         if (quickenMod != null) {
-            retVal -= (5 * quickenMod.getPropertyValue("haste"));
+            retVal -= (10 * quickenMod.getPropertyValue("haste"));
         }
-        return Mth.clamp(retVal, 0, 30);
+        return MathHelper.clamp(retVal, 0, 60);
     }
     
     @Nonnull
@@ -165,7 +165,6 @@ public class SpellPackage implements INBTSerializable<CompoundTag> {
         // Collect all appropriate modifiers before doing the calculation to prevent mod order dependency
         if (this.vehicle != null) {
             baseModifier += this.vehicle.getBaseManaCostModifier();
-            multiplier *= this.vehicle.getManaCostMultiplier();
         }
         if (this.primaryMod != null) {
             baseModifier += this.primaryMod.getBaseManaCostModifier();
@@ -179,13 +178,13 @@ public class SpellPackage implements INBTSerializable<CompoundTag> {
         return new SourceList().add(source, (baseManaCost + baseModifier) * multiplier);
     }
     
-    public void cast(Level world, LivingEntity caster, ItemStack spellSource) {
+    public void cast(World world, LivingEntity caster, ItemStack spellSource) {
         if (this.payload != null) {
-            this.payload.playSounds(world, caster.blockPosition());
+            this.payload.playSounds(world, caster.getPosition());
         }
         if (this.vehicle != null) {
-            if (caster instanceof Player) {
-                StatsManager.incrementValue((Player)caster, StatsPM.SPELLS_CAST);
+            if (caster instanceof PlayerEntity) {
+                StatsManager.incrementValue((PlayerEntity)caster, StatsPM.SPELLS_CAST);
             }
             this.vehicle.execute(this, world, caster, spellSource);
         }

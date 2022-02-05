@@ -1,9 +1,9 @@
 package com.verdantartifice.primalmagick.common.research;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.Tag;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.tags.ITag;
+import net.minecraft.util.IItemProvider;
 
 /**
  * Definition of a trigger that grants a specified research entry upon scanning a block/item in a
@@ -12,21 +12,21 @@ import net.minecraft.world.level.ItemLike;
  * @author Daedalus4096
  */
 public class ScanItemTagResearchTrigger extends AbstractScanResearchTrigger {
-    protected final Tag<Item> target;
+    protected final ITag<Item> target;
     
-    public ScanItemTagResearchTrigger(Tag<Item> target, SimpleResearchKey toUnlock) {
+    public ScanItemTagResearchTrigger(ITag<Item> target, SimpleResearchKey toUnlock) {
         this(target, toUnlock, true);
     }
     
-    public ScanItemTagResearchTrigger(Tag<Item> target, SimpleResearchKey toUnlock, boolean unlockScansPage) {
+    public ScanItemTagResearchTrigger(ITag<Item> target, SimpleResearchKey toUnlock, boolean unlockScansPage) {
         super(toUnlock, unlockScansPage);
         this.target = target;
     }
 
     @Override
-    public boolean matches(ServerPlayer player, Object obj) {
-        if (obj instanceof ItemLike) {
-            return this.target.contains(((ItemLike)obj).asItem());
+    public boolean matches(ServerPlayerEntity player, Object obj) {
+        if (obj instanceof IItemProvider) {
+            return ((IItemProvider)obj).asItem().isIn(this.target);
         } else {
             return false;
         }

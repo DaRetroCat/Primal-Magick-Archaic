@@ -1,55 +1,45 @@
 package com.verdantartifice.primalmagick.common.containers;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import javax.annotation.Nonnull;
 
+import com.verdantartifice.primalmagick.common.blocks.BlocksPM;
 import com.verdantartifice.primalmagick.common.containers.slots.PaperSlot;
 import com.verdantartifice.primalmagick.common.containers.slots.WritingImplementSlot;
 import com.verdantartifice.primalmagick.common.theorycrafting.IWritingImplement;
-import com.verdantartifice.primalmagick.common.theorycrafting.TheorycraftManager;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.Container;
-import net.minecraft.world.ContainerListener;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.inventory.DataSlot;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.IInventoryChangedListener;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IWorldPosCallable;
+import net.minecraft.util.IntReferenceHolder;
 
 /**
  * Server data container for the research table GUI.
  * 
  * @author Daedalus4096
  */
-public class ResearchTableContainer extends AbstractContainerMenu implements ContainerListener {
-    protected final ContainerLevelAccess worldPosCallable;
-    protected final Player player;
-    protected final Container writingInv;
+public class ResearchTableContainer extends Container implements IInventoryChangedListener {
+    protected final IWorldPosCallable worldPosCallable;
+    protected final PlayerEntity player;
+    protected final Inventory writingInv = new Inventory(2);
     protected final Slot paperSlot;
     protected final Slot pencilSlot;
-    protected final DataSlot writingReady = DataSlot.standalone();
+    protected final IntReferenceHolder writingReady = IntReferenceHolder.single();
 
-    public ResearchTableContainer(int windowId, Inventory inv, BlockPos pos) {
-        this(windowId, inv, new SimpleContainer(2), ContainerLevelAccess.create(inv.player.level, pos));
+    public ResearchTableContainer(int windowId, PlayerInventory inv) {
+        this(windowId, inv, IWorldPosCallable.DUMMY);
     }
 
-    public ResearchTableContainer(int windowId, Inventory inv, Container tableInv, ContainerLevelAccess callable) {
+    public ResearchTableContainer(int windowId, PlayerInventory inv, IWorldPosCallable callable) {
         super(ContainersPM.RESEARCH_TABLE.get(), windowId);
         this.worldPosCallable = callable;
         this.player = inv.player;
-        checkContainerSize(tableInv, 2);
-        this.writingInv = tableInv;
+        this.writingInv.addListener(this);
         
         // Slot 0: Pencil
         this.pencilSlot = this.addSlot(new WritingImplementSlot(this.writingInv, 0, 8, 8));
@@ -69,91 +59,98 @@ public class ResearchTableContainer extends AbstractContainerMenu implements Con
             this.addSlot(new Slot(inv, i, 35 + (i * 18), 198));
         }
         
-        this.addDataSlot(this.writingReady).set(0);
-        this.checkWritingImplements();
+        this.trackInt(this.writingReady).set(0);
     }
 
     @Override
-    public boolean stillValid(Player playerIn) {
-        return this.writingInv.stillValid(playerIn);
+    public boolean canInteractWith(PlayerEntity playerIn) {
+        return isWithinUsableDistance(this.worldPosCallable, playerIn, BlocksPM.RESEARCH_TABLE.get());
     }
-    
-    protected void checkWritingImplements() {
+
+    @Override
+    public void onInventoryChanged(IInventory invBasic) {
         // Set whether the container has writing tools ready; 1 for yes, 0 for no
         boolean ready = (!this.getWritingImplementStack().isEmpty() && !this.getPaperStack().isEmpty());
         this.writingReady.set(ready ? 1 : 0);
     }
 
     @Override
-    public void containerChanged(Container invBasic) {
-        this.checkWritingImplements();
+    public void onContainerClosed(PlayerEntity playerIn) {
+        // Return input pencil and paper to the player's inventory when the GUI is closed
+        super.onContainerClosed(playerIn);
+        this.worldPosCallable.consume((world, blockPos) -> {
+            this.clearContainer(playerIn, world, this.writingInv);
+        });
     }
-
+    
     @Override
-    public ItemStack quickMoveStack(Player playerIn, int index) {
+    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index) {
         ItemStack stack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasItem()) {
-            ItemStack slotStack = slot.getItem();
+        Slot slot = this.inventorySlots.get(index);
+        if (slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
             stack = slotStack.copy();
             if (index >= 2 && index < 29) {
                 // If transferring from the backpack, move paper and writing implements to the appropriate slots, and everything else to the hotbar
-                if (this.pencilSlot.mayPlace(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                if (this.pencilSlot.isItemValid(slotStack)) {
+                    if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
-                } else if (this.paperSlot.mayPlace(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 1, 2, false)) {
+                } else if (this.paperSlot.isItemValid(slotStack)) {
+                    if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                         return ItemStack.EMPTY;
                     }
                 } else {
-                    if (!this.moveItemStackTo(slotStack, 29, 38, false)) {
+                    if (!this.mergeItemStack(slotStack, 29, 38, false)) {
                         return ItemStack.EMPTY;
                     }
                 }
             } else if (index >= 29 && index < 38) {
                 // If transferring from the hotbar, move paper and writing implements to the appropriate slots, and everything else to the backpack
-                if (this.pencilSlot.mayPlace(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                if (this.pencilSlot.isItemValid(slotStack)) {
+                    if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                         return ItemStack.EMPTY;
                     }
-                } else if (this.paperSlot.mayPlace(slotStack)) {
-                    if (!this.moveItemStackTo(slotStack, 1, 2, false)) {
+                } else if (this.paperSlot.isItemValid(slotStack)) {
+                    if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                         return ItemStack.EMPTY;
                     }
                 } else {
-                    if (!this.moveItemStackTo(slotStack, 2, 29, false)) {
+                    if (!this.mergeItemStack(slotStack, 2, 29, false)) {
                         return ItemStack.EMPTY;
                     }
                 }
-            } else if (!this.moveItemStackTo(slotStack, 2, 38, false)) {
+            } else if (!this.mergeItemStack(slotStack, 2, 38, false)) {
                 // Move all other transfers to the backpack or hotbar
                 return ItemStack.EMPTY;
             }
             
             if (slotStack.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.putStack(ItemStack.EMPTY);
             } else {
-                slot.setChanged();
+                slot.onSlotChanged();
             }
             
             if (slotStack.getCount() == stack.getCount()) {
                 return ItemStack.EMPTY;
             }
             
-            slot.onTake(playerIn, slotStack);
+            ItemStack taken = slot.onTake(playerIn, slotStack);
+            if (index == 0) {
+                playerIn.dropItem(taken, false);
+            }
         }
         return stack;
     }
     
     @Nonnull
     protected ItemStack getWritingImplementStack() {
-        return this.writingInv.getItem(0);
+        return this.writingInv.getStackInSlot(0);
     }
     
     @Nonnull
     protected ItemStack getPaperStack() {
-        return this.writingInv.getItem(1);
+        return this.writingInv.getStackInSlot(1);
     }
     
     public boolean isWritingReady() {
@@ -162,28 +159,20 @@ public class ResearchTableContainer extends AbstractContainerMenu implements Con
     
     public void consumeWritingImplements() {
         // Don't consume if in creative mode
-        if (!this.player.getAbilities().instabuild) {
+        if (!this.player.abilities.isCreativeMode) {
             // Consume ink, if applicable
             ItemStack inkStack = this.getWritingImplementStack();
             if (!inkStack.isEmpty() && inkStack.getItem() instanceof IWritingImplement && ((IWritingImplement)inkStack.getItem()).isDamagedOnUse()) {
-                inkStack.hurtAndBreak(1, this.player, (player) -> {});
+                inkStack.damageItem(1, this.player, (player) -> {});
             }
 
             // Consume paper
-            this.writingInv.removeItem(1, 1);
+            this.writingInv.decrStackSize(1, 1);
         }
     }
     
     @Nonnull
-    public ContainerLevelAccess getWorldPosCallable() {
+    public IWorldPosCallable getWorldPosCallable() {
         return this.worldPosCallable;
-    }
-    
-    @Nonnull
-    public List<Component> getNearbyAidBlockNames() {
-        Set<Block> nearby = this.worldPosCallable.evaluate((level, pos) -> {
-            return TheorycraftManager.getNearbyAidBlocks(this.player.level, pos);
-        }, Collections.emptySet());
-        return nearby.stream().map(b -> b.getName()).distinct().sorted(Comparator.comparing(c -> c.getString())).collect(Collectors.toList());
     }
 }

@@ -2,25 +2,25 @@ package com.verdantartifice.primalmagick.common.theorycrafting;
 
 import java.util.Map;
 
+import com.verdantartifice.primalmagick.PrimalMagick;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.client.resources.JsonReloadListener;
+import net.minecraft.profiler.IProfiler;
+import net.minecraft.resources.IResourceManager;
+import net.minecraft.util.JSONUtils;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID)
-public class ProjectTemplateLoader extends SimpleJsonResourceReloadListener {
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID)
+public class ProjectTemplateLoader extends JsonReloadListener {
     protected static final Gson GSON = (new GsonBuilder()).setPrettyPrinting().disableHtmlEscaping().create();
     private static final Logger LOGGER = LogManager.getLogger();
     
@@ -32,14 +32,8 @@ public class ProjectTemplateLoader extends SimpleJsonResourceReloadListener {
 
     @SubscribeEvent
     public static void onResourceReload(AddReloadListenerEvent event) {
-        event.addListener(createInstance());
-    }
-    
-    public static ProjectTemplateLoader createInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new ProjectTemplateLoader();
-        }
-        return INSTANCE;
+        INSTANCE = new ProjectTemplateLoader();
+        event.addListener(INSTANCE);
     }
     
     public static ProjectTemplateLoader getInstance() {
@@ -51,7 +45,7 @@ public class ProjectTemplateLoader extends SimpleJsonResourceReloadListener {
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> objectIn, ResourceManager resourceManagerIn, ProfilerFiller profilerIn) {
+    protected void apply(Map<ResourceLocation, JsonElement> objectIn, IResourceManager resourceManagerIn, IProfiler profilerIn) {
         TheorycraftManager.clearAllTemplates();
         for (Map.Entry<ResourceLocation, JsonElement> entry : objectIn.entrySet()) {
             ResourceLocation location = entry.getKey();
@@ -61,7 +55,7 @@ public class ProjectTemplateLoader extends SimpleJsonResourceReloadListener {
             }
 
             try {
-                ProjectTemplate template = TheorycraftManager.TEMPLATE_SERIALIZER.read(location, GsonHelper.convertToJsonObject(entry.getValue(), "top member"));
+                ProjectTemplate template = TheorycraftManager.TEMPLATE_SERIALIZER.read(location, JSONUtils.getJsonObject(entry.getValue(), "top member"));
                 if (template == null || !TheorycraftManager.registerTemplate(location, template)) {
                     LOGGER.error("Failed to register theorycrafting project template {}", location);
                 }
@@ -70,15 +64,5 @@ public class ProjectTemplateLoader extends SimpleJsonResourceReloadListener {
             }
         }
         LOGGER.info("Loaded {} theorycrafting project templates", TheorycraftManager.getAllTemplates().size());
-    }
-    
-    public void replaceTemplates(Map<ResourceLocation, ProjectTemplate> templates) {
-        TheorycraftManager.clearAllTemplates();
-        for (Map.Entry<ResourceLocation, ProjectTemplate> entry : templates.entrySet()) {
-            if (entry.getValue() == null || !TheorycraftManager.registerTemplate(entry.getKey(), entry.getValue())) {
-                LOGGER.error("Failed to update theorycrafting project template {}", entry.getKey());
-            }
-        }
-        LOGGER.info("Updated {} theorycrafting project templates", TheorycraftManager.getAllTemplates().size());
     }
 }

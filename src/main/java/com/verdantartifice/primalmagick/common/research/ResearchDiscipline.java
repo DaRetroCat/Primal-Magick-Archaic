@@ -10,7 +10,7 @@ import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.stats.Stat;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.ResourceLocation;
 
 /**
  * Definition of a research discipline.  A discipline represents a collection of research entries of

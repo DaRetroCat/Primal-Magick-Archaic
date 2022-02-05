@@ -2,10 +2,6 @@
   "key": "SANGUINE_CORE_SEA_CREATURES",
   "name": "primalmagick.research.sanguine_core_sea_creatures.title",
   "discipline": "ALCHEMY",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:sanguine_core_blank"
-  },
   "parents": [
     "SANGUINE_CRUCIBLE"
   ],
@@ -22,11 +18,9 @@
         "sea": 2
       },
       "recipes": [
-        "primalmagick:sanguine_core_axolotl",
         "primalmagick:sanguine_core_cod",
         "primalmagick:sanguine_core_dolphin",
         "primalmagick:sanguine_core_elder_guardian",
-        "primalmagick:sanguine_core_glow_squid",
         "primalmagick:sanguine_core_guardian",
         "primalmagick:sanguine_core_polar_bear",
         "primalmagick:sanguine_core_pufferfish",

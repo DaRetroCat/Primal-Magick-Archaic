@@ -4,18 +4,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.NavigableMap;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import com.verdantartifice.primalmagick.PrimalMagick;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.verdantartifice.primalmagick.PrimalMagick;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.verdantartifice.primalmagick.client.gui.grimoire.AbstractPage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.AbstractRecipePage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.AttunementGainPage;
@@ -26,8 +23,6 @@ import com.verdantartifice.primalmagick.client.gui.grimoire.DisciplinePage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.OtherIndexPage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.PageImage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.PageString;
-import com.verdantartifice.primalmagick.client.gui.grimoire.RecipeIndexPage;
-import com.verdantartifice.primalmagick.client.gui.grimoire.RecipeMetadataPage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.RecipePageFactory;
 import com.verdantartifice.primalmagick.client.gui.grimoire.RequirementsPage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.RuneEnchantmentIndexPage;
@@ -35,15 +30,10 @@ import com.verdantartifice.primalmagick.client.gui.grimoire.RuneEnchantmentPage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.StagePage;
 import com.verdantartifice.primalmagick.client.gui.grimoire.StatisticsPage;
 import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.BackButton;
-import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.MainIndexButton;
 import com.verdantartifice.primalmagick.client.gui.widgets.grimoire.PageButton;
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.containers.GrimoireContainer;
-import com.verdantartifice.primalmagick.common.crafting.IHasRequiredResearch;
-import com.verdantartifice.primalmagick.common.network.PacketHandler;
-import com.verdantartifice.primalmagick.common.network.packets.data.SetResearchTopicHistoryPacket;
-import com.verdantartifice.primalmagick.common.research.CompoundResearchKey;
 import com.verdantartifice.primalmagick.common.research.ResearchAddendum;
 import com.verdantartifice.primalmagick.common.research.ResearchDiscipline;
 import com.verdantartifice.primalmagick.common.research.ResearchDisciplines;
@@ -51,48 +41,43 @@ import com.verdantartifice.primalmagick.common.research.ResearchEntry;
 import com.verdantartifice.primalmagick.common.research.ResearchManager;
 import com.verdantartifice.primalmagick.common.research.ResearchStage;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
-import com.verdantartifice.primalmagick.common.research.topics.AbstractResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.DisciplineResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.EnchantmentResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.EntryResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.MainIndexResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.OtherResearchTopic;
-import com.verdantartifice.primalmagick.common.research.topics.SourceResearchTopic;
 import com.verdantartifice.primalmagick.common.runes.RuneManager;
-import com.verdantartifice.primalmagick.common.sounds.SoundsPM;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.stats.Stat;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.screen.inventory.ContainerScreen;
+import net.minecraft.client.gui.widget.Widget;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Tuple;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.util.Util;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.ITextProperties;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * GUI screen for the grimoire research browser.
  * 
  * @author Daedalus4096
  */
-public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
+@OnlyIn(Dist.CLIENT)
+public class GrimoireScreen extends ContainerScreen<GrimoireContainer> {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final ResourceLocation TEXTURE = new ResourceLocation(PrimalMagick.MODID, "textures/gui/grimoire.png");
     private static final PageImage IMAGE_LINE = PageImage.parse("primalmagick:textures/gui/grimoire.png:24:184:95:6:1");
     private static final float SCALE = 1.3F;
-    private static final int HISTORY_LIMIT = 64;
+    
+    public static final List<Object> HISTORY = new ArrayList<>();
     
     protected int scaledLeft;
     protected int scaledTop;
@@ -103,26 +88,23 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     protected boolean progressing = false;
     protected List<AbstractPage> pages = new ArrayList<>();
     protected IPlayerKnowledge knowledge;
-    protected Inventory inventory;
-    protected NavigableMap<String, List<Recipe<?>>> indexMap;
     
     protected PageButton nextPageButton;
     protected PageButton prevPageButton;
     protected BackButton backButton;
     
-    public GrimoireScreen(GrimoireContainer screenContainer, Inventory inv, Component titleIn) {
+    public GrimoireScreen(GrimoireContainer screenContainer, PlayerInventory inv, ITextComponent titleIn) {
         super(screenContainer, inv, titleIn);
-        this.imageWidth = 256;
-        this.imageHeight = 181;
-        this.inventory = inv;
+        this.xSize = 256;
+        this.ySize = 181;
     }
     
-    public Inventory getPlayerInventory() {
-        return this.inventory;
+    public PlayerInventory getPlayerInventory() {
+        return this.playerInventory;
     }
     
     @Override
-    public void render(PoseStack matrixStack, int mouseX, int mouseY, float partialTicks) {
+    public void render(MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
         // Determine if we need to update the GUI based on how long it's been since the last refresh
         long millis = System.currentTimeMillis();
         if (millis > this.lastCheck) {
@@ -142,7 +124,7 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         
         this.renderBackground(matrixStack);
         super.render(matrixStack, mouseX, mouseY, partialTicks);
-        this.renderTooltip(matrixStack, mouseX, mouseY);
+        this.renderHoveredTooltip(matrixStack, mouseX, mouseY);
     }
     
     public boolean isProgressing() {
@@ -158,49 +140,43 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     @Override
     protected void init() {
         super.init();
-        this.scaledLeft = (int)(this.width - this.imageWidth * SCALE) / 2;
-        this.scaledTop = (int)(this.height - this.imageHeight * SCALE) / 2;
-        Minecraft mc = this.getMinecraft();
-        this.knowledge = PrimalMagickCapabilities.getKnowledge(mc.player).orElseThrow(() -> new IllegalStateException("No knowledge provider found for player"));
-        this.generateIndexMap();
+        this.scaledLeft = (int)(this.width - this.xSize * SCALE) / 2;
+        this.scaledTop = (int)(this.height - this.ySize * SCALE) / 2;
+    	Minecraft mc = this.getMinecraft();
+        this.knowledge = PrimalMagicCapabilities.getKnowledge(mc.player);
+        if (this.knowledge == null) {
+            throw new IllegalStateException("No knowledge provider found for player");
+        }
         this.initPages();
         this.initButtons();
-        this.setCurrentPage(this.menu.getTopic().getPage());
-        PacketHandler.sendToServer(new SetResearchTopicHistoryPacket(this.menu.getTopic(), this.getHistoryView()));
     }
     
     protected void initPages() {
         // Parse grimoire pages based on the current topic
         this.pages.clear();
-        if (this.menu.getTopic() instanceof MainIndexResearchTopic) {
+        if (this.container.getTopic() == null) {
             this.parseIndexPages();
-        } else if (this.menu.getTopic() instanceof DisciplineResearchTopic discTopic) {
-            this.parseDisciplinePages(discTopic.getData());
-        } else if (this.menu.getTopic() instanceof EntryResearchTopic entryTopic) {
-            this.parseEntryPages(entryTopic.getData());
-        } else if (this.menu.getTopic() instanceof SourceResearchTopic sourceTopic) {
-            this.parseAttunementPage(sourceTopic.getData());
-        } else if (this.menu.getTopic() instanceof EnchantmentResearchTopic enchTopic) {
-            this.parseRuneEnchantmentPage(enchTopic.getData());
-        } else if (this.menu.getTopic() instanceof OtherResearchTopic otherTopic) {
-            String data = otherTopic.getData();
-            if (this.isIndexKey(data)) {
-                this.parseRecipeEntryPages(data);
-            } else if (StatisticsPage.TOPIC.getData().equals(data)) {
-                this.parseStatsPages();
-            } else if (AttunementIndexPage.TOPIC.getData().equals(data)) {
-                this.parseAttunementIndexPages();
-            } else if (RuneEnchantmentIndexPage.TOPIC.getData().equals(data)) {
-                this.parseRuneEnchantmentIndexPages();
-            } else if (RecipeIndexPage.TOPIC.getData().equals(data)) {
-                this.parseRecipeIndexPages();
-            }
+        } else if (this.container.getTopic() instanceof ResearchDiscipline) {
+            this.parseDisciplinePages((ResearchDiscipline)this.container.getTopic());
+        } else if (this.container.getTopic() instanceof ResearchEntry) {
+            this.parseEntryPages((ResearchEntry)this.container.getTopic());
+        } else if (this.container.getTopic() instanceof Source) {
+            this.parseAttunementPage((Source)this.container.getTopic());
+        } else if (this.container.getTopic() instanceof Enchantment) {
+            this.parseRuneEnchantmentPage((Enchantment)this.container.getTopic());
+        } else if (StatisticsPage.TOPIC.equals(this.container.getTopic())) {
+            this.parseStatsPages();
+        } else if (AttunementIndexPage.TOPIC.equals(this.container.getTopic())) {
+            this.parseAttunementIndexPages();
+        } else if (RuneEnchantmentIndexPage.TOPIC.equals(this.container.getTopic())) {
+            this.parseRuneEnchantmentIndexPages();
         }
     }
     
     protected void initButtons() {
         int current = 0;
-        this.clearWidgets();
+        this.buttons.clear();
+        this.children.clear();
         
         // Initialize buttons for the two visible pages
         for (AbstractPage page : this.pages) {
@@ -214,18 +190,17 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         }
         
         // Create navigation buttons and update their visibility
-        this.nextPageButton = new PageButton(this.leftPos + 258, this.topPos + 172, this, true);
-        this.prevPageButton = new PageButton(this.leftPos - 12, this.topPos + 172, this, false);
-        this.backButton = new BackButton(this.leftPos + 120, this.topPos + 172, this);
-        this.addRenderableWidget(this.nextPageButton);
-        this.addRenderableWidget(this.prevPageButton);
-        this.addRenderableWidget(this.backButton);
-        this.addRenderableWidget(new MainIndexButton(this.leftPos + 142, this.topPos + 177, this));
+        this.nextPageButton = new PageButton(this.guiLeft + 258, this.guiTop + 172, this, true);
+        this.prevPageButton = new PageButton(this.guiLeft - 12, this.guiTop + 172, this, false);
+        this.backButton = new BackButton(this.guiLeft + 120, this.guiTop + 172, this);
+        this.addButton(this.nextPageButton);
+        this.addButton(this.prevPageButton);
+        this.addButton(this.backButton);
         this.updateNavButtonVisibility();
     }
     
-    public <T extends AbstractWidget> T addWidgetToScreen(T widget) {
-        return this.addRenderableWidget(widget);
+    public <T extends Widget> T addWidgetToScreen(T widget) {
+        return this.addButton(widget);
     }
 
     private void initPageButtons(AbstractPage abstractPage, int side, int x, int y) {
@@ -242,25 +217,25 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     }
 
     @Override
-    protected void renderLabels(PoseStack matrixStack, int x, int y) {
+    protected void drawGuiContainerForegroundLayer(MatrixStack matrixStack, int x, int y) {
         // Do nothing; we don't want to draw title text for the grimoire
     }
 
     @Override
-    protected void renderBg(PoseStack matrixStack, float partialTicks, int mouseX, int mouseY) {
+    protected void drawGuiContainerBackgroundLayer(MatrixStack matrixStack, float partialTicks, int mouseX, int mouseY) {
         // Render the grimoire background
-        RenderSystem.setShaderTexture(0, TEXTURE);
+        this.minecraft.getTextureManager().bindTexture(TEXTURE);
 
-        int unscaledLeft = (this.width - this.imageWidth) / 2;
-        int unscaledTop = (this.height - this.imageHeight) / 2;
-        float scaledLeft = (this.width - this.imageWidth * SCALE) / 2.0F;
-        float scaledTop = (this.height - this.imageHeight * SCALE) / 2.0F;
+        int unscaledLeft = (this.width - this.xSize) / 2;
+        int unscaledTop = (this.height - this.ySize) / 2;
+        float scaledLeft = (this.width - this.xSize * SCALE) / 2.0F;
+        float scaledTop = (this.height - this.ySize * SCALE) / 2.0F;
 
-        matrixStack.pushPose();
+        matrixStack.push();
         matrixStack.translate(scaledLeft, scaledTop, 0.0F);
         matrixStack.scale(SCALE, SCALE, 1.0F);
-        this.blit(matrixStack, 0, 0, 0, 0, this.imageWidth, this.imageHeight);
-        matrixStack.popPose();
+        this.blit(matrixStack, 0, 0, 0, 0, this.xSize, this.ySize);
+        matrixStack.pop();
         
         // Render the two visible pages
         int current = 0;
@@ -276,14 +251,16 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     }
     
     private List<ResearchDiscipline> buildDisciplineList() {
-        // Gather a list of all research disciplines, sorted by their registration order
-        return ResearchDisciplines.getAllDisciplinesSorted();
+        // Gather a list of all research disciplines, sorted by their display names
+        return ResearchDisciplines.getAllDisciplines().stream()
+                                    .sorted(Comparator.comparing(d -> (new TranslationTextComponent(d.getNameTranslationKey())).getString()))
+                                    .collect(Collectors.toList());
     }
     
     private List<ResearchEntry> buildEntryList(ResearchDiscipline discipline) {
         // Gather a list of all research entries for the given discipline, sorted by their display names
         return discipline.getEntries().stream()
-                .sorted(Comparator.comparing(e -> (new TranslatableComponent(e.getNameTranslationKey())).getString()))
+                .sorted(Comparator.comparing(e -> (new TranslationTextComponent(e.getNameTranslationKey())).getString()))
                 .collect(Collectors.toList());
     }
     
@@ -321,7 +298,6 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     }
     
     protected void parseDisciplinePages(ResearchDiscipline discipline) {
-        Minecraft mc = this.getMinecraft();
         this.currentStageIndex = 0;
         if (discipline == null) {
             return;
@@ -337,20 +313,17 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         List<ResearchEntry> completeList = new ArrayList<>();
         List<ResearchEntry> inProgressList = new ArrayList<>();
         List<ResearchEntry> availableList = new ArrayList<>();
-        List<ResearchEntry> upcomingList = new ArrayList<>();
         for (ResearchEntry entry : entries) {
-            if (entry.isNew(mc.player)) {
+            if (this.knowledge.hasResearchFlag(entry.getKey(), IPlayerKnowledge.ResearchFlag.NEW)) {
                 newList.add(entry);
-            } else if (entry.isUpdated(mc.player)) {
+            } else if (this.knowledge.hasResearchFlag(entry.getKey(), IPlayerKnowledge.ResearchFlag.UPDATED)) {
                 updatedList.add(entry);
-            } else if (entry.isComplete(mc.player)) {
+            } else if (this.knowledge.getResearchStatus(entry.getKey()) == IPlayerKnowledge.ResearchStatus.COMPLETE) {
                 completeList.add(entry);
-            } else if (entry.isInProgress(mc.player)) {
+            } else if (this.knowledge.getResearchStatus(entry.getKey()) == IPlayerKnowledge.ResearchStatus.IN_PROGRESS) {
                 inProgressList.add(entry);
-            } else if (!entry.isHidden() && entry.isAvailable(mc.player)) {
+            } else if (!entry.isHidden() && (entry.getParentResearch() == null || entry.getParentResearch().isKnownByStrict(Minecraft.getInstance().player))) {
                 availableList.add(entry);
-            } else if (!entry.isHidden() && entry.isUpcoming(mc.player)) {
-                upcomingList.add(entry);
             }
         }
         
@@ -371,9 +344,6 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         if (!availableList.isEmpty()) {
             this.parseDisciplinePageSection(availableList, "available", discipline, properties);
         }
-        if (!upcomingList.isEmpty()) {
-            this.parseDisciplinePageSection(upcomingList, "upcoming", discipline, properties);
-        }
         if (!completeList.isEmpty()) {
             this.parseDisciplinePageSection(completeList, "complete", discipline, properties);
         }
@@ -384,7 +354,7 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     
     protected void parseDisciplinePageSection(List<ResearchEntry> researchList, String headerName, ResearchDiscipline discipline, DisciplinePageProperties properties) {
         // Append the section header and spacer
-        Component headerText = new TranslatableComponent("primalmagick.grimoire.section_header." + headerName).withStyle(ChatFormatting.UNDERLINE);
+        ITextComponent headerText = new TranslationTextComponent("primalmagick.grimoire.section_header." + headerName).mergeStyle(TextFormatting.UNDERLINE);
         if (properties.heightRemaining < 36 && !properties.page.getContents().isEmpty()) {
             // If there's not room for the spacer, the header, and a first entry, skip to the next page
             properties.heightRemaining = 155;
@@ -393,7 +363,7 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
             properties.page.addContent(headerText);
         } else {
             if (!properties.firstSection && !properties.page.getContents().isEmpty()) {
-                properties.page.addContent(new TextComponent(""));
+                properties.page.addContent(new StringTextComponent(""));
                 properties.heightRemaining -= 12;
             }
             properties.page.addContent(headerText);
@@ -458,9 +428,9 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         }
         
         // Format text by font
-        List<FormattedText> parsedText = new ArrayList<>();
+        List<ITextProperties> parsedText = new ArrayList<>();
         for (String str : firstPassText) {
-            parsedText.addAll(this.font.getSplitter().splitLines(FormattedText.of(str), 124, Style.EMPTY));   // list formatted string to width
+            parsedText.addAll(this.font.getCharacterManager().func_238362_b_(ITextProperties.func_240652_a_(str), 124, Style.EMPTY));   // list formatted string to width
         }
         
         return new Tuple<>(parsedText.stream().map((t) -> t.getString()).collect(Collectors.toList()), images);
@@ -484,20 +454,20 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         ResearchStage stage = entry.getStages().get(this.currentStageIndex);
         List<ResearchAddendum> addenda = complete ? entry.getAddenda() : Collections.emptyList();
         
-        String rawText = (new TranslatableComponent(stage.getTextTranslationKey())).getString();
+        String rawText = (new TranslationTextComponent(stage.getTextTranslationKey())).getString();
         
         // Append unlocked addendum text
         int addendumCount = 0;
         for (ResearchAddendum addendum : addenda) {
             if (addendum.getRequiredResearch() != null && addendum.getRequiredResearch().isKnownByStrict(this.getMinecraft().player)) {
-                Component headerText = new TranslatableComponent("primalmagick.grimoire.addendum_header", ++addendumCount);
-                Component addendumText = new TranslatableComponent(addendum.getTextTranslationKey());
+                ITextComponent headerText = new TranslationTextComponent("primalmagick.grimoire.addendum_header", ++addendumCount);
+                ITextComponent addendumText = new TranslationTextComponent(addendum.getTextTranslationKey());
                 rawText += ("<PAGE>" + headerText.getString() + "<BR>" + addendumText.getString());
             }
         }
         
         // Process text
-        int lineHeight = this.font.lineHeight;
+        int lineHeight = this.font.FONT_HEIGHT;
         Tuple<List<String>, List<PageImage>> parsedData = this.parseText(rawText);
         List<String> parsedText = parsedData.getA();
         List<PageImage> images = parsedData.getB();
@@ -597,7 +567,7 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
             }
         }
         for (ResourceLocation recipeLoc : locList) {
-            Optional<? extends Recipe<?>> opt = this.minecraft.level.getRecipeManager().byKey(recipeLoc);
+            Optional<? extends IRecipe<?>> opt = this.minecraft.world.getRecipeManager().getRecipe(recipeLoc);
             if (opt.isPresent()) {
                 AbstractRecipePage page = RecipePageFactory.createPage(opt.get());
                 if (page != null) {
@@ -619,34 +589,34 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         
         // Add each unlocked research discipline to the current discipline index page
         int heightRemaining = 137;  // Leave enough room for the page header
-        int dotWidth = this.font.width(".");
+        int dotWidth = this.font.getStringWidth(".");
         StatisticsPage tempPage = new StatisticsPage(true);
         Minecraft mc = this.getMinecraft();
         for (Stat stat : stats) {
             int statValue = StatsManager.getValue(mc.player, stat);
             if (!stat.isHidden() || statValue > 0) {
                 // Join the stat text and formatted value with periods in between for spacing
-                Component statText = new TranslatableComponent(stat.getTranslationKey());
-                List<FormattedText> statTextSegments = new ArrayList<>(this.font.getSplitter().splitLines(statText, 124, Style.EMPTY));
-                FormattedText lastStatTextSegment = statTextSegments.get(statTextSegments.size() - 1);
-                int lastStatTextSegmentWidth = this.font.width(lastStatTextSegment);
+                ITextComponent statText = new TranslationTextComponent(stat.getTranslationKey());
+                List<ITextProperties> statTextSegments = new ArrayList<>(this.font.getCharacterManager().func_238362_b_(statText, 124, Style.EMPTY));
+                ITextProperties lastStatTextSegment = statTextSegments.get(statTextSegments.size() - 1);
+                int lastStatTextSegmentWidth = this.font.getStringPropertyWidth(lastStatTextSegment);
                 String statFormattedValueStr = stat.getFormatter().format(statValue);
-                int statFormattedValueStrWidth = this.font.width(statFormattedValueStr);
+                int statFormattedValueStrWidth = this.font.getStringWidth(statFormattedValueStr);
                 int remainingWidth = 124 - lastStatTextSegmentWidth - statFormattedValueStrWidth;
                 if (remainingWidth < 10) {
                     // If there isn't enough room to put them on the same line, put the last text segment and the formatted value on different lines
                     String joiner1 = String.join("", Collections.nCopies((124 - lastStatTextSegmentWidth) / dotWidth, "."));
                     String joiner2 = String.join("", Collections.nCopies((124 - statFormattedValueStrWidth) / dotWidth, "."));
-                    statTextSegments.set(statTextSegments.size() - 1, FormattedText.of(lastStatTextSegment.getString() + joiner1));
-                    statTextSegments.add(FormattedText.of(joiner2 + statFormattedValueStr + "~B"));   // Include a section break at the end
+                    statTextSegments.set(statTextSegments.size() - 1, ITextProperties.func_240652_a_(lastStatTextSegment.getString() + joiner1));
+                    statTextSegments.add(ITextProperties.func_240652_a_(joiner2 + statFormattedValueStr + "~B"));   // Include a section break at the end
                 } else {
                     // Otherwise, join them as the last line of the block
                     String joiner = String.join("", Collections.nCopies(remainingWidth / dotWidth, "."));
-                    statTextSegments.set(statTextSegments.size() - 1, FormattedText.of(lastStatTextSegment.getString() + joiner + statFormattedValueStr + "~B")); // Include a section break at the end
+                    statTextSegments.set(statTextSegments.size() - 1, ITextProperties.func_240652_a_(lastStatTextSegment.getString() + joiner + statFormattedValueStr + "~B")); // Include a section break at the end
                 }
                 
                 // Calculate the total height of the stat block, including spacer, and determine if it will fit on the current page
-                int totalHeight = (int)(this.font.lineHeight * statTextSegments.size());
+                int totalHeight = (int)(this.font.FONT_HEIGHT * statTextSegments.size());
                 if (heightRemaining < totalHeight && !tempPage.getElements().isEmpty()) {
                     // If there isn't enough room for another stat block, start a new page
                     heightRemaining = 165;
@@ -655,11 +625,11 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
                 }
                 
                 // Add the stat block and its section break to the page
-                for (FormattedText str : statTextSegments) {
+                for (ITextProperties str : statTextSegments) {
                     tempPage.addElement(new PageString(str.getString()));
-                    heightRemaining -= this.font.lineHeight;
+                    heightRemaining -= this.font.FONT_HEIGHT;
                 }
-                heightRemaining -= (int)(this.font.lineHeight * 0.66D);
+                heightRemaining -= (int)(this.font.FONT_HEIGHT * 0.66D);
             }
         }
         
@@ -680,10 +650,10 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         // Add the first page with no contents to show the meter
         this.pages.add(new AttunementPage(source, true));
         
-        String rawText = (new TranslatableComponent("primalmagick.attunement." + source.getTag() + ".text")).getString();
+        String rawText = (new TranslationTextComponent("primalmagick.attunement." + source.getTag() + ".text")).getString();
         
         // Process text
-        int lineHeight = this.font.lineHeight;
+        int lineHeight = this.font.FONT_HEIGHT;
         Tuple<List<String>, List<PageImage>> parsedData = this.parseText(rawText);
         List<String> parsedText = parsedData.getA();
         List<PageImage> images = parsedData.getB();
@@ -752,10 +722,10 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
     }
     
     protected void parseRuneEnchantmentPage(Enchantment enchant) {
-        String rawText = (new TranslatableComponent(Util.makeDescriptionId("rune_enchantment.text", enchant.getRegistryName()))).getString();
+        String rawText = (new TranslationTextComponent(Util.makeTranslationKey("rune_enchantment.text", enchant.getRegistryName()))).getString();
         
         // Process text
-        int lineHeight = this.font.lineHeight;
+        int lineHeight = this.font.FONT_HEIGHT;
         Tuple<List<String>, List<PageImage>> parsedData = this.parseText(rawText);
         List<String> parsedText = parsedData.getA();
         List<PageImage> images = parsedData.getB();
@@ -827,7 +797,7 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         this.currentStageIndex = 0;
         int heightRemaining = 137;
         RuneEnchantmentIndexPage tempPage = new RuneEnchantmentIndexPage(true);
-        Minecraft mc = Minecraft.getInstance();
+    	Minecraft mc = Minecraft.getInstance();
 
         for (Enchantment enchant : RuneManager.getRuneEnchantmentsSorted()) {
             if (ResearchManager.isResearchComplete(mc.player, SimpleResearchKey.parseRuneEnchantment(enchant))) {
@@ -845,141 +815,42 @@ public class GrimoireScreen extends AbstractContainerScreen<GrimoireContainer> {
         }
     }
     
-    protected void generateIndexMap() {
-        Minecraft mc = this.getMinecraft();
-        Comparator<Recipe<?>> displayNameComparator = Comparator.comparing(r -> r.getResultItem().getHoverName().getString());
-        Comparator<Recipe<?>> recipeIdComparator = Comparator.comparing(r -> r.getId());
-        List<Recipe<?>> processedRecipes = mc.level.getRecipeManager().getRecipes().stream().filter(GrimoireScreen::isValidRecipeIndexEntry)
-                .sorted(displayNameComparator.thenComparing(recipeIdComparator)).collect(Collectors.toList());
-
-        this.indexMap = new TreeMap<>();
-        for (Recipe<?> recipe : processedRecipes) {
-            String recipeName = recipe.getResultItem().getHoverName().getString();
-            if (!this.indexMap.containsKey(recipeName)) {
-                this.indexMap.put(recipeName, new ArrayList<>());
-            }
-            this.indexMap.get(recipeName).add(recipe);
-        }
-    }
-    
-    public boolean isIndexKey(String name) {
-        return this.indexMap.containsKey(name);
-    }
-    
-    protected void parseRecipeIndexPages() {
-        this.currentStageIndex = 0;
-        int heightRemaining = 137;
-        RecipeIndexPage tempPage = new RecipeIndexPage(true);
-        
-        for (String recipeName : this.indexMap.navigableKeySet()) {
-            tempPage.addContent(recipeName, this.indexMap.get(recipeName).get(0).getResultItem());
-            heightRemaining -= 12;
-            if (heightRemaining < 12 && !tempPage.getContents().isEmpty()) {
-                heightRemaining = 155;
-                this.pages.add(tempPage);
-                tempPage = new RecipeIndexPage();
-            }
-        }
-        if (!tempPage.getContents().isEmpty()) {
-            this.pages.add(tempPage);
-        }
-    }
-    
-    protected static boolean isValidRecipeIndexEntry(Recipe<?> recipe) {
-        Minecraft mc = Minecraft.getInstance();
-        if (!recipe.getId().getNamespace().equals(PrimalMagick.MODID) || RecipePageFactory.createPage(recipe) == null) {
-            return false;
-        }
-        if (recipe instanceof IHasRequiredResearch hrr) {
-            CompoundResearchKey parents = hrr.getRequiredResearch();
-            return (parents == null || parents.isKnownByStrict(mc.player));
-        } else {
-            return ResearchManager.isRecipeVisible(recipe.getId(), mc.player);
-        }
-    }
-    
-    protected void parseRecipeEntryPages(String recipeName) {
-        this.currentStageIndex = 0;
-        boolean firstPage = true;
-        List<Recipe<?>> recipes = this.indexMap.getOrDefault(recipeName, Collections.emptyList());
-        for (Recipe<?> recipe : recipes) {
-            AbstractRecipePage page = RecipePageFactory.createPage(recipe);
-            if (page != null) {
-                this.pages.add(new RecipeMetadataPage(recipe, firstPage));
-                this.pages.add(page);
-                firstPage = false;
-            }
-        }
-    }
-    
-    public int getCurrentPage() {
-        return this.currentPage;
-    }
-    
-    public void setCurrentPage(int newPage) {
-        this.currentPage = newPage;
-        this.lastStageIndex = this.currentStageIndex;   // Prevent current page from resetting when transitioning to a recipe entry topic
-    }
-    
-    public boolean nextPage() {
+    public void nextPage() {
         if (this.currentPage < this.pages.size() - 2) {
             this.currentPage += 2;
             this.initButtons();
-            return true;
         }
-        return false;
     }
     
-    public boolean prevPage() {
+    public void prevPage() {
         if (this.currentPage >= 2) {
             this.currentPage -= 2;
             this.initButtons();
-            return true;
         }
-        return false;
     }
     
-    public boolean goBack() {
+    public void goBack() {
         // Pop the last viewed topic off the history stack and open a new screen for it
-        if (!this.getMenu().getTopicHistory().isEmpty()) {
-            AbstractResearchTopic lastTopic = this.getMenu().getTopicHistory().pop();
-            this.menu.setTopic(lastTopic);
-            this.getMinecraft().setScreen(new GrimoireScreen(this.menu, this.inventory, this.title));
-            return true;
+        if (!HISTORY.isEmpty()) {
+            Object lastTopic = HISTORY.remove(HISTORY.size() - 1);
+            this.container.setTopic(lastTopic);
+            this.getMinecraft().displayGuiScreen(new GrimoireScreen(this.container, this.playerInventory, this.title));
         }
-        return false;
     }
     
     protected void updateNavButtonVisibility() {
         this.prevPageButton.visible = (this.currentPage >= 2);
         this.nextPageButton.visible = (this.currentPage < this.pages.size() - 2);
-        this.backButton.visible = !this.getMenu().getTopicHistory().isEmpty();
+        this.backButton.visible = !HISTORY.isEmpty();
     }
     
     @Override
-    public boolean keyPressed(int keyCode, int p_keyPressed_2_, int p_keyPressed_3_) {
-        if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
-            if (this.goBack()) {
-                Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundsPM.PAGE.get(), 1.0F, 1.0F));
-            }
-        } else if (keyCode == GLFW.GLFW_KEY_LEFT) {
-            if (this.prevPage()) {
-                Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundsPM.PAGE.get(), 1.0F, 1.0F));
-            }
-        } else if (keyCode == GLFW.GLFW_KEY_RIGHT) {
-            if (this.nextPage()) {
-                Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundsPM.PAGE.get(), 1.0F, 1.0F));
-            }
+    public boolean keyPressed(int p_keyPressed_1_, int p_keyPressed_2_, int p_keyPressed_3_) {
+        // Clear the topic history when closing the screen
+        if (p_keyPressed_1_ == GLFW.GLFW_KEY_ESCAPE) {
+            HISTORY.clear();
         }
-        return super.keyPressed(keyCode, p_keyPressed_2_, p_keyPressed_3_);
-    }
-    
-    public void pushCurrentHistoryTopic() {
-        this.getMenu().getTopicHistory().push(this.getMenu().getTopic().withPage(this.getCurrentPage()));
-    }
-    
-    public List<AbstractResearchTopic> getHistoryView() {
-        return this.getMenu().getTopicHistory().subList(0, Math.min(this.getMenu().getTopicHistory().size(), HISTORY_LIMIT));
+        return super.keyPressed(p_keyPressed_1_, p_keyPressed_2_, p_keyPressed_3_);
     }
     
     protected static class DisciplinePageProperties {

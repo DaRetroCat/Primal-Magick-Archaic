@@ -1,7 +1,5 @@
 package com.verdantartifice.primalmagick.common.affinities;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
 
 import com.google.gson.JsonObject;
@@ -10,9 +8,8 @@ import com.google.gson.JsonSyntaxException;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.util.JsonUtils;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.item.crafting.RecipeManager;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class ItemAffinity extends AbstractAffinity {
@@ -44,17 +41,17 @@ public class ItemAffinity extends AbstractAffinity {
     }
 
     @Override
-    protected SourceList calculateTotal(@Nonnull RecipeManager recipeManager, @Nonnull List<ResourceLocation> history) {
+    protected SourceList calculateTotal(@Nonnull RecipeManager recipeManager) {
         if (this.setValues != null) {
             return this.setValues;
         } else if (this.baseEntryId != null) {
             if (this.baseEntry == null) {
-                this.baseEntry = AffinityManager.getInstance().getOrGenerateItemAffinity(this.baseEntryId, recipeManager, history);
+                this.baseEntry = AffinityManager.getInstance().getOrGenerateItemAffinity(this.baseEntryId, recipeManager);
                 if (this.baseEntry == null) {
-                    return null;
+                    throw new IllegalStateException("Failed to look up base " + this.baseEntryId.toString() + " for affinity calculation for " + this.targetId.toString());
                 }
             }
-            SourceList retVal = this.baseEntry.getTotal(recipeManager, history);
+            SourceList retVal = this.baseEntry.getTotal(recipeManager);
             if (retVal != null) {
                 if (this.addValues != null) {
                     retVal = retVal.add(this.addValues);
@@ -103,48 +100,6 @@ public class ItemAffinity extends AbstractAffinity {
             }
 
             return entry;
-        }
-
-        @Override
-        public ItemAffinity fromNetwork(FriendlyByteBuf buf) {
-            ItemAffinity affinity = new ItemAffinity(buf.readResourceLocation());
-            boolean isSet = buf.readBoolean();
-            if (isSet) {
-                affinity.setValues = SourceList.fromNetwork(buf);
-            } else {
-                affinity.baseEntryId = buf.readResourceLocation();
-                if (buf.readBoolean()) {
-                    affinity.addValues = SourceList.fromNetwork(buf);
-                }
-                if (buf.readBoolean()) {
-                    affinity.removeValues = SourceList.fromNetwork(buf);
-                }
-            }
-            return affinity;
-        }
-
-        @Override
-        public void toNetwork(FriendlyByteBuf buf, ItemAffinity affinity) {
-            buf.writeResourceLocation(affinity.targetId);
-            if (affinity.setValues != null) {
-                buf.writeBoolean(true);
-                SourceList.toNetwork(buf, affinity.setValues);
-            } else {
-                buf.writeBoolean(false);
-                buf.writeResourceLocation(affinity.baseEntryId);
-                if (affinity.addValues != null) {
-                    buf.writeBoolean(true);
-                    SourceList.toNetwork(buf, affinity.addValues);
-                } else {
-                    buf.writeBoolean(false);
-                }
-                if (affinity.removeValues != null) {
-                    buf.writeBoolean(true);
-                    SourceList.toNetwork(buf, affinity.removeValues);
-                } else {
-                    buf.writeBoolean(false);
-                }
-            }
         }
     }
 }

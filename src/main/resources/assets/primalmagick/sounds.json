@@ -137,11 +137,5 @@
         "sounds": [
             "primalmagick:harp"
         ]
-    },
-    "ritual": {
-        "category": "ambient",
-        "sounds": [
-            "primalmagick:ritual"
-        ]
     }
 }

@@ -4,13 +4,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerKnowledge;
-import com.verdantartifice.primalmagick.common.capabilities.PrimalMagickCapabilities;
+import com.verdantartifice.primalmagick.common.capabilities.PrimalMagicCapabilities;
 import com.verdantartifice.primalmagick.common.util.ItemUtils;
 
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 
 /**
  * Data object identifying a specific research entry, or a specific stage in that research entry.
@@ -110,11 +110,11 @@ public class SimpleResearchKey {
         return new SimpleResearchKey(this.rootKey, null);
     }
     
-    public boolean isKnownBy(@Nullable Player player) {
+    public boolean isKnownBy(@Nullable PlayerEntity player) {
         if (player == null) {
             return false;
         }
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         } else {
@@ -124,11 +124,11 @@ public class SimpleResearchKey {
         }
     }
     
-    public boolean isKnownByStrict(@Nullable Player player) {
+    public boolean isKnownByStrict(@Nullable PlayerEntity player) {
         if (player == null) {
             return false;
         }
-        IPlayerKnowledge knowledge = PrimalMagickCapabilities.getKnowledge(player).orElse(null);
+        IPlayerKnowledge knowledge = PrimalMagicCapabilities.getKnowledge(player);
         if (knowledge == null) {
             return false;
         }

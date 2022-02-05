@@ -1,6 +1,5 @@
 package com.verdantartifice.primalmagick.common.research;
 
-import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -11,17 +10,17 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.verdantartifice.primalmagick.PrimalMagick;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
-import net.minecraft.util.GsonHelper;
-import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.client.resources.JsonReloadListener;
+import net.minecraft.profiler.IProfiler;
+import net.minecraft.resources.IResourceManager;
+import net.minecraft.util.JSONUtils;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid=PrimalMagick.MODID)
-public class ResearchLoader extends SimpleJsonResourceReloadListener {
+@Mod.EventBusSubscriber(modid= PrimalMagick.MODID)
+public class ResearchLoader extends JsonReloadListener {
     protected static final Gson GSON = (new GsonBuilder()).setPrettyPrinting().disableHtmlEscaping().create();
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -33,14 +32,8 @@ public class ResearchLoader extends SimpleJsonResourceReloadListener {
     
     @SubscribeEvent
     public static void onResourceReload(AddReloadListenerEvent event) {
-        event.addListener(createInstance());
-    }
-    
-    public static ResearchLoader createInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new ResearchLoader();
-        }
-        return INSTANCE;
+        INSTANCE = new ResearchLoader();
+        event.addListener(INSTANCE);
     }
     
     public static ResearchLoader getInstance() {
@@ -52,9 +45,8 @@ public class ResearchLoader extends SimpleJsonResourceReloadListener {
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> objectIn, ResourceManager resourceManagerIn, ProfilerFiller profilerIn) {
+    protected void apply(Map<ResourceLocation, JsonElement> objectIn, IResourceManager resourceManagerIn, IProfiler profilerIn) {
         ResearchManager.clearCraftingReferences();
-        ResearchManager.clearRecipeMap();
         ResearchDisciplines.clearAllResearch();
         for (Map.Entry<ResourceLocation, JsonElement> entry : objectIn.entrySet()) {
             ResourceLocation location = entry.getKey();
@@ -64,14 +56,10 @@ public class ResearchLoader extends SimpleJsonResourceReloadListener {
             }
 
             try {
-                ResearchEntry researchEntry = ResearchEntry.parse(GsonHelper.convertToJsonObject(entry.getValue(), "top member"));
+                ResearchEntry researchEntry = ResearchEntry.parse(JSONUtils.getJsonObject(entry.getValue(), "top member"));
                 ResearchDiscipline discipline = ResearchDisciplines.getDiscipline(researchEntry.getDisciplineKey());
                 if (discipline == null || !discipline.addEntry(researchEntry)) {
                     LOGGER.error("Could not add invalid entry: {}", location);
-                } else {
-                    // Assemble derived data structures
-                    researchEntry.getStages().forEach(s -> s.getRecipes().forEach(r -> ResearchManager.addRecipeMapping(r, researchEntry)));
-                    researchEntry.getAddenda().forEach(a -> a.getRecipes().forEach(r -> ResearchManager.addRecipeMapping(r, researchEntry)));
                 }
             } catch (Exception e) {
                 LOGGER.error("Parsing error loading research entry {}", location, e);
@@ -80,30 +68,6 @@ public class ResearchLoader extends SimpleJsonResourceReloadListener {
         for (ResearchDiscipline discipline : ResearchDisciplines.getAllDisciplines()) {
             if (!discipline.getEntries().isEmpty()) {
                 LOGGER.info("Loaded {} research entries for discipline {}", discipline.getEntries().size(), discipline.getKey().toLowerCase());
-            }
-        }
-    }
-    
-    public void replaceResearch(List<ResearchEntry> entries) {
-        ResearchManager.clearCraftingReferences();
-        ResearchManager.clearRecipeMap();
-        ResearchDisciplines.clearAllResearch();
-        for (ResearchEntry researchEntry : entries) {
-            ResearchDiscipline discipline = ResearchDisciplines.getDiscipline(researchEntry.getDisciplineKey());
-            if (discipline == null || !discipline.addEntry(researchEntry)) {
-                LOGGER.error("Could not update invalid research entry");
-            } else {
-                // Assemble derived data structures
-                researchEntry.getStages().forEach(s -> {
-                    s.getCraftReference().forEach(c -> ResearchManager.addCraftingReference(c));
-                    s.getRecipes().forEach(r -> ResearchManager.addRecipeMapping(r, researchEntry));
-                });
-                researchEntry.getAddenda().forEach(a -> a.getRecipes().forEach(r -> ResearchManager.addRecipeMapping(r, researchEntry)));
-            }
-        }
-        for (ResearchDiscipline discipline : ResearchDisciplines.getAllDisciplines()) {
-            if (!discipline.getEntries().isEmpty()) {
-                LOGGER.info("Updated {} research entries for discipline {}", discipline.getEntries().size(), discipline.getKey().toLowerCase());
             }
         }
     }

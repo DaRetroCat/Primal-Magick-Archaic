@@ -2,30 +2,28 @@ package com.verdantartifice.primalmagick.common.blocks.crafting;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.misc.DeviceTier;
+import com.verdantartifice.primalmagick.common.misc.HarvestLevel;
 import com.verdantartifice.primalmagick.common.misc.ITieredDevice;
 import com.verdantartifice.primalmagick.common.tiles.crafting.RunescribingAltarTileEntity;
 import com.verdantartifice.primalmagick.common.util.VoxelShapeUtils;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.level.material.MaterialColor;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.network.NetworkHooks;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.SoundType;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.material.MaterialColor;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Hand;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.math.shapes.ISelectionContext;
+import net.minecraft.util.math.shapes.VoxelShape;
+import net.minecraft.world.IBlockReader;
+import net.minecraft.world.World;
+import net.minecraftforge.common.ToolType;
 
 /**
  * Block definition for the runescribing altar.  May be used to apply combinations of runes to
@@ -33,13 +31,13 @@ import net.minecraftforge.network.NetworkHooks;
  * 
  * @author Daedalus4096
  */
-public class RunescribingAltarBlock extends BaseEntityBlock implements ITieredDevice {
+public class RunescribingAltarBlock extends Block implements ITieredDevice {
     protected static final VoxelShape SHAPE = VoxelShapeUtils.fromModel(new ResourceLocation(PrimalMagick.MODID, "block/runescribing_altar_basic"));
     
     protected final DeviceTier tier;
 
     public RunescribingAltarBlock(DeviceTier tier) {
-        super(Block.Properties.of(Material.STONE, MaterialColor.QUARTZ).strength(1.5F, 6.0F).sound(SoundType.STONE));
+        super(Block.Properties.create(Material.ROCK, MaterialColor.QUARTZ).hardnessAndResistance(1.5F, 6.0F).sound(SoundType.STONE).harvestTool(ToolType.PICKAXE).harvestLevel(HarvestLevel.WOOD.getLevel()));
         this.tier = tier;
     }
     
@@ -49,29 +47,38 @@ public class RunescribingAltarBlock extends BaseEntityBlock implements ITieredDe
     }
     
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
         return SHAPE;
     }
     
     @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
-    }
-
-    @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new RunescribingAltarTileEntity(pos, state);
+    public boolean hasTileEntity(BlockState state) {
+        return true;
     }
     
     @Override
-    public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand handIn, BlockHitResult hit) {
-        if (!worldIn.isClientSide && player instanceof ServerPlayer) {
+    public TileEntity createTileEntity(BlockState state, IBlockReader world) {
+        return new RunescribingAltarTileEntity();
+    }
+    
+    @SuppressWarnings("deprecation")
+    @Override
+    public boolean eventReceived(BlockState state, World worldIn, BlockPos pos, int id, int param) {
+        // Pass any received events on to the tile entity and let it decide what to do with it
+        super.eventReceived(state, worldIn, pos, id, param);
+        TileEntity tile = worldIn.getTileEntity(pos);
+        return (tile == null) ? false : tile.receiveClientEvent(id, param);
+    }
+    
+    @Override
+    public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand handIn, BlockRayTraceResult hit) {
+        if (!worldIn.isRemote) {
             // Open the GUI for the altar
-            BlockEntity tile = worldIn.getBlockEntity(pos);
+            TileEntity tile = worldIn.getTileEntity(pos);
             if (tile instanceof RunescribingAltarTileEntity) {
-                NetworkHooks.openGui((ServerPlayer)player, (RunescribingAltarTileEntity)tile);
+                player.openContainer((RunescribingAltarTileEntity)tile);
             }
         }
-        return InteractionResult.SUCCESS;
+        return ActionResultType.SUCCESS;
     }
 }

@@ -5,46 +5,50 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.verdantartifice.primalmagick.common.blocks.BlocksPM;
-import com.verdantartifice.primalmagick.common.containers.slots.GenericResultSlot;
 import com.verdantartifice.primalmagick.common.containers.slots.LapisLazuliSlot;
 import com.verdantartifice.primalmagick.common.containers.slots.StoneSlabSlot;
 import com.verdantartifice.primalmagick.common.crafting.IRunecarvingRecipe;
 import com.verdantartifice.primalmagick.common.crafting.RecipeTypesPM;
-import com.verdantartifice.primalmagick.common.stats.StatsManager;
-import com.verdantartifice.primalmagick.common.stats.StatsPM;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.Container;
-import net.minecraft.world.ContainerListener;
-import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.inventory.DataSlot;
-import net.minecraft.world.inventory.ResultContainer;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.CraftResultInventory;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.IWorldPosCallable;
+import net.minecraft.util.IntReferenceHolder;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvents;
+import net.minecraft.world.World;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * Server data container for the runecarving table GUI.
  * 
  * @author Daedalus4096
  */
-public class RunecarvingTableContainer extends AbstractContainerMenu implements ContainerListener {
-    protected final ContainerLevelAccess worldPosCallable;
-    protected final DataSlot selectedRecipe = DataSlot.standalone();
-    protected final Player player;
-    protected final Level world;
+public class RunecarvingTableContainer extends Container {
+    protected final IWorldPosCallable worldPosCallable;
+    protected final IntReferenceHolder selectedRecipe = IntReferenceHolder.single();
+    protected final PlayerEntity player;
+    protected final World world;
     
     protected final Slot inputSlabSlot;
     protected final Slot inputLapisSlot;
     protected final Slot outputSlot;
-    protected final Container tableInv;
-    protected final ResultContainer outputInventory = new ResultContainer();
+    
+    protected final IInventory inputInventory = new Inventory(2) {
+        public void markDirty() {
+            super.markDirty();
+            RunecarvingTableContainer.this.onCraftMatrixChanged(this);
+            RunecarvingTableContainer.this.inventoryUpdateListener.run();
+        };
+    };
+    protected final CraftResultInventory outputInventory = new CraftResultInventory();
 
     protected List<IRunecarvingRecipe> recipes = new ArrayList<>();
     
@@ -58,49 +62,44 @@ public class RunecarvingTableContainer extends AbstractContainerMenu implements 
     protected long lastOnTake;
     protected Runnable inventoryUpdateListener = () -> {};
 
-    public RunecarvingTableContainer(int windowId, Inventory inv, BlockPos pos) {
-        this(windowId, inv, new SimpleContainer(2), ContainerLevelAccess.create(inv.player.level, pos));
-        ((SimpleContainer)this.tableInv).addListener(this);
+    public RunecarvingTableContainer(int windowId, PlayerInventory inv) {
+        this(windowId, inv, IWorldPosCallable.DUMMY);
     }
     
-    public RunecarvingTableContainer(int windowId, Inventory inv, Container tableInv, ContainerLevelAccess worldPosCallable) {
+    public RunecarvingTableContainer(int windowId, PlayerInventory inv, IWorldPosCallable worldPosCallable) {
         super(ContainersPM.RUNECARVING_TABLE.get(), windowId);
         this.worldPosCallable = worldPosCallable;
         this.player = inv.player;
-        this.world = inv.player.level;
-        checkContainerSize(tableInv, 2);
-        this.tableInv = tableInv;
+        this.world = inv.player.world;
         
         // Slot 0: input slabs
-        this.inputSlabSlot = this.addSlot(new StoneSlabSlot(this.tableInv, 0, 20, 21));
+        this.inputSlabSlot = this.addSlot(new StoneSlabSlot(this.inputInventory, 0, 20, 21));
         
         // Slot 1: input lapis
-        this.inputLapisSlot = this.addSlot(new LapisLazuliSlot(this.tableInv, 1, 20, 46));
+        this.inputLapisSlot = this.addSlot(new LapisLazuliSlot(this.inputInventory, 1, 20, 46));
         
         // Slot 2: runecarving output
-        this.outputSlot = this.addSlot(new GenericResultSlot(this.player, this.outputInventory, 0, 143, 33) {
+        this.outputSlot = this.addSlot(new Slot(this.outputInventory, 0, 143, 33) {
             @Override
-            public void onTake(Player thePlayer, ItemStack stack) {
-                RunecarvingTableContainer.this.inputSlabSlot.remove(1);
-                RunecarvingTableContainer.this.inputLapisSlot.remove(1);
+            public boolean isItemValid(ItemStack stack) {
+                return false;
+            }
+            
+            @Override
+            public ItemStack onTake(PlayerEntity thePlayer, ItemStack stack) {
+                RunecarvingTableContainer.this.inputSlabSlot.decrStackSize(1);
+                RunecarvingTableContainer.this.inputLapisSlot.decrStackSize(1);
                 RunecarvingTableContainer.this.updateRecipeResultSlot();
                 
-                stack.getItem().onCraftedBy(stack, thePlayer.level, thePlayer);
-                RunecarvingTableContainer.this.worldPosCallable.execute((world, pos) -> {
+                stack.getItem().onCreated(stack, thePlayer.world, thePlayer);
+                RunecarvingTableContainer.this.worldPosCallable.consume((world, pos) -> {
                     long time = world.getGameTime();
                     if (RunecarvingTableContainer.this.lastOnTake != time) {
-                        world.playSound(null, pos, SoundEvents.UI_STONECUTTER_TAKE_RESULT, SoundSource.BLOCKS, 1.0F, 1.0F);
+                        world.playSound(null, pos, SoundEvents.UI_STONECUTTER_TAKE_RESULT, SoundCategory.BLOCKS, 1.0F, 1.0F);
                         RunecarvingTableContainer.this.lastOnTake = time;
                     }
                 });
-                
-                super.onTake(thePlayer, stack);
-            }
-
-            @Override
-            protected void checkTakeAchievements(ItemStack stack) {
-                super.checkTakeAchievements(stack);
-                StatsManager.incrementValue(this.player, StatsPM.CRAFTED_RUNEWORKING, stack.getCount());
+                return super.onTake(thePlayer, stack);
             }
         });
         
@@ -116,35 +115,36 @@ public class RunecarvingTableContainer extends AbstractContainerMenu implements 
             this.addSlot(new Slot(inv, i, 8 + i * 18, 142));
         }
 
-        this.addDataSlot(this.selectedRecipe);
-        
-        // Do an immediate update of the table GUI
-        this.containerChanged(this.tableInv);
+        this.trackInt(this.selectedRecipe);
     }
 
+    @OnlyIn(Dist.CLIENT)
     public int getSelectedRecipe() {
         return this.selectedRecipe.get();
     }
 
+    @OnlyIn(Dist.CLIENT)
     public List<IRunecarvingRecipe> getRecipeList() {
         return this.recipes;
     }
 
+    @OnlyIn(Dist.CLIENT)
     public int getRecipeListSize() {
         return this.recipes.size();
     }
 
+    @OnlyIn(Dist.CLIENT)
     public boolean hasItemsInInputSlot() {
-        return this.inputSlabSlot.hasItem() && this.inputLapisSlot.hasItem() && !this.recipes.isEmpty();
+        return this.inputSlabSlot.getHasStack() && this.inputLapisSlot.getHasStack() && !this.recipes.isEmpty();
     }
     
     @Override
-    public boolean stillValid(Player playerIn) {
-        return stillValid(this.worldPosCallable, playerIn, BlocksPM.RUNECARVING_TABLE.get());
+    public boolean canInteractWith(PlayerEntity playerIn) {
+        return isWithinUsableDistance(this.worldPosCallable, playerIn, BlocksPM.RUNECARVING_TABLE.get());
     }
 
     @Override
-    public boolean clickMenuButton(Player playerIn, int id) {
+    public boolean enchantItem(PlayerEntity playerIn, int id) {
         if (id >= 0 && id < this.recipes.size()) {
             this.selectedRecipe.set(id);
             this.updateRecipeResultSlot();
@@ -152,24 +152,22 @@ public class RunecarvingTableContainer extends AbstractContainerMenu implements 
         return true;
     }
     
-    @Override
-    public void containerChanged(Container inventoryIn) {
-        ItemStack slabStack = this.inputSlabSlot.getItem();
-        ItemStack lapisStack = this.inputLapisSlot.getItem();
+    public void onCraftMatrixChanged(IInventory inventoryIn) {
+        ItemStack slabStack = this.inputSlabSlot.getStack();
+        ItemStack lapisStack = this.inputLapisSlot.getStack();
         if (slabStack.getItem() != this.slabInput.getItem() || lapisStack.getItem() != this.lapisInput.getItem()) {
             this.slabInput = slabStack.copy();
             this.lapisInput = lapisStack.copy();
             this.updateAvailableRecipes(inventoryIn, slabStack, lapisStack);
         }
-        this.inventoryUpdateListener.run();
     };
     
-    protected void updateAvailableRecipes(Container inventoryIn, ItemStack slabStack, ItemStack lapisStack) {
+    protected void updateAvailableRecipes(IInventory inventoryIn, ItemStack slabStack, ItemStack lapisStack) {
         this.recipes.clear();
         this.selectedRecipe.set(-1);
-        this.outputSlot.set(ItemStack.EMPTY);
+        this.outputSlot.putStack(ItemStack.EMPTY);
         if (!slabStack.isEmpty() && !lapisStack.isEmpty()) {
-            this.recipes = this.world.getRecipeManager().getRecipesFor(RecipeTypesPM.RUNECARVING, inventoryIn, this.world).stream()
+            this.recipes = this.world.getRecipeManager().getRecipes(RecipeTypesPM.RUNECARVING, inventoryIn, this.world).stream()
                     .filter(r -> r != null && (r.getRequiredResearch() == null || r.getRequiredResearch().isKnownByStrict(this.player)))
                     .collect(Collectors.toList());
         }
@@ -178,82 +176,86 @@ public class RunecarvingTableContainer extends AbstractContainerMenu implements 
     protected void updateRecipeResultSlot() {
         if (!this.recipes.isEmpty()) {
             IRunecarvingRecipe recipe = this.recipes.get(this.selectedRecipe.get());
-            this.outputSlot.set(recipe.assemble(this.tableInv));
+            this.outputSlot.putStack(recipe.getCraftingResult(this.inputInventory));
         } else {
-            this.outputSlot.set(ItemStack.EMPTY);
+            this.outputSlot.putStack(ItemStack.EMPTY);
         }
-        this.broadcastChanges();
+        this.detectAndSendChanges();
     }
 
+    @OnlyIn(Dist.CLIENT)
     public void setInventoryUpdateListener(Runnable listenerIn) {
         this.inventoryUpdateListener = listenerIn;
     }
     
     @Override
-    public boolean canTakeItemForPickAll(ItemStack stack, Slot slotIn) {
-        return slotIn != this.outputSlot && super.canTakeItemForPickAll(stack, slotIn);
+    public boolean canMergeSlot(ItemStack stack, Slot slotIn) {
+        return slotIn.inventory != this.outputInventory && super.canMergeSlot(stack, slotIn);
     }
     
     @Override
-    public ItemStack quickMoveStack(Player playerIn, int index) {
+    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index) {
         ItemStack stack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
-        if (slot != null && slot.hasItem()) {
-            ItemStack slotStack = slot.getItem();
+        Slot slot = this.inventorySlots.get(index);
+        if (slot != null && slot.getHasStack()) {
+            ItemStack slotStack = slot.getStack();
             stack = slotStack.copy();
             if (index == 2) {
                 // If transferring the output item, move it into the player's backpack or hotbar
-                slotStack.getItem().onCraftedBy(slotStack, playerIn.level, playerIn);
-                if (!this.moveItemStackTo(slotStack, 3, 39, true)) {
+                slotStack.getItem().onCreated(slotStack, playerIn.world, playerIn);
+                if (!this.mergeItemStack(slotStack, 3, 39, true)) {
                     return ItemStack.EMPTY;
                 }
-                slot.onQuickCraft(slotStack, stack);
+                slot.onSlotChange(slotStack, stack);
             } else if (index == 0 || index == 1) {
                 // If transferring one of the input items, move it into the player's backpack or hotbar
-                if (!this.moveItemStackTo(slotStack, 3, 39, false)) {
+                if (!this.mergeItemStack(slotStack, 3, 39, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (this.inputSlabSlot.mayPlace(slotStack)) {
+            } else if (this.inputSlabSlot.isItemValid(slotStack)) {
                 // If transferring a valid ingredient, move it into the appropriate slot
-                if (!this.moveItemStackTo(slotStack, 0, 1, false)) {
+                if (!this.mergeItemStack(slotStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (this.inputLapisSlot.mayPlace(slotStack)) {
+            } else if (this.inputLapisSlot.isItemValid(slotStack)) {
                 // If transferring a valid ingredient, move it into the appropriate slot
-                if (!this.moveItemStackTo(slotStack, 1, 2, false)) {
+                if (!this.mergeItemStack(slotStack, 1, 2, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index >= 3 && index < 30) {
                 // If transferring from the backpack and not a valid fit, move to the hotbar
-                if (!this.moveItemStackTo(slotStack, 30, 39, false)) {
+                if (!this.mergeItemStack(slotStack, 30, 39, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (index >= 30 && index < 39) {
                 // If transferring from the hotbar and not a valid fit, move to the backpack
-                if (!this.moveItemStackTo(slotStack, 3, 30, false)) {
+                if (!this.mergeItemStack(slotStack, 3, 30, false)) {
                     return ItemStack.EMPTY;
                 }
             }
             
             if (slotStack.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
+                slot.putStack(ItemStack.EMPTY);
             }
             
-            slot.setChanged();
+            slot.onSlotChanged();
             if (slotStack.getCount() == stack.getCount()) {
                 return ItemStack.EMPTY;
             }
             
             slot.onTake(playerIn, slotStack);
-            this.broadcastChanges();
+            this.detectAndSendChanges();
         }
         
         return stack;
     }
     
     @Override
-    public void removed(Player playerIn) {
-        super.removed(playerIn);
-        this.outputInventory.removeItemNoUpdate(0);
+    public void onContainerClosed(PlayerEntity playerIn) {
+        super.onContainerClosed(playerIn);
+        this.outputInventory.removeStackFromSlot(0);
+        this.worldPosCallable.consume((world, pos) -> {
+            this.clearContainer(playerIn, playerIn.world, this.inputInventory);
+        });
     }
 }

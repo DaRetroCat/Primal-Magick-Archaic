@@ -10,7 +10,7 @@
       "item": "primalmagick:mana_salts"
     },
     {
-      "item": "primalmagick:essence_shard_infernal"
+      "item": "primalmagick:essence_crystal_infernal"
     },
     {
       "tag": "forge:ingots/iron"
@@ -33,7 +33,7 @@
       "block": "primalmagick:ritual_bell"
     },
     {
-      "block": "primalmagick:soul_anvil"
+      "block": "primalmagick:bloodletter"
     }
   ],
   "result": {

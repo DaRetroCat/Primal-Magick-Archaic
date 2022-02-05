@@ -7,58 +7,57 @@ import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.common.capabilities.IPlayerCompanions.CompanionType;
 
-import net.minecraft.Util;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.PathfinderMob;
-import net.minecraft.world.entity.TamableAnimal;
-import net.minecraft.world.entity.animal.horse.AbstractHorse;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.CreatureEntity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.passive.TameableEntity;
+import net.minecraft.entity.passive.horse.AbstractHorseEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.network.datasync.DataParameter;
+import net.minecraft.network.datasync.DataSerializers;
+import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.Util;
+import net.minecraft.world.GameRules;
+import net.minecraft.world.World;
 
 /**
  * Base class for an entity that follows a player as a friendly companion, similar to a tamed creature.
  * 
  * @author Daedalus4096
  */
-public abstract class AbstractCompanionEntity extends PathfinderMob {
-    protected static final EntityDataAccessor<Optional<UUID>> OWNER_UNIQUE_ID = SynchedEntityData.defineId(AbstractCompanionEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+public abstract class AbstractCompanionEntity extends CreatureEntity {
+    protected static final DataParameter<Optional<UUID>> OWNER_UNIQUE_ID = EntityDataManager.createKey(AbstractCompanionEntity.class, DataSerializers.OPTIONAL_UNIQUE_ID);
 
     protected boolean staying;
 
-    protected AbstractCompanionEntity(EntityType<? extends AbstractCompanionEntity> entityType, Level world) {
+    protected AbstractCompanionEntity(EntityType<? extends AbstractCompanionEntity> entityType, World world) {
         super(entityType, world);
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(OWNER_UNIQUE_ID, Optional.empty());
+    protected void registerData() {
+        super.registerData();
+        this.dataManager.register(OWNER_UNIQUE_ID, Optional.empty());
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
+    public void writeAdditional(CompoundNBT compound) {
+        super.writeAdditional(compound);
         compound.putBoolean("CompanionStaying", this.isCompanionStaying());
         if (this.hasCompanionOwner()) {
-            compound.putUUID("CompanionOwner", this.getCompanionOwnerId());
+            compound.putUniqueId("CompanionOwner", this.getCompanionOwnerId());
         }
     }
 
     @Override
-    public void readAdditionalSaveData(CompoundTag compound) {
-        super.readAdditionalSaveData(compound);
+    public void readAdditional(CompoundNBT compound) {
+        super.readAdditional(compound);
         this.setCompanionStaying(compound.getBoolean("CompanionStaying"));
-        if (compound.hasUUID("CompanionOwner")) {
-            this.setCompanionOwnerId(compound.getUUID("CompanionOwner"));
+        if (compound.hasUniqueId("CompanionOwner")) {
+            this.setCompanionOwnerId(compound.getUniqueId("CompanionOwner"));
         } else {
             this.setCompanionOwnerId(null);
         }
@@ -71,7 +70,7 @@ public abstract class AbstractCompanionEntity extends PathfinderMob {
      */
     @Nullable
     public UUID getCompanionOwnerId() {
-        return this.entityData.get(OWNER_UNIQUE_ID).orElse(null);
+        return this.dataManager.get(OWNER_UNIQUE_ID).orElse(null);
     }
 
     /**
@@ -80,7 +79,7 @@ public abstract class AbstractCompanionEntity extends PathfinderMob {
      * @param ownerId the unique ID of this companion entity's new owner
      */
     public void setCompanionOwnerId(@Nullable UUID ownerId) {
-        this.entityData.set(OWNER_UNIQUE_ID, Optional.ofNullable(ownerId));
+        this.dataManager.set(OWNER_UNIQUE_ID, Optional.ofNullable(ownerId));
     }
 
     /**
@@ -90,10 +89,10 @@ public abstract class AbstractCompanionEntity extends PathfinderMob {
      * @return this companion entity's owner entity
      */
     @Nullable
-    public Player getCompanionOwner() {
+    public PlayerEntity getCompanionOwner() {
         try {
             UUID ownerId = this.getCompanionOwnerId();
-            return ownerId == null ? null : this.level.getPlayerByUUID(ownerId);
+            return ownerId == null ? null : this.world.getPlayerByUuid(ownerId);
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -115,7 +114,7 @@ public abstract class AbstractCompanionEntity extends PathfinderMob {
      * @return whether the given player is this entity's companion owner
      */
     public boolean isCompanionOwner(LivingEntity entity) {
-        return entity instanceof Player && ((Player)entity) == this.getCompanionOwner();
+        return entity instanceof PlayerEntity && ((PlayerEntity)entity) == this.getCompanionOwner();
     }
     
     /**
@@ -143,16 +142,16 @@ public abstract class AbstractCompanionEntity extends PathfinderMob {
      * @param owner the companion's owner
      * @return whether this companion entity should target the given target entity
      */
-    public boolean shouldAttackEntity(LivingEntity target, Player owner) {
+    public boolean shouldAttackEntity(LivingEntity target, PlayerEntity owner) {
         if (target instanceof AbstractCompanionEntity) {
             AbstractCompanionEntity otherCompanion = (AbstractCompanionEntity)target;
             return !otherCompanion.hasCompanionOwner() || otherCompanion.getCompanionOwner() != owner;
-        } else if (target instanceof Player && !owner.canHarmPlayer((Player)target)) {
+        } else if (target instanceof PlayerEntity && !owner.canAttackPlayer((PlayerEntity)target)) {
             return false;
-        } else if (target instanceof AbstractHorse && ((AbstractHorse)target).isTamed()) {
+        } else if (target instanceof AbstractHorseEntity && ((AbstractHorseEntity)target).isTame()) {
             return false;
         } else {
-            return !(target instanceof TamableAnimal) || !((TamableAnimal)target).isTame();
+            return !(target instanceof TameableEntity) || !((TameableEntity)target).isTamed();
         }
     }
 
@@ -164,18 +163,18 @@ public abstract class AbstractCompanionEntity extends PathfinderMob {
     public abstract CompanionType getCompanionType();
 
     @Override
-    public void remove(Entity.RemovalReason reason) {
+    public void remove() {
         if (this.hasCompanionOwner()) {
             CompanionManager.removeCompanion(this.getCompanionOwner(), this);
         }
-        super.remove(reason);
+        super.remove();
     }
 
     @Override
-    public void die(DamageSource cause) {
-        if (!this.level.isClientSide && this.level.getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES) && this.getCompanionOwner() instanceof ServerPlayer) {
-            this.getCompanionOwner().sendMessage(this.getCombatTracker().getDeathMessage(), Util.NIL_UUID);
+    public void onDeath(DamageSource cause) {
+        if (!this.world.isRemote && this.world.getGameRules().getBoolean(GameRules.SHOW_DEATH_MESSAGES) && this.getCompanionOwner() instanceof ServerPlayerEntity) {
+            this.getCompanionOwner().sendMessage(this.getCombatTracker().getDeathMessage(), Util.DUMMY_UUID);
         }
-        super.die(cause);
+        super.onDeath(cause);
     }
 }

@@ -2,7 +2,6 @@
   "key": "primalmagick:brewing_experiments",
   "required_research": "t_discover_infernal",
   "reward_multiplier": 0.25,
-  "aid_blocks": [],
   "material_options": [
     {
       "type": "item",
@@ -51,8 +50,7 @@
       "stack": "minecraft:rabbit_foot",
       "consumed": true,
       "match_nbt": false,
-      "weight": 0.5,
-      "bonus_reward": 0.125
+      "weight": 0.5
     },
     {
       "type": "item",
@@ -107,17 +105,15 @@
       "type": "item",
       "stack": "minecraft:turtle_helmet;1;{Damage:0}",
       "consumed": true,
-      "match_nbt": false,
-      "weight": 0.5,
-      "bonus_reward": 0.125
+      "match_nbt": true,
+      "weight": 0.5
     },
     {
       "type": "item",
       "stack": "minecraft:phantom_membrane",
       "consumed": true,
       "match_nbt": false,
-      "weight": 0.5,
-      "bonus_reward": 0.125
+      "weight": 0.5
     },
     {
       "type": "observation",

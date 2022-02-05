@@ -11,9 +11,7 @@ import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.sources.SourceList;
 import com.verdantartifice.primalmagick.common.tiles.TileEntityTypesPM;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.item.ItemStack;
 
 /**
  * Definition of an essence furnace tile entity.  Provides the melting functionality for the corresponding
@@ -22,8 +20,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * @author Daedalus4096
  */
 public class EssenceFurnaceTileEntity extends AbstractCalcinatorTileEntity {
-    public EssenceFurnaceTileEntity(BlockPos pos, BlockState state) {
-        super(TileEntityTypesPM.ESSENCE_FURNACE.get(), pos, state);
+    public EssenceFurnaceTileEntity() {
+        super(TileEntityTypesPM.ESSENCE_FURNACE.get());
     }
     
     @Override
@@ -35,7 +33,7 @@ public class EssenceFurnaceTileEntity extends AbstractCalcinatorTileEntity {
     @Nonnull
     protected List<ItemStack> getCalcinationOutput(ItemStack inputStack, boolean alwaysGenerateDregs) {
         List<ItemStack> output = new ArrayList<>();
-        SourceList sources = AffinityManager.getInstance().getAffinityValues(inputStack, this.level);
+        SourceList sources = AffinityManager.getInstance().getAffinityValues(inputStack, this.world);
         if (sources != null && !sources.isEmpty()) {
             for (Source source : Source.SORTED_SOURCES) {
                 int amount = sources.getAmount(source);

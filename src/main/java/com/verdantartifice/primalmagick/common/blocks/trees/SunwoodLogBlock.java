@@ -1,13 +1,14 @@
 package com.verdantartifice.primalmagick.common.blocks.trees;
 
 import com.verdantartifice.primalmagick.common.blockstates.properties.TimePhase;
-import com.verdantartifice.primalmagick.common.sources.Source;
 
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.material.Material;
-import net.minecraft.world.level.material.MaterialColor;
+import net.minecraft.block.Block;
+import net.minecraft.block.RotatedPillarBlock;
+import net.minecraft.block.SoundType;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.material.MaterialColor;
+import net.minecraft.util.Direction;
+import net.minecraft.world.IWorld;
 
 /**
  * Block definition for sunwood logs.  They are decorative blocks that fade out of existence and become indestructable at night.
@@ -16,16 +17,14 @@ import net.minecraft.world.level.material.MaterialColor;
  */
 public class SunwoodLogBlock extends AbstractPhasingLogBlock {
     public SunwoodLogBlock(Block stripped) {
-        super(stripped, Block.Properties.of(Material.WOOD, MaterialColor.GOLD).strength(2.0F).randomTicks().noOcclusion().sound(SoundType.WOOD));
+        super(stripped, Block.Properties.create(Material.WOOD, (state) -> {
+            // TODO Use different color for bark vs top?
+            return state.get(RotatedPillarBlock.AXIS) == Direction.Axis.Y ? MaterialColor.GOLD : MaterialColor.GOLD;
+        }).hardnessAndResistance(2.0F).tickRandomly().notSolid().sound(SoundType.WOOD));
     }
 
     @Override
-    public TimePhase getCurrentPhase(LevelAccessor world) {
+    public TimePhase getCurrentPhase(IWorld world) {
         return TimePhase.getSunPhase(world);
-    }
-
-    @Override
-    public int getPulseColor() {
-        return Source.SUN.getColor();
     }
 }

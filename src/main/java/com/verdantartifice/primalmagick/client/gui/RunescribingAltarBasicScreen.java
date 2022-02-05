@@ -3,19 +3,22 @@ package com.verdantartifice.primalmagick.client.gui;
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.containers.RunescribingAltarBasicContainer;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * GUI screen for basic runescribing altar blocks.
  * 
  * @author Daedalus4096
  */
+@OnlyIn(Dist.CLIENT)
 public class RunescribingAltarBasicScreen extends AbstractRunescribingAltarScreen<RunescribingAltarBasicContainer> {
     protected static final ResourceLocation TEXTURE = new ResourceLocation(PrimalMagick.MODID, "textures/gui/runescribing_altar_3.png");
 
-    public RunescribingAltarBasicScreen(RunescribingAltarBasicContainer screenContainer, Inventory inv, Component titleIn) {
+    public RunescribingAltarBasicScreen(RunescribingAltarBasicContainer screenContainer, PlayerInventory inv, ITextComponent titleIn) {
         super(screenContainer, inv, titleIn);
     }
     

@@ -5,8 +5,8 @@ import java.util.function.Supplier;
 import com.verdantartifice.primalmagick.client.fx.FxDispatcher;
 import com.verdantartifice.primalmagick.common.network.packets.IMessageToClient;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.PacketBuffer;
+import net.minecraftforge.fml.network.NetworkEvent;
 
 /**
  * Packet sent from the server to trigger a spell impact particle effect on the client.
@@ -30,7 +30,7 @@ public class SpellImpactPacket implements IMessageToClient {
         this.color = color;
     }
     
-    public static void encode(SpellImpactPacket message, FriendlyByteBuf buf) {
+    public static void encode(SpellImpactPacket message, PacketBuffer buf) {
         buf.writeDouble(message.x);
         buf.writeDouble(message.y);
         buf.writeDouble(message.z);
@@ -38,7 +38,7 @@ public class SpellImpactPacket implements IMessageToClient {
         buf.writeInt(message.color);
     }
     
-    public static SpellImpactPacket decode(FriendlyByteBuf buf) {
+    public static SpellImpactPacket decode(PacketBuffer buf) {
         SpellImpactPacket message = new SpellImpactPacket();
         message.x = buf.readDouble();
         message.y = buf.readDouble();

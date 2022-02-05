@@ -10,12 +10,12 @@ import com.verdantartifice.primalmagick.common.runes.RuneManager;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 import com.verdantartifice.primalmagick.common.stats.StatsPM;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.inventory.container.Slot;
+import net.minecraft.item.ItemStack;
 
 /**
  * Custom GUI slot for runescribing results.
@@ -23,28 +23,28 @@ import net.minecraft.world.item.enchantment.Enchantment;
  * @author Daedalus4096
  */
 public class RunescribingResultSlot extends Slot {
-    protected final Player player;
-    protected final Container inputInventory;
+    protected final PlayerEntity player;
+    protected final IInventory inputInventory;
 
-    public RunescribingResultSlot(Player player, Container inputInv, Container outputInv, int index, int xPosition, int yPosition) {
+    public RunescribingResultSlot(PlayerEntity player, IInventory inputInv, IInventory outputInv, int index, int xPosition, int yPosition) {
         super(outputInv, index, xPosition, yPosition);
         this.player = player;
         this.inputInventory = inputInv;
     }
 
     @Override
-    public boolean mayPlace(ItemStack stack) {
+    public boolean isItemValid(ItemStack stack) {
         return false;
     }
     
     @Override
-    protected void checkTakeAchievements(ItemStack stack) {
-        super.checkTakeAchievements(stack);
+    protected void onCrafting(ItemStack stack) {
+        super.onCrafting(stack);
         
-        if (!this.player.level.isClientSide) {
+        if (!this.player.world.isRemote) {
             // Increment the player's runescribing stat
-            if (this.player instanceof ServerPlayer) {
-                StatsManager.incrementValue((ServerPlayer)this.player, StatsPM.ITEMS_RUNESCRIBED, stack.getCount());
+            if (this.player instanceof ServerPlayerEntity) {
+                StatsManager.incrementValue((ServerPlayerEntity)this.player, StatsPM.ITEMS_RUNESCRIBED, stack.getCount());
             }
 
             // Grant the player rune enchantment research for each rune enchantmant imbued
@@ -65,22 +65,18 @@ public class RunescribingResultSlot extends Slot {
     }
     
     @Override
-    public void onTake(Player thePlayer, ItemStack stack) {
+    public ItemStack onTake(PlayerEntity thePlayer, ItemStack stack) {
         // Handle crafting side effects
-        this.checkTakeAchievements(stack);
+        this.onCrafting(stack);
         
         // Consume inputs
-        for (int index = 0; index < this.inputInventory.getContainerSize(); index++) {
-            ItemStack materialStack = this.inputInventory.getItem(index);
+        for (int index = 0; index < this.inputInventory.getSizeInventory(); index++) {
+            ItemStack materialStack = this.inputInventory.getStackInSlot(index);
             if (!materialStack.isEmpty()) {
-                this.inputInventory.removeItem(index, 1);
+                this.inputInventory.decrStackSize(index, 1);
             }
         }
-    }
-
-    @Override
-    protected void onQuickCraft(ItemStack stack, int amount) {
-        // Handle crafting side effects
-        this.checkTakeAchievements(stack);
+        
+        return stack;
     }
 }

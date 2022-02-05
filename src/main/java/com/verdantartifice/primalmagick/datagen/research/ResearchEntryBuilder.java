@@ -5,16 +5,13 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.verdantartifice.primalmagick.PrimalMagick;
-import com.verdantartifice.primalmagick.common.research.ResearchEntry;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.ItemLike;
+import net.minecraft.util.ResourceLocation;
 
 public class ResearchEntryBuilder {
     protected final SimpleResearchKey key;
@@ -24,7 +21,6 @@ public class ResearchEntryBuilder {
     protected final List<IFinishedResearchStage> stages = new ArrayList<>();
     protected final List<IFinishedResearchAddendum> addenda = new ArrayList<>();
     protected boolean hidden;
-    protected ResearchEntry.Icon icon;
     
     protected ResearchEntryBuilder(@Nonnull String modId, @Nonnull SimpleResearchKey key, @Nonnull String discipline) {
         this.key = key.stripStage();
@@ -58,20 +54,6 @@ public class ResearchEntryBuilder {
     public ResearchEntryBuilder hidden() {
         this.hidden = true;
         return this;
-    }
-    
-    public ResearchEntryBuilder icon(ItemLike item) {
-        this.icon = ResearchEntry.Icon.of(item);
-        return this;
-    }
-    
-    public ResearchEntryBuilder icon(ResourceLocation loc) {
-        this.icon = ResearchEntry.Icon.of(loc);
-        return this;
-    }
-    
-    public ResearchEntryBuilder icon(String path) {
-        return icon(new ResourceLocation(PrimalMagick.MODID, path));
     }
     
     public ResearchEntryBuilder stage(IFinishedResearchStage stage) {
@@ -111,7 +93,7 @@ public class ResearchEntryBuilder {
     
     public void build(Consumer<IFinishedResearchEntry> consumer, ResourceLocation id) {
         this.validate(id);
-        consumer.accept(new ResearchEntryBuilder.Result(id, this.key, this.nameTranslationKey, this.disciplineName, this.hidden, this.icon, this.parents, this.stages, this.addenda));
+        consumer.accept(new ResearchEntryBuilder.Result(id, this.key, this.nameTranslationKey, this.disciplineName, this.hidden, this.parents, this.stages, this.addenda));
     }
     
     public static class Result implements IFinishedResearchEntry {
@@ -120,18 +102,16 @@ public class ResearchEntryBuilder {
         protected final String name;
         protected final String discipline;
         protected final boolean hidden;
-        protected final ResearchEntry.Icon icon;
         protected final List<SimpleResearchKey> parents;
         protected final List<IFinishedResearchStage> stages;
         protected final List<IFinishedResearchAddendum> addenda;
         
-        public Result(@Nonnull ResourceLocation id, @Nonnull SimpleResearchKey key, @Nonnull String name, @Nonnull String discipline, boolean hidden, @Nullable ResearchEntry.Icon icon, @Nonnull List<SimpleResearchKey> parents, @Nonnull List<IFinishedResearchStage> stages, @Nonnull List<IFinishedResearchAddendum> addenda) {
+        public Result(@Nonnull ResourceLocation id, @Nonnull SimpleResearchKey key, @Nonnull String name, @Nonnull String discipline, boolean hidden, @Nonnull List<SimpleResearchKey> parents, @Nonnull List<IFinishedResearchStage> stages, @Nonnull List<IFinishedResearchAddendum> addenda) {
             this.id = id;
             this.key = key;
             this.name = name;
             this.discipline = discipline;
             this.hidden = hidden;
-            this.icon = icon;
             this.parents = parents;
             this.stages = stages;
             this.addenda = addenda;
@@ -150,10 +130,6 @@ public class ResearchEntryBuilder {
             
             if (this.hidden) {
                 json.addProperty("hidden", this.hidden);
-            }
-            
-            if (this.icon != null) {
-                json.add("icon", this.icon.toJson());
             }
             
             JsonArray parentsArray = new JsonArray();

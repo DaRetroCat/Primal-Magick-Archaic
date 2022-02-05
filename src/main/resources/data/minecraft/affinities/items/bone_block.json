@@ -2,7 +2,7 @@
   "type": "item",
   "target": "minecraft:bone_block",
   "set": {
-    "moon": 10,
-    "blood": 20
+    "moon": 5,
+    "blood": 10
   }
 }

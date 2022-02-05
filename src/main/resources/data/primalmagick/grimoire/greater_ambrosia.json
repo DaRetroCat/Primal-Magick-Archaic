@@ -2,10 +2,6 @@
   "key": "GREATER_AMBROSIA",
   "name": "primalmagick.research.greater_ambrosia.title",
   "discipline": "RITUAL",
-  "icon": {
-    "isItem": true,
-    "location": "primalmagick:ambrosia_greater_earth"
-  },
   "parents": [
     "MASTER_RITUAL",
     "AMBROSIA",

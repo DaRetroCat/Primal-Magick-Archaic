@@ -6,15 +6,13 @@ import com.verdantartifice.primalmagick.common.sounds.SoundsPM;
 import com.verdantartifice.primalmagick.common.sources.Source;
 import com.verdantartifice.primalmagick.common.spells.SpellPackage;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.SoundCategory;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 /**
  * Definition for a blood damage spell.  Does standard damage to the target, and bypasses any armor
@@ -44,19 +42,19 @@ public class BloodDamageSpellPayload extends AbstractDamageSpellPayload {
     }
 
     @Override
-    public void playSounds(Level world, BlockPos origin) {
-        world.playSound(null, origin, SoundsPM.BLOOD.get(), SoundSource.PLAYERS, 1.0F, 1.0F + (float)(world.random.nextGaussian() * 0.05D));
+    public void playSounds(World world, BlockPos origin) {
+        world.playSound(null, origin, SoundsPM.BLOOD.get(), SoundCategory.PLAYERS, 1.0F, 1.0F + (float)(world.rand.nextGaussian() * 0.05D));
     }
     
     @Override
-    protected float getBaseDamage(SpellPackage spell, ItemStack spellSource) {
-        return 3.0F + (2.0F * this.getModdedPropertyValue("power", spell, spellSource));
+    protected DamageSource getDamageSource(Entity target, LivingEntity source) {
+        // Bypass the target's armor, if any
+        return super.getDamageSource(target, source).setDamageBypassesArmor();
     }
 
     @Override
-    protected DamageSource getDamageSource(LivingEntity source, SpellPackage spell, Entity projectileEntity) {
-        // Bypass the target's armor, if any
-        return super.getDamageSource(source, spell, projectileEntity).bypassArmor();
+    protected float getTotalDamage(Entity target, SpellPackage spell, ItemStack spellSource) {
+        return 3.0F + this.getModdedPropertyValue("power", spell, spellSource);
     }
 
     @Override
@@ -66,12 +64,6 @@ public class BloodDamageSpellPayload extends AbstractDamageSpellPayload {
     
     @Override
     public int getBaseManaCost() {
-        int power = this.getPropertyValue("power");
-        return (1 << Math.max(0, power - 1)) + ((1 << Math.max(0, power - 1)) >> 1);
-    }
-
-    @Override
-    public Component getDetailTooltip(SpellPackage spell, ItemStack spellSource) {
-        return new TranslatableComponent("primalmagick.spell.payload.detail_tooltip." + this.getPayloadType(), DECIMAL_FORMATTER.format(this.getBaseDamage(spell, spellSource)));
+        return 2 * this.getPropertyValue("power");
     }
 }

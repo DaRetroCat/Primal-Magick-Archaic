@@ -1,6 +1,5 @@
 package com.verdantartifice.primalmagick.common.capabilities;
 
-import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
@@ -8,12 +7,11 @@ import javax.annotation.Nullable;
 
 import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.common.research.SimpleResearchKey;
-import com.verdantartifice.primalmagick.common.research.topics.AbstractResearchTopic;
 import com.verdantartifice.primalmagick.common.theorycrafting.Project;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.util.INBTSerializable;
 
 /**
@@ -21,7 +19,7 @@ import net.minecraftforge.common.util.INBTSerializable;
  * 
  * @author Daedalus4096
  */
-public interface IPlayerKnowledge extends INBTSerializable<CompoundTag> {
+public interface IPlayerKnowledge extends INBTSerializable<CompoundNBT> {
     /**
      * Remove all research from the player.
      */
@@ -176,39 +174,11 @@ public interface IPlayerKnowledge extends INBTSerializable<CompoundTag> {
     public void setActiveResearchProject(Project project);
     
     /**
-     * Gets the player's last active grimoire research topic.
-     * 
-     * @return the player's last active grimoire research topic
-     */
-    public AbstractResearchTopic getLastResearchTopic();
-    
-    /**
-     * Sets the player's last active grimoire research topic.
-     * 
-     * @param topic the player's last active grimoire research topic
-     */
-    public void setLastResearchTopic(AbstractResearchTopic topic);
-    
-    /**
-     * Gets the player's grimoire research topic history.
-     * 
-     * @return the player's grimoire research topic history
-     */
-    public List<AbstractResearchTopic> getResearchTopicHistory();
-    
-    /**
-     * Sets the player's grimoire research topic history.
-     * 
-     * @param history the player's grimoire research topic history
-     */
-    public void setResearchTopicHistory(List<AbstractResearchTopic> history);
-    
-    /**
      * Sync the given player's research and knowledge data to the their client.
      * 
      * @param player the player whose client should receive the data
      */
-    public void sync(@Nullable ServerPlayer player);
+    public void sync(@Nullable ServerPlayerEntity player);
     
     public static enum ResearchStatus {
         UNKNOWN,

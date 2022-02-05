@@ -2,12 +2,8 @@
   "key": "SOURCE_SKY",
   "name": "primalmagick.research.source_sky.title",
   "discipline": "BASICS",
-  "icon": {
-    "isItem": false,
-    "location": "primalmagick:textures/sources/sky.png"
-  },
   "parents": [
-    "TERRESTRIAL_MAGICK"
+    "TERRESTRIAL_MAGIC"
   ],
   "stages": [
     {

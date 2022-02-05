@@ -1,6 +1,5 @@
 {
   "type": "minecraft:blasting",
-  "group": "iron_ingot",
   "ingredient": {
     "item": "primalmagick:iron_grit"
   },
