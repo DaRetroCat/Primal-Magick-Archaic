@@ -39,7 +39,7 @@ public class ManaFontTER extends TileEntityRenderer<AbstractManaFontTileEntity> 
         renderer.pos(stack.getLast().getMatrix(), x, y, z)
                 .color(r, g, b, 1.0F)
                 .tex(u, v)
-                .lightmap(0, 240)
+                .lightmap(240, 80)
                 .normal(1, 0, 0)
                 .endVertex();
     }

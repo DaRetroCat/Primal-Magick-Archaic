@@ -36,6 +36,13 @@ public class MundaneWandItem extends AbstractWandItem {
     }
 
     @Override
+    public int getSiphonAmount(ItemStack stack) {
+        // With no cap, a mundane wand siphons the minimum amount
+        return 1;
+    }
+
+
+    @Override
     public List<SpellPackage> getSpells(ItemStack stack) {
         // Mundane wands can't carry spells
         return Collections.emptyList();

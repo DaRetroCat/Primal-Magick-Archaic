@@ -2,8 +2,13 @@
   "key": "PRIMALITE_GOLEM",
   "name": "primalmagick.research.primalite_golem.title",
   "discipline": "MAGITECH",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:primalite_golem_controller"
+  },
   "parents": [
-    "EXPERT_MAGITECH"
+    "EXPERT_MAGITECH",
+    "PRIMALITE"
   ],
   "stages": [
     {

@@ -2,8 +2,13 @@
   "key": "EXPERT_MANAWEAVING",
   "name": "primalmagick.research.expert_manaweaving.title",
   "discipline": "MANAWEAVING",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_manaweaving.png"
+  },
   "parents": [
-    "BASIC_MANAWEAVING"
+    "MANA_ARROWS",
+    "WAND_CHARGER"
   ],
   "stages": [
     {

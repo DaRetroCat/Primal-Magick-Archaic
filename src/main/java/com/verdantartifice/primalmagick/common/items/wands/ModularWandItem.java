@@ -67,7 +67,18 @@ public class ModularWandItem extends AbstractWandItem {
         WandCap cap = this.getWandCap(stack);
         return (cap == null) ? 1.2D : cap.getBaseCostModifier();
     }
-    
+
+    @Override
+    public int getSiphonAmount(ItemStack stack) {
+        // The siphon amount of a wand is determined by its cap
+        if (stack == null) {
+            return 1;
+        }
+        WandCap cap = this.getWandCap(stack);
+        return (cap == null) ? 1 : cap.getSiphonAmount();
+    }
+
+
     @Override
     public double getTotalCostModifier(ItemStack stack, PlayerEntity player, Source source) {
         double mod = super.getTotalCostModifier(stack, player, source);

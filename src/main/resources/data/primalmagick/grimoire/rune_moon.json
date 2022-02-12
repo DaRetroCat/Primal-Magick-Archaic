@@ -2,8 +2,12 @@
   "key": "RUNE_MOON",
   "name": "primalmagick.research.rune_moon.title",
   "discipline": "RUNEWORKING",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:rune_moon"
+  },
   "parents": [
-    "BASIC_RUNEWORKING"
+    "RUNE_SEA"
   ],
   "stages": [
     {

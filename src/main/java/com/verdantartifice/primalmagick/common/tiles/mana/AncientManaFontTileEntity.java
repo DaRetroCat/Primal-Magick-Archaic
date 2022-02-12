@@ -60,15 +60,7 @@ public class AncientManaFontTileEntity extends AbstractManaFontTileEntity {
                 }
             }
             if (!this.world.isRemote && this.ticksExisted % RECHARGE_TICKS == 0) {
-                // Recharge the font over time
-                this.mana++;
-                if (this.mana > MANA_CAPACITY) {
-                    this.mana = MANA_CAPACITY;
-                } else {
-                    // Sync the tile if its mana total changed
-                    this.markDirty();
-                    this.syncTile(true);
-                }
+                this.doRecharge();
             }
      }
 }

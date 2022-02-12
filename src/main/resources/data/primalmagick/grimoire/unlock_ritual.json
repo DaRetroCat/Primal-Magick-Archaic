@@ -2,9 +2,13 @@
   "key": "UNLOCK_RITUAL",
   "name": "primalmagick.research.unlock_ritual.title",
   "discipline": "BASICS",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_ritual.png"
+  },
   "parents": [
-    "UNLOCK_SORCERY",
-    "UNLOCK_RUNEWORKING"
+    "WAND_INSCRIPTION",
+    "RUNE_PROJECT"
   ],
   "stages": [
     {

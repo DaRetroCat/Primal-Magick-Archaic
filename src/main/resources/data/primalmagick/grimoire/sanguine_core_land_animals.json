@@ -2,6 +2,10 @@
   "key": "SANGUINE_CORE_LAND_ANIMALS",
   "name": "primalmagick.research.sanguine_core_land_animals.title",
   "discipline": "ALCHEMY",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:sanguine_core_blank"
+  },
   "parents": [
     "SANGUINE_CRUCIBLE"
   ],
@@ -23,6 +27,7 @@
         "primalmagick:sanguine_core_cow",
         "primalmagick:sanguine_core_donkey",
         "primalmagick:sanguine_core_fox",
+        "primalmagick:sanguine_core_goat",
         "primalmagick:sanguine_core_horse",
         "primalmagick:sanguine_core_llama",
         "primalmagick:sanguine_core_ocelot",

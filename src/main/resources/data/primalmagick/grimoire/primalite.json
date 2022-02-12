@@ -2,6 +2,10 @@
   "key": "PRIMALITE",
   "name": "primalmagick.research.primalite.title",
   "discipline": "ALCHEMY",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:primalite_ingot"
+  },
   "parents": [
     "EXPERT_ALCHEMY"
   ],
@@ -30,6 +34,10 @@
       },
       "recipes": [
         "primalmagick:primalite_ingot",
+        "primalmagick:primalite_nugget",
+        "primalmagick:primalite_ingot_from_nuggets",
+        "primalmagick:primalite_block",
+        "primalmagick:primalite_ingots_from_block",
         "primalmagick:primalite_sword",
         "primalmagick:primalite_trident",
         "primalmagick:primalite_bow",

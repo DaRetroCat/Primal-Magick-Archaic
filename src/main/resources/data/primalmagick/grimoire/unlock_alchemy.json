@@ -2,8 +2,12 @@
   "key": "UNLOCK_ALCHEMY",
   "name": "primalmagick.research.unlock_alchemy.title",
   "discipline": "BASICS",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_alchemy.png"
+  },
   "parents": [
-    "UNLOCK_MANAWEAVING"
+    "MANA_ARROWS"
   ],
   "stages": [
     {

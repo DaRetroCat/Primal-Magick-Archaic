@@ -2,6 +2,10 @@
   "key": "PRIMAL_AXE",
   "name": "primalmagick.research.primal_axe.title",
   "discipline": "RITUAL",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:primal_axe"
+  },
   "parents": [
     "EXPERT_RITUAL",
     "PRIMALITE",
@@ -29,7 +33,13 @@
     {
       "text": "primalmagick.research.primal_axe.text.addenda.1",
       "required_research": [
-        "MASTER_RUNEWORKING"
+        "MASTER_RUNEWORKING",
+        "RUNE_PROJECT",
+        "RUNE_AREA",
+        "RUNE_SKY"
+      ],
+      "siblings": [
+        "\u0026primalmagick:disintegration"
       ]
     }
   ]

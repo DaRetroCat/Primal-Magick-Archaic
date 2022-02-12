@@ -2,8 +2,13 @@
   "key": "MASTER_ALCHEMY",
   "name": "primalmagick.research.master_alchemy.title",
   "discipline": "ALCHEMY",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_alchemy.png"
+  },
   "parents": [
-    "EXPERT_ALCHEMY"
+    "CALCINATOR_ENCHANTED",
+    "PRIMALITE"
   ],
   "stages": [
     {

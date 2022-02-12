@@ -2,8 +2,12 @@
   "key": "RUNE_DISPEL",
   "name": "primalmagick.research.rune_dispel.title",
   "discipline": "RUNEWORKING",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:rune_dispel"
+  },
   "parents": [
-    "EXPERT_RUNEWORKING"
+    "RUNE_ABSORB"
   ],
   "stages": [
     {

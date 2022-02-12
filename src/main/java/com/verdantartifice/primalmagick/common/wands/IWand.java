@@ -171,6 +171,14 @@ public interface IWand {
     public double getTotalCostModifier(@Nullable ItemStack stack, @Nullable PlayerEntity player, @Nullable Source source);
 
     /**
+     * Get the amount of real mana to siphon from a mana font when channeling it.
+     *
+     * @param stack the wand stack to be queried
+     * @return the amount of real mana to siphon from mana fonts
+     */
+    public int getSiphonAmount(@Nullable ItemStack stack);
+
+    /**
      * Clear any stored position data for the last interacted-with tile.
      * 
      * @param wandStack the wand stack to be modified

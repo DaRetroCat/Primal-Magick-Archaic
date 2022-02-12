@@ -2,8 +2,12 @@
   "key": "SUPREME_RUNEWORKING",
   "name": "primalmagick.research.supreme_runeworking.title",
   "discipline": "RUNEWORKING",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_runeworking.png"
+  },
   "parents": [
-    "MASTER_RUNEWORKING"
+    "RUNE_POWER"
   ],
   "stages": [
     {

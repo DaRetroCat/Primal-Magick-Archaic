@@ -37,8 +37,8 @@ public class ModularWandISTER extends ItemStackTileEntityRenderer {
             WandCore core = wand.getWandCore(itemStack);
             WandCap cap = wand.getWandCap(itemStack);
             WandGem gem = wand.getWandGem(itemStack);
-            
-            IVertexBuilder builder = buffer.getBuffer(RenderType.getSolid());
+
+            IVertexBuilder builder = ItemRenderer.getBuffer(buffer, RenderType.getSolid(), false, itemStack.hasEffect());
             if (core != null) {
                 // Render the wand core
                 IBakedModel model = mc.getModelManager().getModel(core.getWandModelResourceLocation());

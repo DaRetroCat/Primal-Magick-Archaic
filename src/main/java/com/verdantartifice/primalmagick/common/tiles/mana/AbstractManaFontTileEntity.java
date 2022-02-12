@@ -37,7 +37,6 @@ import java.util.List;
  * @see {@link AbstractManaFontBlock}
  */
 public abstract class AbstractManaFontTileEntity extends TilePM implements ITickableTileEntity, IInteractWithWand {
-    protected static final int MANA_CAPACITY = 100;
     protected static final int RECHARGE_TICKS = 20;
 
     protected int ticksExisted = 0;
@@ -55,7 +54,7 @@ public abstract class AbstractManaFontTileEntity extends TilePM implements ITick
 
     @Override
     public CompoundNBT write(CompoundNBT compound) {
-        compound.putShort("mana", (short)this.mana);
+        compound.putShort("mana", (short) this.mana);
         return super.write(compound);
     }
 
@@ -64,7 +63,7 @@ public abstract class AbstractManaFontTileEntity extends TilePM implements ITick
     }
 
     public int getManaCapacity() {
-        return MANA_CAPACITY;
+        return this.getBlockState().getBlock() instanceof AbstractManaFontBlock ? ((AbstractManaFontBlock) this.getBlockState().getBlock()).getManaCapacity() : 0;
     }
 
     @Override
@@ -80,19 +79,8 @@ public abstract class AbstractManaFontTileEntity extends TilePM implements ITick
                     player.sendMessage(new TranslationTextComponent("event.primalmagick.found_shrine").mergeStyle(TextFormatting.GREEN), Util.DUMMY_UUID);
                 }
                 if (this.getBlockState().getBlock() instanceof AbstractManaFontBlock) {
-                    StatsManager.discoverShrine(player, ((AbstractManaFontBlock)this.getBlockState().getBlock()).getSource(), this.pos);
+                    StatsManager.discoverShrine(player, ((AbstractManaFontBlock) this.getBlockState().getBlock()).getSource(), this.pos);
                 }
-            }
-        }
-        if (!this.world.isRemote && this.ticksExisted % RECHARGE_TICKS == 0) {
-            // Recharge the font over time
-            this.mana++;
-            if (this.mana > MANA_CAPACITY) {
-                this.mana = MANA_CAPACITY;
-            } else {
-                // Sync the tile if its mana total changed
-                this.markDirty();
-                this.syncTile(true);
             }
         }
     }
@@ -101,7 +89,7 @@ public abstract class AbstractManaFontTileEntity extends TilePM implements ITick
     public ActionResultType onWandRightClick(ItemStack wandStack, World world, PlayerEntity player, BlockPos pos, Direction direction) {
         if (wandStack.getItem() instanceof IWand) {
             // On initial interaction, save this tile into the wand's NBT for use during future ticks
-            IWand wand = (IWand)wandStack.getItem();
+            IWand wand = (IWand) wandStack.getItem();
             wand.setTileInUse(wandStack, this);
             return ActionResultType.SUCCESS;
         } else {
@@ -112,12 +100,13 @@ public abstract class AbstractManaFontTileEntity extends TilePM implements ITick
     @Override
     public void onWandUseTick(ItemStack wandStack, PlayerEntity player, int count) {
         if (count % 5 == 0 && wandStack.getItem() instanceof IWand) {
-            IWand wand = (IWand)wandStack.getItem();
+            IWand wand = (IWand) wandStack.getItem();
             if (this.getBlockState().getBlock() instanceof AbstractManaFontBlock) {
-                Source source = ((AbstractManaFontBlock)this.getBlockState().getBlock()).getSource();
+                Source source = ((AbstractManaFontBlock) this.getBlockState().getBlock()).getSource();
                 if (source != null) {
                     // Transfer mana from the font to the wand
-                    int tap = 1;
+                    int tap = Math.min(this.mana, wand.getSiphonAmount(wandStack));
+                    ;
                     int leftover = wand.addRealMana(wandStack, source, tap);
                     if (leftover < tap) {
                         this.mana -= (tap - leftover);
@@ -135,6 +124,17 @@ public abstract class AbstractManaFontTileEntity extends TilePM implements ITick
                     }
                 }
             }
+        }
+    }
+
+    protected void doRecharge() {
+        this.mana++;
+        if (this.mana > this.getManaCapacity()) {
+            this.mana = this.getManaCapacity();
+        } else {
+            // Sync the tile if its mana total changed
+            this.markDirty();
+            this.syncTile(true);
         }
     }
 }

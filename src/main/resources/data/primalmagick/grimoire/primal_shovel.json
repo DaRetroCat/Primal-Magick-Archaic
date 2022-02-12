@@ -2,6 +2,10 @@
   "key": "PRIMAL_SHOVEL",
   "name": "primalmagick.research.primal_shovel.title",
   "discipline": "RITUAL",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:primal_shovel"
+  },
   "parents": [
     "EXPERT_RITUAL",
     "PRIMALITE",
@@ -29,7 +33,13 @@
     {
       "text": "primalmagick.research.primal_shovel.text.addenda.1",
       "required_research": [
-        "MASTER_RUNEWORKING"
+        "MASTER_RUNEWORKING",
+        "RUNE_PROJECT",
+        "RUNE_AREA",
+        "RUNE_EARTH"
+      ],
+      "siblings": [
+        "\u0026primalmagick:reverberation"
       ]
     }
   ]

@@ -2,11 +2,15 @@
   "key": "MAJESTIC_PIXIES",
   "name": "primalmagick.research.majestic_pixies.title",
   "discipline": "RITUAL",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:pixie_majestic_earth"
+  },
   "parents": [
     "SUPREME_RITUAL",
     "GRAND_PIXIES",
     "CLUSTER_SYNTHESIS",
-    "SOUL_ANVIL"
+    "CELESTIAL_HARP"
   ],
   "stages": [
     {

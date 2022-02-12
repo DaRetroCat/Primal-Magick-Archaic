@@ -2,8 +2,13 @@
   "key": "SUPREME_ALCHEMY",
   "name": "primalmagick.research.supreme_alchemy.title",
   "discipline": "ALCHEMY",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_alchemy.png"
+  },
   "parents": [
-    "MASTER_ALCHEMY"
+    "CALCINATOR_FORBIDDEN",
+    "HEXIUM"
   ],
   "stages": [
     {

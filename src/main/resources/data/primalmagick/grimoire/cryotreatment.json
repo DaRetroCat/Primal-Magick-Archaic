@@ -2,12 +2,19 @@
   "key": "CRYOTREATMENT",
   "name": "primalmagick.research.cryotreatment.title",
   "discipline": "ALCHEMY",
+  "icon": {
+    "isItem": true,
+    "location": "minecraft:ice"
+  },
   "parents": [
-    "BASIC_ALCHEMY"
+    "STONEMELDING"
   ],
   "stages": [
     {
       "text": "primalmagick.research.cryotreatment.text.stage.1",
+      "required_item": [
+        "primalmagick:essence_dust_sea"
+      ],
       "required_knowledge": [
         "OBSERVATION;1"
       ]

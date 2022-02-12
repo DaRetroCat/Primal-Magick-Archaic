@@ -2,6 +2,7 @@ package com.verdantartifice.primalmagick.client.renderers.itemstack;
 
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
+import com.mojang.blaze3d.vertex.IVertexConsumer;
 import com.verdantartifice.primalmagick.common.items.wands.ModularStaffItem;
 import com.verdantartifice.primalmagick.common.wands.WandCap;
 import com.verdantartifice.primalmagick.common.wands.WandCore;
@@ -37,8 +38,8 @@ public class ModularStaffISTER extends ItemStackTileEntityRenderer {
             WandCore core = wand.getWandCore(itemStack);
             WandCap cap = wand.getWandCap(itemStack);
             WandGem gem = wand.getWandGem(itemStack);
-            
-            IVertexBuilder builder = buffer.getBuffer(RenderType.getSolid());
+
+            IVertexBuilder builder = ItemRenderer.getBuffer(buffer, RenderType.getSolid(), false, itemStack.hasEffect());
             if (core != null) {
                 // Render the staff core
                 IBakedModel model = mc.getModelManager().getModel(core.getStaffModelResourceLocation());

@@ -2,6 +2,8 @@ package com.verdantartifice.primalmagick.common.containers;
 
 import com.verdantartifice.primalmagick.common.containers.slots.GenericResultSlot;
 import com.verdantartifice.primalmagick.common.containers.slots.WandSlot;
+import com.verdantartifice.primalmagick.common.stats.StatsManager;
+import com.verdantartifice.primalmagick.common.stats.StatsPM;
 
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;

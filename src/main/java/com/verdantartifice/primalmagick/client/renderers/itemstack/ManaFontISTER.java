@@ -8,6 +8,7 @@ import com.verdantartifice.primalmagick.PrimalMagick;
 import com.verdantartifice.primalmagick.client.renderers.tile.ManaFontTER;
 import com.verdantartifice.primalmagick.common.blocks.mana.AbstractManaFontBlock;
 
+import com.verdantartifice.primalmagick.common.misc.DeviceTier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.IRenderTypeBuffer;
 import net.minecraft.client.renderer.ItemRenderer;
@@ -34,8 +35,11 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public class ManaFontISTER extends ItemStackTileEntityRenderer {
-    private static final ModelResourceLocation MRL = new ModelResourceLocation(new ResourceLocation(PrimalMagick.MODID, "ancient_font_earth"), "");
-    
+    private static final ModelResourceLocation MRL_BASIC = new ModelResourceLocation(new ResourceLocation(PrimalMagick.MODID, "ancient_font_earth"), "");
+    private static final ModelResourceLocation MRL_ENCHANTED = new ModelResourceLocation(new ResourceLocation(PrimalMagick.MODID, "artificial_font_earth"), "");
+    private static final ModelResourceLocation MRL_FORBIDDEN = new ModelResourceLocation(new ResourceLocation(PrimalMagick.MODID, "forbidden_font_earth"), "");
+    private static final ModelResourceLocation MRL_HEAVENLY = new ModelResourceLocation(new ResourceLocation(PrimalMagick.MODID, "heavenly_font_earth"), "");
+
     protected void addVertex(IVertexBuilder renderer, MatrixStack stack, float x, float y, float z, float r, float g, float b, float u, float v) {
         renderer.pos(stack.getLast().getMatrix(), x, y, z)
                 .color(r, g, b, 1.0F)
@@ -44,15 +48,32 @@ public class ManaFontISTER extends ItemStackTileEntityRenderer {
                 .normal(1, 0, 0)
                 .endVertex();
     }
-    
+
+    protected ModelResourceLocation getModelResourceLocation(DeviceTier tier) {
+        switch (tier) {
+            case BASIC:
+                return MRL_BASIC;
+            case ENCHANTED:
+                return MRL_ENCHANTED;
+            case FORBIDDEN:
+                return MRL_FORBIDDEN;
+            case HEAVENLY:
+                return MRL_HEAVENLY;
+            default:
+                return MRL_BASIC;
+        }
+    }
+
+
     @Override
     public void func_239207_a_(ItemStack itemStack, ItemCameraTransforms.TransformType transformType, MatrixStack matrixStack, IRenderTypeBuffer buffer, int combinedLight, int combinedOverlay) {
         Item item = itemStack.getItem();
         if (item instanceof BlockItem && ((BlockItem)item).getBlock() instanceof AbstractManaFontBlock) {
+            AbstractManaFontBlock block = (AbstractManaFontBlock)((BlockItem)item).getBlock();
             Minecraft mc = Minecraft.getInstance();
             ItemRenderer itemRenderer = mc.getItemRenderer();
             
-            Color sourceColor = new Color(((AbstractManaFontBlock)((BlockItem)item).getBlock()).getSource().getColor());
+            Color sourceColor = new Color(block.getSource().getColor());
             float r = sourceColor.getRed() / 255.0F;
             float g = sourceColor.getGreen() / 255.0F;
             float b = sourceColor.getBlue() / 255.0F;
@@ -63,7 +84,7 @@ public class ManaFontISTER extends ItemStackTileEntityRenderer {
             IVertexBuilder builder = buffer.getBuffer(RenderType.getSolid());
             
             // Draw the font base
-            IBakedModel model = mc.getModelManager().getModel(MRL);
+            IBakedModel model = mc.getModelManager().getModel(this.getModelResourceLocation(block.getDeviceTier()));
             itemRenderer.renderModel(model, itemStack, combinedLight, combinedOverlay, matrixStack, builder);
             
             // Draw the font core

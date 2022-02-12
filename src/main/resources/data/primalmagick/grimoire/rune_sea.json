@@ -2,8 +2,12 @@
   "key": "RUNE_SEA",
   "name": "primalmagick.research.rune_sea.title",
   "discipline": "RUNEWORKING",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:rune_sea"
+  },
   "parents": [
-    "BASIC_RUNEWORKING"
+    "RUNE_EARTH"
   ],
   "stages": [
     {

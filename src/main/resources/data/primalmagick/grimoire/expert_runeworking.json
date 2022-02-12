@@ -2,8 +2,14 @@
   "key": "EXPERT_RUNEWORKING",
   "name": "primalmagick.research.expert_runeworking.title",
   "discipline": "RUNEWORKING",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_runeworking.png"
+  },
   "parents": [
-    "BASIC_RUNEWORKING"
+    "RUNE_EARTH",
+    "RUNE_PROJECT",
+    "RUNE_ITEM"
   ],
   "stages": [
     {

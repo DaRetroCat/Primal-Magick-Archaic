@@ -2,6 +2,10 @@
   "key": "FORBIDDEN_BOW",
   "name": "primalmagick.research.forbidden_bow.title",
   "discipline": "RITUAL",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:forbidden_bow"
+  },
   "parents": [
     "t_discover_infernal",
     "MASTER_RITUAL",
@@ -29,7 +33,13 @@
     {
       "text": "primalmagick.research.forbidden_bow.text.addenda.1",
       "required_research": [
-        "MASTER_RUNEWORKING"
+        "MASTER_RUNEWORKING",
+        "RUNE_ABSORB",
+        "RUNE_CREATURE",
+        "RUNE_INFERNAL"
+      ],
+      "siblings": [
+        "\u0026primalmagick:soulpiercing"
       ]
     }
   ]

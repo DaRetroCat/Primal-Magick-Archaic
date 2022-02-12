@@ -2,8 +2,13 @@
   "key": "SUPREME_MANAWEAVING",
   "name": "primalmagick.research.supreme_manaweaving.title",
   "discipline": "MANAWEAVING",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_manaweaving.png"
+  },
   "parents": [
-    "MASTER_MANAWEAVING"
+    "WAND_CAP_HEXIUM",
+    "WAND_GEM_WIZARD"
   ],
   "stages": [
     {

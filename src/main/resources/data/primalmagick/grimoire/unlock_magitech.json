@@ -2,8 +2,12 @@
   "key": "UNLOCK_MAGITECH",
   "name": "primalmagick.research.unlock_magitech.title",
   "discipline": "BASICS",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_magitech.png"
+  },
   "parents": [
-    "UNLOCK_RITUAL",
+    "MANAFRUIT",
     "MANA_SALTS"
   ],
   "stages": [

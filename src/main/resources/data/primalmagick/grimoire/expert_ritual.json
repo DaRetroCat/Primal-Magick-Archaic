@@ -2,8 +2,13 @@
   "key": "EXPERT_RITUAL",
   "name": "primalmagick.research.expert_ritual.title",
   "discipline": "RITUAL",
+  "icon": {
+    "isItem": false,
+    "location": "primalmagick:textures/research/discipline_ritual.png"
+  },
   "parents": [
-    "BASIC_RITUAL"
+    "RITUAL_CANDLES",
+    "INCENSE_BRAZIER"
   ],
   "stages": [
     {

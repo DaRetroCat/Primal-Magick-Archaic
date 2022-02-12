@@ -2,6 +2,10 @@
   "key": "PRIMAL_PICKAXE",
   "name": "primalmagick.research.primal_pickaxe.title",
   "discipline": "RITUAL",
+  "icon": {
+    "isItem": true,
+    "location": "primalmagick:primal_pickaxe"
+  },
   "parents": [
     "EXPERT_RITUAL",
     "PRIMALITE",
@@ -29,7 +33,13 @@
     {
       "text": "primalmagick.research.primal_pickaxe.text.addenda.1",
       "required_research": [
-        "MASTER_RUNEWORKING"
+        "MASTER_RUNEWORKING",
+        "RUNE_SUMMON",
+        "RUNE_ITEM",
+        "RUNE_MOON"
+      ],
+      "siblings": [
+        "\u0026primalmagick:lucky_strike"
       ]
     }
   ]
