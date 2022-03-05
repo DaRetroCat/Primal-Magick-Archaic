@@ -151,7 +151,7 @@ public class SoulAnvilBlock extends FallingBlock implements IRitualPropBlock {
                 
                 // If this block is awaiting activation for an altar, notify it
                 if (this.isPropOpen(state, worldIn, pos)) {
-                    this.onPropActivated(state, worldIn, pos);
+                    this.onPropActivated(state, worldIn, pos, this.getUsageStabilityBonus());
                 }
             }
             return ActionResultType.SUCCESS;
@@ -186,7 +186,7 @@ public class SoulAnvilBlock extends FallingBlock implements IRitualPropBlock {
         }
     }
     
-    @Override
+
     public float getStabilityBonus(World world, BlockPos pos) {
         return 0.03F;
     }
@@ -210,7 +210,6 @@ public class SoulAnvilBlock extends FallingBlock implements IRitualPropBlock {
         return "primalmagick.ritual.prop.soul_anvil";
     }
 
-    @Override
     public float getUsageStabilityBonus() {
         return 15.0F;
     }

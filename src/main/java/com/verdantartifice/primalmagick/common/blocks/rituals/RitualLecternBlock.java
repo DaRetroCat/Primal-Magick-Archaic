@@ -135,7 +135,7 @@ public class RitualLecternBlock extends Block implements IRitualPropBlock {
                     
                     // If this block is awaiting activation for an altar, notify it
                     if (this.isPropOpen(state, worldIn, pos)) {
-                        this.onPropActivated(state, worldIn, pos);
+                        this.onPropActivated(state, worldIn, pos, this.getUsageStabilityBonus());
                     }
 
                     return ActionResultType.SUCCESS;
@@ -202,7 +202,7 @@ public class RitualLecternBlock extends Block implements IRitualPropBlock {
         return "primalmagick.ritual.prop.ritual_lectern";
     }
 
-    @Override
+
     public float getUsageStabilityBonus() {
         return 10.0F;
     }

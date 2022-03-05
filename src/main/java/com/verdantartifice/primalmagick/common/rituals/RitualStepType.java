@@ -12,7 +12,8 @@ import net.minecraft.util.IStringSerializable;
  */
 public enum RitualStepType implements IStringSerializable {
     OFFERING("offering"),
-    PROP("prop");
+    PROP("prop"),
+    UNIVERSAL_PROP("universal_prop");
     
     private final String name;
     

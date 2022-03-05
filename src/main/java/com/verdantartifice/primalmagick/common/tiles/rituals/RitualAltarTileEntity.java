@@ -2,6 +2,7 @@ package com.verdantartifice.primalmagick.common.tiles.rituals;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -12,10 +13,12 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.verdantartifice.primalmagick.common.rituals.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,12 +37,7 @@ import com.verdantartifice.primalmagick.common.items.ItemsPM;
 import com.verdantartifice.primalmagick.common.network.PacketHandler;
 import com.verdantartifice.primalmagick.common.network.packets.fx.OfferingChannelPacket;
 import com.verdantartifice.primalmagick.common.network.packets.fx.SpellBoltPacket;
-import com.verdantartifice.primalmagick.common.rituals.IRitualPropBlock;
-import com.verdantartifice.primalmagick.common.rituals.IRitualStabilizer;
-import com.verdantartifice.primalmagick.common.rituals.ISaltPowered;
-import com.verdantartifice.primalmagick.common.rituals.Mishap;
-import com.verdantartifice.primalmagick.common.rituals.RitualStep;
-import com.verdantartifice.primalmagick.common.rituals.RitualStepType;
+import com.verdantartifice.primalmagick.common.rituals.AbstractRitualStep;
 import com.verdantartifice.primalmagick.common.sounds.SoundsPM;
 import com.verdantartifice.primalmagick.common.stats.StatsManager;
 import com.verdantartifice.primalmagick.common.stats.StatsPM;
@@ -82,6 +80,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.common.util.Constants;
 
+
 /**
  * Definition of a ritual altar tile entity.  Provides the core functionality for the corresponding
  * block.
@@ -104,8 +103,8 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
     protected UUID activePlayerId = null;
     protected PlayerEntity activePlayerCache = null;
     protected ResourceLocation activeRecipeId = null;
-    protected RitualStep currentStep = null;
-    protected Queue<RitualStep> remainingSteps = new LinkedList<>();
+    protected AbstractRitualStep currentStep = null;
+    protected Queue<AbstractRitualStep> remainingSteps = new LinkedList<>();
     protected BlockPos awaitedPropPos = null;
     protected BlockPos channeledOfferingPos = null;
     
@@ -214,17 +213,14 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
         
         this.currentStep = null;
         if (compound.contains("CurrentStep", Constants.NBT.TAG_COMPOUND)) {
-            this.currentStep = new RitualStep();
-            this.currentStep.deserializeNBT(compound.getCompound("CurrentStep"));
+            this.currentStep = RitualStepFactory.deserializeNBT(compound.getCompound("CurrentStep"));
         }
                 
         this.remainingSteps.clear();
         if (compound.contains("RemainingSteps", Constants.NBT.TAG_LIST)) {
             ListNBT stepList = compound.getList("RemainingSteps", Constants.NBT.TAG_COMPOUND);
             for (int index = 0; index < stepList.size(); index++) {
-                RitualStep step = new RitualStep();
-                step.deserializeNBT(stepList.getCompound(index));
-                this.remainingSteps.offer(step);
+                this.remainingSteps.offer(RitualStepFactory.deserializeNBT(stepList.getCompound(index)));
             }
         }
         
@@ -255,7 +251,7 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
         }
         if (this.remainingSteps != null && !this.remainingSteps.isEmpty()) {
             ListNBT stepList = new ListNBT();
-            for (RitualStep step : this.remainingSteps) {
+            for (AbstractRitualStep step : this.remainingSteps) {
                 stepList.add(step.serializeNBT());
             }
             compound.put("RemainingSteps", stepList);
@@ -418,22 +414,59 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
     }
     
     protected boolean generateRitualSteps(@Nonnull IRitualRecipe recipe) {
-        // Add steps for the recipe offerings and props
-        LinkedList<RitualStep> newSteps = new LinkedList<>();
+        LinkedList<AbstractRitualStep> offeringSteps = new LinkedList<>();
+        LinkedList<AbstractRitualStep> propSteps = new LinkedList<>();
+        LinkedList<AbstractRitualStep> newSteps = new LinkedList<>();
         for (int index = 0; index < recipe.getIngredients().size(); index++) {
-            newSteps.add(new RitualStep(RitualStepType.OFFERING, index));
+            offeringSteps.add(new RecipeRitualStep(RitualStepType.OFFERING, index));
         }
         for (int index = 0; index < recipe.getProps().size(); index++) {
-            newSteps.add(new RitualStep(RitualStepType.PROP, index));
+            propSteps.add(new RecipeRitualStep(RitualStepType.PROP, index));
         }
-        
-        // Randomize and save the generated steps
-        Collections.shuffle(newSteps, this.world.rand);
+
+        // Add steps for any universal props that were detected when scanning surroundings
+        for (BlockPos propPos : this.propPositions) {
+            BlockState propState = this.world.getBlockState(propPos);
+            Block block = propState.getBlock();
+            if (block instanceof IRitualPropBlock) {
+                IRitualPropBlock propBlock = (IRitualPropBlock)block;
+                if (propBlock.isUniversal() && !propBlock.isPropActivated(propState, this.world, propPos)) {
+                    propSteps.add(new UniversalRitualStep(propPos));
+                }
+            }
+        }
+
+        // Randomize the generated steps, trying to space props evenly between batches of offerings
+        Collections.shuffle(offeringSteps, this.world.rand);
+        Collections.shuffle(propSteps, this.world.rand);
+        int numOfferings = offeringSteps.size();
+        int numProps = propSteps.size();
+        int[] offeringBuckets = new int[numProps + 1];
+        Arrays.fill(offeringBuckets, (numOfferings / (numProps + 1)));
+        int leftoverOfferings = numOfferings % (numProps + 1);
+        if (leftoverOfferings > 0) {
+            List<Integer> leftoverBuckets = new ArrayList<>();
+            for (int index = 0; index < numProps + 1; index++) {
+                leftoverBuckets.add(index < leftoverOfferings ? 1 : 0);
+            }
+            Collections.shuffle(leftoverBuckets, this.world.rand);
+            for (int index = 0; index < offeringBuckets.length; index++) {
+                offeringBuckets[index] += leftoverBuckets.get(index);
+            }
+        }
+        for (int index = 0; index < offeringBuckets.length; index++) {
+            if (index > 0) {
+                newSteps.add(propSteps.poll());
+            }
+            for (int bucketIndex = 0; bucketIndex < offeringBuckets[index]; bucketIndex++) {
+                newSteps.add(offeringSteps.poll());
+            }
+        }
+
         this.remainingSteps = newSteps;
-        
         return true;
     }
-    
+
     protected void finishCraft() {
         IRitualRecipe recipe = this.getActiveRecipe();
         if (recipe != null) {
@@ -481,6 +514,10 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
             this.scanPosition(pos, toScan, scanHistory);
         }
         this.symmetryDelta = this.calculateSymmetryDelta();
+
+        Collections.shuffle(this.pedestalPositions, this.world.rand);
+        Collections.shuffle(this.propPositions, this.world.rand);
+
     }
     
     protected void scanPosition(BlockPos pos, Queue<BlockPos> toScan, Set<BlockPos> history) {
@@ -567,17 +604,19 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
         return retVal;
     }
 
-    protected boolean doStep(@Nonnull RitualStep step) {
+    protected boolean doStep(@Nonnull AbstractRitualStep step) {
         IRitualRecipe recipe = this.getActiveRecipe();
         if (recipe == null) {
             LOGGER.warn("No recipe found when trying to do ritual step");
             return false;
         }
-        
+
         if (step.getType() == RitualStepType.OFFERING) {
-            return this.doOfferingStep(recipe, step.getIndex());
+            return this.doOfferingStep(recipe, ((RecipeRitualStep)step).getIndex());
         } else if (step.getType() == RitualStepType.PROP) {
-            return this.doPropStep(recipe, step.getIndex());
+            return this.doPropStep(recipe, ((RecipeRitualStep)step).getIndex());
+        } else if (step.getType() == RitualStepType.UNIVERSAL_PROP) {
+            return this.doUniversalPropStep(((UniversalRitualStep)step).getPos());
         } else {
             LOGGER.warn("Invalid ritual step type {}", step.getType());
             return false;
@@ -650,17 +689,13 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
             if (this.awaitedPropPos == null) {
                 // Search for the required prop block
                 for (BlockPos propPos : this.propPositions) {
+                    // Open the prop block if it's valid
                     BlockState propState = this.world.getBlockState(propPos);
                     Block block = propState.getBlock();
-                    if (block instanceof IRitualPropBlock && requiredProp.test(block)) {
-                        IRitualPropBlock propBlock = (IRitualPropBlock)block;
-                        if (!propBlock.isPropActivated(propState, this.world, propPos) && propBlock.isBlockSaltPowered(this.world, propPos)) {
-                            // Upon finding a match, open the found prop for activation
-                            propBlock.openProp(propState, this.world, propPos, this.getActivePlayer(), this.pos);
-                            this.awaitedPropPos = propPos;
-                            this.nextCheckCount = this.activeCount + 20;
-                            return true;
-                        }
+                    if (requiredProp.test(block) && this.openProp(propPos, (b) -> {
+                        return !b.isPropActivated(propState, this.world, propPos) && b.isBlockSaltPowered(this.world, propPos);
+                    })) {
+                        return true;
                     }
                 }
                 
@@ -675,25 +710,76 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
                 if ( !(block instanceof IRitualPropBlock) || 
                      !requiredProp.test(block) ||
                      !((IRitualPropBlock)block).isBlockSaltPowered(this.world, this.awaitedPropPos) ) {
-                    // If contact with the prop was lost, add an instability spike and start looking again
-                    if (this.getActivePlayer() != null) {
-                        this.getActivePlayer().sendStatusMessage(new TranslationTextComponent("primalmagick.ritual.warning.prop_interrupt"), false);
-                        this.skipWarningMessage = true;
-                    }
-                    if (block instanceof IRitualPropBlock) {
-                        // If the block still exists (i.e. salt was broken), then close it to activation
-                        ((IRitualPropBlock)block).closeProp(propState, this.world, this.awaitedPropPos);
-                    }
-                    this.awaitedPropPos = null;
-                    this.addStability(MathHelper.clamp(50 * Math.min(0.0F, this.calculateStabilityDelta()), -25.0F, -1.0F));
+                    this.onPropInterrupted(block, propState);
                 }
             }
             this.nextCheckCount = this.activeCount + 20;
         }
         return false;
     }
-    
-    public void onPropActivation(BlockPos propPos) {
+
+    protected boolean doUniversalPropStep(BlockPos propPos) {
+        if (this.activeCount >= this.nextCheckCount) {
+            if (this.awaitedPropPos == null) {
+                // Open the prop block if it's valid
+                BlockState propState = this.world.getBlockState(propPos);
+                if (this.openProp(propPos, (b) -> {
+                    return b.isUniversal() && !b.isPropActivated(propState, this.world, propPos) && b.isBlockSaltPowered(this.world, propPos);
+                })) {
+                    return true;
+                }
+
+                // If no match was found, warn the player the first time
+                if (!this.skipWarningMessage && this.getActivePlayer() != null) {
+                    this.getActivePlayer().sendStatusMessage(new TranslationTextComponent("primalmagic.ritual.warning.missing_prop"), false);
+                    this.skipWarningMessage = true;
+                }
+            } else {
+                BlockState propState = this.world.getBlockState(this.awaitedPropPos);
+                Block block = propState.getBlock();
+                if ( !(block instanceof IRitualPropBlock) ||
+                        !((IRitualPropBlock)block).isUniversal() ||
+                        !((IRitualPropBlock)block).isBlockSaltPowered(this.world, this.awaitedPropPos) ) {
+                    this.onPropInterrupted(block, propState);
+                }
+            }
+            this.nextCheckCount = this.activeCount + 20;
+        }
+        return false;
+    }
+
+    protected boolean openProp(BlockPos propPos, Predicate<IRitualPropBlock> isPropValid) {
+        // Validate the prop block
+        BlockState propState = this.world.getBlockState(propPos);
+        Block block = propState.getBlock();
+        if (block instanceof IRitualPropBlock) {
+            IRitualPropBlock propBlock = (IRitualPropBlock)block;
+            if (isPropValid.test(propBlock)) {
+                // Upon confirmation, open the prop for activation
+                propBlock.openProp(propState, this.world, propPos, this.getActivePlayer(), this.pos);
+                this.awaitedPropPos = propPos;
+                this.nextCheckCount = this.activeCount + 20;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected void onPropInterrupted(Block block, BlockState propState) {
+        // If contact with the prop was lost, add an instability spike and start looking again
+        if (this.getActivePlayer() != null) {
+            this.getActivePlayer().sendStatusMessage(new TranslationTextComponent("primalmagic.ritual.warning.prop_interrupt"), false);
+            this.skipWarningMessage = true;
+        }
+        if (block instanceof IRitualPropBlock) {
+            // If the block still exists (i.e. salt was broken), then close it to activation
+            ((IRitualPropBlock)block).closeProp(propState, this.world, this.awaitedPropPos);
+        }
+        this.awaitedPropPos = null;
+        this.addStability(MathHelper.clamp(50 * Math.min(0.0F, this.calculateStabilityDelta()), -25.0F, -1.0F));
+    }
+
+    public void onPropActivation(BlockPos propPos, float stabilityBonus) {
         if (this.awaitedPropPos != null && this.awaitedPropPos.equals(propPos)) {
             // If the activated prop is the one we're waiting for, close it and mark the step as complete
             BlockState propState = this.world.getBlockState(propPos);
@@ -701,7 +787,7 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
             if (block instanceof IRitualPropBlock) {
                 IRitualPropBlock propBlock = (IRitualPropBlock)block;
                 propBlock.closeProp(propState, this.world, propPos);
-                this.addStability(propBlock.getUsageStabilityBonus());
+                this.addStability(stabilityBonus);
             }
             this.currentStepComplete = true;
             this.nextCheckCount = this.activeCount;
@@ -769,6 +855,7 @@ public class RitualAltarTileEntity extends TileInventoryPM implements ITickableT
             Mishap mishap = this.mishaps.getRandom(this.world.rand);
             if (mishap != null && mishap.execute(this.stability)) {
                 this.addStability(5.0F + (5.0F * this.world.rand.nextFloat()));
+                StatsManager.incrementValue(this.getActivePlayer(), StatsPM.RITUAL_MISHAPS);
                 break;
             }
         }

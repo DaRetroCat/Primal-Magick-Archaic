@@ -1172,6 +1172,10 @@ public class ResearchProvider implements IDataProvider {
                     .recipe(new ResourceLocation(PrimalMagick.MODID, "long_slowness_bomb")).recipe(new ResourceLocation(PrimalMagick.MODID, "strong_slowness_bomb"))
                     .recipe(new ResourceLocation(PrimalMagick.MODID, "weakness_bomb")).recipe(new ResourceLocation(PrimalMagick.MODID, "long_weakness_bomb")).build())
             .build(consumer);
+        ResearchEntryBuilder.entry("ENTROPY_SINK", discipline).parent("EXPERT_MAGITECH").parent("EXPERT_MANAWEAVING").parent("MANAFRUIT")
+                .stage(ResearchStageBuilder.stage().requiredKnowledge(KnowledgeType.THEORY, 1).requiredResearch("t_ritual_mishaps_basic").build())
+                .stage(ResearchStageBuilder.stage().recipe(ItemsPM.ENTROPY_SINK.get()).build())
+                .build(consumer);
     }
 
     protected void registerScanEntries(Consumer<IFinishedResearchEntry> consumer) {

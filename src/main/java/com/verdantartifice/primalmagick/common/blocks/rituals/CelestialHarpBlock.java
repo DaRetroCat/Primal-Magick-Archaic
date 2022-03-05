@@ -103,7 +103,7 @@ public class CelestialHarpBlock extends Block implements IRitualPropBlock {
         return "primalmagick.ritual.prop.celestial_harp";
     }
 
-    @Override
+
     public float getUsageStabilityBonus() {
         return 20.0F;
     }
@@ -121,7 +121,7 @@ public class CelestialHarpBlock extends Block implements IRitualPropBlock {
                 
                 // If this block is awaiting activation for an altar, notify it
                 if (this.isPropOpen(state, worldIn, pos)) {
-                    this.onPropActivated(state, worldIn, pos);
+                    this.onPropActivated(state, worldIn, pos, this.getUsageStabilityBonus());
                 }
             }
             return ActionResultType.SUCCESS;

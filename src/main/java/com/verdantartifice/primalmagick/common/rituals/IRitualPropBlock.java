@@ -21,11 +21,11 @@ import net.minecraft.world.World;
  */
 public interface IRitualPropBlock extends ISaltPowered, IRitualStabilizer {
     public boolean isPropActivated(BlockState state, World world, BlockPos pos);
-    
-    public default void onPropActivated(BlockState state, World world, BlockPos pos) {
+
+    public default void onPropActivated(BlockState state, World world, BlockPos pos, float stabilityBonus) {
         TileEntity tile = world.getTileEntity(pos);
         if (tile instanceof IRitualPropTileEntity) {
-            ((IRitualPropTileEntity)tile).notifyAltarOfPropActivation();
+            ((IRitualPropTileEntity)tile).notifyAltarOfPropActivation(stabilityBonus);
         }
     }
     
@@ -58,6 +58,14 @@ public interface IRitualPropBlock extends ISaltPowered, IRitualStabilizer {
     }
     
     public String getPropTranslationKey();
-    
-    public float getUsageStabilityBonus();
+
+    /**
+     * Indicated whether the block is a universal ritual prop that can and will be used by any
+     * ritual started in range.
+     *
+     * @return whether the block is a universal ritual prop
+     */
+    public default boolean isUniversal() {
+        return false;
+    }
 }

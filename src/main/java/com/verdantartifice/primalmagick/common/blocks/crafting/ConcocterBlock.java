@@ -129,7 +129,7 @@ public class ConcocterBlock extends Block {
                 return ActionResultType.SUCCESS;
             }
         }
-        return ActionResultType.PASS;
+        return ActionResultType.SUCCESS;
     }
 
     @Override

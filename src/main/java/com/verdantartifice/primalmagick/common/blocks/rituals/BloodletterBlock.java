@@ -71,7 +71,7 @@ public class BloodletterBlock extends Block implements IRitualPropBlock {
                 
                 // If this block is awaiting activation for an altar, notify it
                 if (this.isPropOpen(state, worldIn, pos)) {
-                    this.onPropActivated(state, worldIn, pos);
+                    this.onPropActivated(state, worldIn, pos, this.getUsageStabilityBonus());
                 }
             }
             return ActionResultType.SUCCESS;
@@ -109,7 +109,7 @@ public class BloodletterBlock extends Block implements IRitualPropBlock {
         }
     }
     
-    @Override
+
     public float getStabilityBonus(World world, BlockPos pos) {
         return 0.03F;
     }
@@ -133,7 +133,7 @@ public class BloodletterBlock extends Block implements IRitualPropBlock {
         return "primalmagick.ritual.prop.bloodletter";
     }
 
-    @Override
+
     public float getUsageStabilityBonus() {
         return 15.0F;
     }

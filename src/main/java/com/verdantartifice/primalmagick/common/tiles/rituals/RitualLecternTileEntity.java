@@ -60,11 +60,11 @@ public class RitualLecternTileEntity extends TileInventoryPM implements IRitualP
     }
 
     @Override
-    public void notifyAltarOfPropActivation() {
+    public void notifyAltarOfPropActivation(float stabilityBonus) {
         if (this.altarPos != null) {
             TileEntity tile = this.world.getTileEntity(this.altarPos);
             if (tile instanceof RitualAltarTileEntity) {
-                ((RitualAltarTileEntity)tile).onPropActivation(this.pos);
+                ((RitualAltarTileEntity)tile).onPropActivation(this.pos, stabilityBonus);
             }
         }
     }

@@ -98,7 +98,7 @@ public class IncenseBrazierBlock extends Block implements IRitualPropBlock {
                 
                 // If this block is awaiting activation for an altar, notify it
                 if (this.isPropOpen(state, worldIn, pos)) {
-                    this.onPropActivated(state, worldIn, pos);
+                    this.onPropActivated(state, worldIn, pos, this.getUsageStabilityBonus());
                 }
             }
             return ActionResultType.SUCCESS;
@@ -143,7 +143,7 @@ public class IncenseBrazierBlock extends Block implements IRitualPropBlock {
         return (tile == null) ? false : tile.receiveClientEvent(id, param);
     }
     
-    @Override
+
     public float getStabilityBonus(World world, BlockPos pos) {
         return 0.01F;
     }
@@ -167,7 +167,6 @@ public class IncenseBrazierBlock extends Block implements IRitualPropBlock {
         return "primalmagick.ritual.prop.incense_brazier";
     }
 
-    @Override
     public float getUsageStabilityBonus() {
         return 5.0F;
     }
